@@ -1,12 +1,13 @@
-﻿using Dalamud.Game.Command;
+using Dalamud.Game.Command;
+using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;  
+using Soulstone.Windows;
+using Soulstone;
 using System.IO;
-using Dalamud.Interface.Windowing;
-using Dalamud.Plugin.Services;
-using SamplePlugin.Windows;
 
-namespace SamplePlugin;
+namespace Soulstone;
 
 public sealed class Plugin : IDalamudPlugin
 {
@@ -17,11 +18,13 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
-    private const string CommandName = "/pmycommand";
+    private const string CommandName = "/soulstone";
+
+    public static string dataLocation;
 
     public Configuration Configuration { get; init; }
 
-    public readonly WindowSystem WindowSystem = new("SamplePlugin");
+    public readonly WindowSystem WindowSystem = new("Soulstone");
     private ConfigWindow ConfigWindow { get; init; }
     private MainWindow MainWindow { get; init; }
 
@@ -57,6 +60,7 @@ public sealed class Plugin : IDalamudPlugin
         // Use /xllog to open the log window in-game
         // Example Output: 00:57:54.959 | INF | [SamplePlugin] ===A cool log message from Sample Plugin===
         Log.Information($"===A cool log message from {PluginInterface.Manifest.Name}===");
+
     }
 
     public void Dispose()
@@ -78,6 +82,9 @@ public sealed class Plugin : IDalamudPlugin
     {
         // In response to the slash command, toggle the display status of our main ui
         MainWindow.Toggle();
+        dataLocation = PluginInterface.GetPluginLocDirectory();
+        Log.Information($"Data location: {dataLocation}");
+        CharacterManager.Instance.Init();
     }
     
     public void ToggleConfigUi() => ConfigWindow.Toggle();

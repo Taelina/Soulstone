@@ -1,12 +1,13 @@
-﻿using System;
+using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Lumina.Excel.Sheets;
+using Soulstone;
 
-namespace SamplePlugin.Windows;
+namespace Soulstone.Windows;
 
 public class MainWindow : Window, IDisposable
 {
@@ -17,7 +18,7 @@ public class MainWindow : Window, IDisposable
     // The user will see "My Amazing Window" as window title,
     // but for ImGui the ID is "My Amazing Window##With a hidden ID"
     public MainWindow(Plugin plugin, string goatImagePath)
-        : base("My Amazing Window##With a hidden ID", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("Soulstone##With a hidden ID", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -41,7 +42,16 @@ public class MainWindow : Window, IDisposable
         }
 
         ImGui.Spacing();
+        CharacterSheet test = null;
+        if (CharacterManager.Instance.CharacterSheet != null)
+        {
+            test = CharacterManager.Instance.CharacterSheet;
+        }
 
+        if (test != null)
+        {
+            ImGui.LabelText("Nom/Prénom", test.CharacterFullName);
+        }
         // Normally a BeginChild() would have to be followed by an unconditional EndChild(),
         // ImRaii takes care of this after the scope ends.
         // This works for all ImGui functions that require specific handling, examples are BeginTable() or Indent().
