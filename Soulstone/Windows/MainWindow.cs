@@ -1,11 +1,16 @@
 using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Game.Text;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Lumina.Excel.Sheets;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using Soulstone;
+using FFXIVClientStructs.FFXIV.Client.System.String;
+using Dalamud.Game.Text.SeStringHandling;
+using Soulstone.Utils;
 
 namespace Soulstone.Windows;
 
@@ -13,6 +18,10 @@ public class MainWindow : Window, IDisposable
 {
     private readonly string goatImagePath;
     private readonly Plugin plugin;
+
+    private string testroll = "";
+    private bool detailedRoll = false;
+    private string rollInputText = "";
 
     // We give this window a hidden ID using ##.
     // The user will see "My Amazing Window" as window title,
@@ -34,8 +43,6 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
-        ImGui.TextUnformatted($"The random config bool is {plugin.Configuration.SomePropertyToBeSavedAndWithADefault}");
-
         if (ImGui.Button("Show Settings"))
         {
             plugin.ToggleConfigUi();
@@ -52,10 +59,47 @@ public class MainWindow : Window, IDisposable
         {
             ImGui.LabelText("Nom/Prénom", test.CharacterFullName);
         }
+        ImGui.Spacing();
+
+        ImGui.InputText("Manual Roll Input", ref rollInputText);
+        if (ImGui.Checkbox("Detailed Roll", ref detailedRoll))
+        {
+            //DO THING ?
+        }
+
+        if (ImGui.Button("Roll dice"))
+        {
+            
+            Plugin.Log.Info($"Rolling dice with input: {rollInputText}");
+            DiceRoll DR = DiceRoll.ParseDiceRollString(rollInputText);
+            if (DR != null)
+            {
+                if (!detailedRoll)
+                {
+                    XivChatEntry testeuh = new XivChatEntry
+                    {
+                        Message = DR.RollResultString,
+                        Type = XivChatType.Say
+                    };
+                    Messages.SendMessage(testeuh);
+                }
+                else
+                {
+                    XivChatEntry testeuh = new XivChatEntry
+                    {
+                        Message = DR.RollDetailedResultString,
+                        Type = XivChatType.Say
+                    };
+                    Messages.SendMessage(testeuh);
+                }
+                    
+            }            
+        }
+
         // Normally a BeginChild() would have to be followed by an unconditional EndChild(),
         // ImRaii takes care of this after the scope ends.
         // This works for all ImGui functions that require specific handling, examples are BeginTable() or Indent().
-        using (var child = ImRaii.Child("SomeChildWithAScrollbar", Vector2.Zero, true))
+        /*using (var child = ImRaii.Child("SomeChildWithAScrollbar", Vector2.Zero, true))
         {
             // Check if this child is drawing
             if (child.Success)
@@ -106,6 +150,6 @@ public class MainWindow : Window, IDisposable
                     ImGui.TextUnformatted("Invalid territory.");
                 }
             }
-        }
+        }*/
     }
 }

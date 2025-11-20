@@ -6,6 +6,9 @@ using Dalamud.Plugin.Services;
 using Soulstone.Windows;
 using Soulstone;
 using System.IO;
+using Dalamud.Plugin.Ipc;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Game.Text.SeStringHandling;
 
 namespace Soulstone;
 
@@ -17,6 +20,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
 
     private const string CommandName = "/soulstone";
 
