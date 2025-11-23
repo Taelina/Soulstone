@@ -11,53 +11,62 @@ namespace Soulstone
     internal class CharacterSheet
     {
         //Character identity static fields
-        private string characterFullName;
-        private string characterNickName;
-        private string characterRace;
-        private string characterSubRace;
-        private string characterSex;
-        private string characterGender;
-        private string characterPronouns;
-        private string characterAge;
+        public string characterFullName;
+        public string characterNickName;
+        public string characterRace;
+        public string characterSubRace;
+        public string characterJob;
+        public string characterSex;
+        public string characterGender;
+        public string characterPronouns;
+        public string characterAge;
 
         //Character physical description static fields
-        private string characterHeight;
-        private string characterWeight;
-        private string characterBuild;
-        private string characterEyeColor;
-        private string characterHairColor;
-        private string characterSkinTone;
-        private string characterScars;
-        private string characterTattoos;
-
+        public string characterHeight;
+        public string characterWeight;
+        public string characterBuild;
+        public string characterEyeColor;
+        public string characterHairColor;
+        public string characterSkinTone;
+        public string characterScars;
+        public string characterTattoos;
+        public string characterDistinctiveFeatures;
         //Character background static fields
-        private string characterHomeland;
-        private string characterOrigin;
-        private string characterAffiliation;
-        private string characterOccupation;
-        private string characterBackground;
+        public string characterHomeland;
+        public string characterOrigin;
+        public string characterAffiliation;
+        public string characterOccupation;
+        public string characterReputation;
+        public string characterBackground;
 
         //Character OOC fields
-        private string characterNotes;
-        private string characterInfo;
-        private string playerAvailability;
-        private string playerTimezone;
-        private string playerNotes;
+        public string characterNotes;
+        public string characterInfo;
+        public string playerAvailability;
+        public string playerTimezone;
+        public string playerNotes;
+
+        //Character quick look fields
+        public string characterQuickLook1;
+        public string characterQuickLook2;
+        public string characterQuickLook3;
+        public string characterQuickLook4;
+        public string characterQuickLook5;
 
         //Character dynamic background fields
-        private Dictionary<string, string> characterFamily;
-        private Dictionary<string, string> characterFriends;
-        private Dictionary<string, string> characterEnnemies;
+        public Dictionary<string, string> characterFamily;
+        public Dictionary<string, string> characterFriends;
+        public Dictionary<string, string> characterEnnemies;
 
         //Character dynamic inventory fields
         // TODO : Implement inventory system
 
         //Character Dynamic ability fields
-        private Dictionary<string, int> characterAttributes;
-        private Dictionary<string, int> characterSkills;
-        private Dictionary<string, int> characterAbilities;
+        public Dictionary<string, int> characterAttributes;
+        public Dictionary<string, int> characterSkills;
+        public Dictionary<string, int> characterAbilities;
 
-        public string CharacterFullName { get => characterFullName; set => characterFullName = value; }
+        public string CharacterFullName { get => characterFullName; set => characterFullName = value;}
         public string CharacterNickName { get => characterNickName; set => characterNickName = value; }
         public string CharacterRace { get => characterRace; set => characterRace = value; }
         public string CharacterSubRace { get => characterSubRace; set => characterSubRace = value; }
@@ -89,6 +98,7 @@ namespace Soulstone
         public Dictionary<string, int> CharacterAttributes { get => characterAttributes; set => characterAttributes = value; }
         public Dictionary<string, int> CharacterSkills { get => characterSkills; set => characterSkills = value; }
         public Dictionary<string, int> CharacterAbilities { get => characterAbilities; set => characterAbilities = value; }
+        public string CharacterJob { get => characterJob; set => characterJob = value; }
 
         public static CharacterSheet LoadSheet(string characterName)
         {

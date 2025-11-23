@@ -18,10 +18,9 @@ public class MainWindow : Window, IDisposable
 {
     private readonly string goatImagePath;
     private readonly Plugin plugin;
+    private readonly CharacterWindow charwin;
+    private readonly DiceWindow dicewin;
 
-    private string testroll = "";
-    private bool detailedRoll = false;
-    private string rollInputText = "";
 
     // We give this window a hidden ID using ##.
     // The user will see "My Amazing Window" as window title,
@@ -37,64 +36,35 @@ public class MainWindow : Window, IDisposable
 
         this.goatImagePath = goatImagePath;
         this.plugin = plugin;
+        this.charwin = new CharacterWindow();
+        this.dicewin = new DiceWindow();
     }
 
     public void Dispose() { }
 
     public override void Draw()
-    {
+    {        
         if (ImGui.Button("Show Settings"))
         {
             plugin.ToggleConfigUi();
         }
-
-        ImGui.Spacing();
-        CharacterSheet test = null;
-        if (CharacterManager.Instance.CharacterSheet != null)
-        {
-            test = CharacterManager.Instance.CharacterSheet;
-        }
-
-        if (test != null)
-        {
-            ImGui.LabelText("Nom/Prénom", test.CharacterFullName);
-        }
-        ImGui.Spacing();
-
-        ImGui.InputText("Manual Roll Input", ref rollInputText);
-        if (ImGui.Checkbox("Detailed Roll", ref detailedRoll))
-        {
-            //DO THING ?
-        }
-
-        if (ImGui.Button("Roll dice"))
-        {
             
-            Plugin.Log.Info($"Rolling dice with input: {rollInputText}");
-            DiceRoll DR = DiceRoll.ParseDiceRollString(rollInputText);
-            if (DR != null)
+        ImGui.Spacing();
+        ImGui.BeginTabBar("SoulstoneTabs");
+        if (ImGui.BeginTabItem("Character Sheet"))
+        {
+            using (var child = ImRaii.Child("##Charsheet", Vector2.Zero, true))
             {
-                if (!detailedRoll)
-                {
-                    XivChatEntry testeuh = new XivChatEntry
-                    {
-                        Message = DR.RollResultString,
-                        Type = XivChatType.Say
-                    };
-                    Messages.SendMessage(testeuh);
-                }
-                else
-                {
-                    XivChatEntry testeuh = new XivChatEntry
-                    {
-                        Message = DR.RollDetailedResultString,
-                        Type = XivChatType.Say
-                    };
-                    Messages.SendMessage(testeuh);
-                }
-                    
-            }            
+                charwin.DrawCharTab(plugin);
+                ImGui.EndTabItem();
+            }
         }
+        if (ImGui.BeginTabItem("Dice Roller"))
+        { 
+            dicewin.DrawDiceTab(plugin);
+            ImGui.EndTabItem();
+        }
+        ImGui.EndTabBar();
 
         // Normally a BeginChild() would have to be followed by an unconditional EndChild(),
         // ImRaii takes care of this after the scope ends.

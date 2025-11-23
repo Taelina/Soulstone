@@ -92,5 +92,10 @@ public sealed class Plugin : IDalamudPlugin
     }
     
     public void ToggleConfigUi() => ConfigWindow.Toggle();
-    public void ToggleMainUi() => MainWindow.Toggle();
+    public void ToggleMainUi()
+    {
+        MainWindow.Toggle();
+        dataLocation = PluginInterface.GetPluginLocDirectory();
+        CharacterManager.Instance.Init();
+    }
 }
