@@ -19,7 +19,7 @@ namespace Soulstone.Utils
         public SeString RollResultString { get => rollResultString; set => rollResultString = value; }
         public SeString RollDetailedResultString { get => rollDetailedResultString; set => rollDetailedResultString = value; }
 
-        public static DiceRoll RollDice(int numberOfDice, int sidesPerDie, int addedValue = 0)
+        public static DiceRoll RollDice(int numberOfDice, int sidesPerDie, int addedValue = 0, string rollName = "")
         {
             DiceRoll diceRoll = new DiceRoll();
             Random rand = new Random();
@@ -33,17 +33,17 @@ namespace Soulstone.Utils
             }
             total += addedValue;
             string rollResults = string.Join(", ", rolls);
-            Plugin.Log.Information($"Rolled {numberOfDice}d{sidesPerDie}: Total: {total}");
+            //Plugin.Log.Information($"Rolled {numberOfDice}d{sidesPerDie}: Total: {total}");
             diceRoll.rollResult = total;
             if (addedValue != 0)
             {
-                diceRoll.RollResultString = $"Rolled {numberOfDice}d{sidesPerDie} + {addedValue}:  Total: {total}";
-                diceRoll.RollDetailedResultString = $"Rolled {numberOfDice}d{sidesPerDie} + {addedValue}: [{rollResults}] Total: {total}";
+                diceRoll.RollResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} + {addedValue}:  Total: {total}";
+                diceRoll.RollDetailedResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} + {addedValue}: [{rollResults}] Total: {total}";
             }
             else
             {
-                diceRoll.RollResultString = $"Rolled {numberOfDice}d{sidesPerDie}: Total: {total}";
-                diceRoll.RollDetailedResultString = $"Rolled {numberOfDice}d{sidesPerDie}: [{rollResults}] Total: {total}";
+                diceRoll.RollResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie}: Total: {total}";
+                diceRoll.RollDetailedResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie}: [{rollResults}] Total: {total}";
             }
             diceRoll.individualRolls = rolls;
             return diceRoll;

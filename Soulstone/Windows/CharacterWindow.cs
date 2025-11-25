@@ -2,10 +2,12 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using ECommons.ImGuiMethods;
+using Soulstone.Utils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using static Dalamud.Interface.Windowing.Window;
@@ -15,219 +17,315 @@ namespace Soulstone.Windows
 {
     internal class CharacterWindow
     {
-        private float defaultNextToSpace = 3.0f;
-        private float defaultFieldSpacing = 10.0f;
-        private float defaultInputWidth = 175.0f;
+
 
         private float defaultContentHeight = 150.0f;
 
+        private bool showFamilyPopup = false;
+        private bool showFriendsPopup = false;
+        private bool showEnemiesPopup = false;
 
         private bool editingCharsheet = false;
 
+        string newMemberName = "Nouveau membre";
+        string newMemberDescription = "Description";
+
         CharacterSheet currentCharacter = null;
-        public CharacterWindow()
-        {}
+
+        private readonly Plugin plugin;
+
+        private readonly Configuration configuration;
+        public CharacterWindow(Plugin _plugin)
+        {
+            plugin = _plugin;
+            configuration = plugin.Configuration;
+        }
 
         public void Dispose() { }
 
-        public void ManageInputField(ref string field, string fieldname)
+        
+
+        public void DrawCharTab()
         {
-            if (editingCharsheet)
+            using (var parent = ImRaii.Child("##CharSheet", Vector2.Zero))
             {
-                ImGui.SetNextItemWidth(defaultInputWidth);
-                ImGui.InputText($"##{fieldname}", ref field, 100);
-            }
-            else
-            {
-                ImGui.Text(field);
-            }
-        }
-
-        public void ManageBigInputField(ref string field, string fieldname)
-        {
-            if (editingCharsheet)
-            {
-                ImGui.SetNextItemWidth(-1.0f);
-                ImGui.InputTextMultiline($"##{fieldname}", ref field, 5000, new Vector2(0.0f, 100.0f));
-            }
-            else
-            {
-                ImGui.TextWrapped(field);
-            }
-        }
-
-        public void DrawCharTab(Plugin plugin)
-        {
-            if (CharacterManager.Instance.CharacterSheet != null)
-            {
-                currentCharacter = CharacterManager.Instance.CharacterSheet;
-            }
-
-            if (currentCharacter != null)
-            {
-                if (ImGui.Checkbox("Éditer la fiche de personnage", ref editingCharsheet))
-                { }
-                if (ImGui.Button("Sauvegarder la fiche de personnage"))
+                if (CharacterManager.Instance.CharacterSheet != null)
                 {
-                    CharacterSheet.SaveSheet(currentCharacter);
-                }
-                using (var child = ImRaii.Child("##Identity", new Vector2(0.0f,defaultContentHeight), true))
-                {
-                    ImGui.Text("Nom/Prénom :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterFullName, "FullName");
-
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Surnom :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterNickName, "NickName");
-
-                    ImGui.Text("Race :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterRace, "CharacterRace");
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-
-                    ImGui.Text("Sous-Race :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterSubRace, "CharacterSubRace");
-
-                    ImGui.Text("Classe :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterJob, "CharacterJob");
-
-                    ImGui.Text("Sexe :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterSex, "CharacterSex");
-
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Genre :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterGender, "CharacterGender");
-
-                    ImGui.Text("Pronoms :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterPronouns, "CharacterPronouns");
-
-                    ImGui.Text("Âge :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterAge, "CharacterAge");
+                    currentCharacter = CharacterManager.Instance.CharacterSheet;
                 }
 
-                using (var child = ImRaii.Child("##HRP", new Vector2(0.0f, defaultContentHeight), true))
+                if (currentCharacter != null)
                 {
-                    ImGui.Text("Infos HRP :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterInfo, "CharacterHrpInfo");
+                    if (ImGui.Checkbox("Éditer la fiche de personnage", ref editingCharsheet))
+                    { }
+                    if (ImGui.Button("Sauvegarder la fiche de personnage"))
+                    {
+                        CharacterSheet.SaveSheet(currentCharacter);
+                    }
+                    using (var child = ImRaii.Child("##Identity", new Vector2(0.0f, defaultContentHeight), true))
+                    {
+                        ImGui.Text("Nom/Prénom :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        UiUtils.ManageInputField(ref currentCharacter.characterFullName, "FullName", editingCharsheet);
 
-                    ImGui.Text("Timezone :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.playerTimezone, "PlayerTimezone");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Surnom :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterNickName, "NickName", editingCharsheet);
 
-                    ImGui.Text("Disponibilités :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.playerAvailability, "PlayerAvailability");
-                }
+                        ImGui.Text("Race :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterRace, "CharacterRace", editingCharsheet);
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
 
-                using (var child = ImRaii.Child("##Appearance", new Vector2(0.0f, defaultContentHeight), true))
-                {
-                    ImGui.Text("Taille :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterHeight, "CharacterHeight");
+                        ImGui.Text("Sous-Race :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterSubRace, "CharacterSubRace", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Poids :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterWeight, "CharacterWeight");
+                        ImGui.Text("Classe :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterJob, "CharacterJob", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Corpulence :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterBuild, "CharacterBuild");
+                        ImGui.Text("Sexe :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterSex, "CharacterSex", editingCharsheet);
 
-                    ImGui.Text("Couleur des yeux :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterEyeColor, "CharacterEyeColor");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Genre :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterGender, "CharacterGender", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Couleur des cheveux :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterHairColor, "CharacterHairColor");
+                        ImGui.Text("Pronoms :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterPronouns, "CharacterPronouns", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Couleur de peau :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterSkinTone, "CharacterSkinTone");
+                        ImGui.Text("Âge :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterAge, "CharacterAge", editingCharsheet);
+                    }
 
-                    ImGui.Text("Cicatrices :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterScars, "CharacterScars");
+                    using (var child = ImRaii.Child("##HRP", new Vector2(0.0f, defaultContentHeight), true))
+                    {
+                        ImGui.Text("Infos HRP :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterInfo, "CharacterHrpInfo", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Tatouages :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterTattoos, "CharacterTattoos");
+                        ImGui.Text("Timezone :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.playerTimezone, "PlayerTimezone", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Autre(s) particularité(s) :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterDistinctiveFeatures, "CharacterDistinctiveFeatures");
-                }
+                        ImGui.Text("Disponibilités :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.playerAvailability, "PlayerAvailability", editingCharsheet);
+                    }
 
-                using (var child = ImRaii.Child("##QuickLook", new Vector2(0.0f, defaultContentHeight), true))
-                {
-                    ImGui.Text("Aperçu rapide :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterQuickLook1, "CharacterQuickLook");
+                    using (var child = ImRaii.Child("##Appearance", new Vector2(0.0f, defaultContentHeight), true))
+                    {
+                        ImGui.Text("Taille :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterHeight, "CharacterHeight", editingCharsheet);
 
-                    ImGui.Text("Aperçu rapide 2 :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterQuickLook2, "CharacterQuickLook2");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Poids :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterWeight, "CharacterWeight", editingCharsheet);
 
-                    ImGui.Text("Aperçu rapide 3 :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterQuickLook3, "CharacterQuickLook3");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Corpulence :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterBuild, "CharacterBuild", editingCharsheet);
 
-                    ImGui.Text("Aperçu rapide 4 :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterQuickLook4, "CharacterQuickLook4");
+                        ImGui.Text("Couleur des yeux :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterEyeColor, "CharacterEyeColor", editingCharsheet);
 
-                    ImGui.Text("Aperçu rapide 5 :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterQuickLook5, "CharacterQuickLook5");
-                }
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Couleur des cheveux :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterHairColor, "CharacterHairColor", editingCharsheet);
 
-                using (var child = ImRaii.Child("##Background", new Vector2(0.0f, defaultContentHeight), true))
-                {
-                    ImGui.Text("Lieu de Naissance :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterHomeland, "CharacterHomeland");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Couleur de peau :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterSkinTone, "CharacterSkinTone", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Origine :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterOrigin, "CharacterOrigin");
+                        ImGui.Text("Cicatrices :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterScars, "CharacterScars", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Affiliation :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterAffiliation, "CharacterAffiliation");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Tatouages :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterTattoos, "CharacterTattoos", editingCharsheet);
 
-                    ImGui.SameLine(0.0f, defaultFieldSpacing);
-                    ImGui.Text("Métier :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageInputField(ref currentCharacter.characterOccupation, "CharacterOccupation");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Autre(s) particularité(s) :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterDistinctiveFeatures, "CharacterDistinctiveFeatures", editingCharsheet);
+                    }
 
-                    ImGui.Text("Réputation :");
-                    ImGuiEx.Tooltip("La réputation de votre personnage dans son environnement social et professionnel.");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageBigInputField(ref currentCharacter.characterReputation, "CharacterReputation");
+                    using (var child = ImRaii.Child("##QuickLook", new Vector2(0.0f, defaultContentHeight), true))
+                    {
+                        ImGui.Text("Aperçu rapide :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterQuickLook1, "CharacterQuickLook", editingCharsheet);
 
-                    //TODO : Implémenter fonctionnement dictionnaires pour les relations
+                        ImGui.Text("Aperçu rapide 2 :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterQuickLook2, "CharacterQuickLook2", editingCharsheet);
 
-                    ImGui.Text("Histoire personnelle :");
-                    ImGui.SameLine(0.0f, defaultNextToSpace);
-                    ManageBigInputField(ref currentCharacter.characterBackground, "CharacterBackground");
+                        ImGui.Text("Aperçu rapide 3 :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterQuickLook3, "CharacterQuickLook3", editingCharsheet);
 
+                        ImGui.Text("Aperçu rapide 4 :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterQuickLook4, "CharacterQuickLook4", editingCharsheet);
+
+                        ImGui.Text("Aperçu rapide 5 :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterQuickLook5, "CharacterQuickLook5", editingCharsheet);
+                    }
+
+                    using (var child = ImRaii.Child("##Background", new Vector2(0.0f, 300.0f), true))
+                    {
+                        ImGui.Text("Lieu de Naissance :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterHomeland, "CharacterHomeland", editingCharsheet);
+
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Origine :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterOrigin, "CharacterOrigin", editingCharsheet);
+
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Affiliation :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterAffiliation, "CharacterAffiliation", editingCharsheet);
+
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.Text("Métier :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterOccupation, "CharacterOccupation", editingCharsheet);
+
+                        ImGui.Text("Réputation :");
+                        ImGuiEx.Tooltip("La réputation de votre personnage dans son environnement social et professionnel.");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageBigInputField(ref currentCharacter.characterReputation, "CharacterReputation", editingCharsheet);
+
+
+                        ImGui.Text("Relations familiales :");
+                        ImGui.SameLine(0.0f, 90.0f);
+                        ImGui.Text("Relations amicales :");
+                        ImGui.SameLine(0.0f, 90.0f);
+                        ImGui.Text("Ennemis :");
+                        using (var family = ImRaii.Child("##Family", new Vector2(200.0f, 150.0f), true))
+                        {
+                            if (ImGui.Button("Ajouter"))
+                            {
+                                showFamilyPopup = true;
+                            }
+                            if (showFamilyPopup)
+                            {
+                                ImGui.BeginPopupModal("NouveauMembre", ref showFamilyPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                ImGui.InputText("Nom du membre", ref newMemberName, 100);
+                                ImGui.InputText("Description", ref newMemberDescription, 500);
+                                if (ImGui.Button("Ajouter"))
+                                {
+                                    if (currentCharacter.characterFamily == null)
+                                        currentCharacter.characterFamily = new Dictionary<string, string>();
+                                    if (!currentCharacter.characterFamily.ContainsKey(newMemberName))
+                                        currentCharacter.characterFamily.Add(newMemberName, newMemberDescription);
+                                    showFriendsPopup = false;
+                                }
+                                ImGui.OpenPopup("NouveauMembre");
+                                ImGui.EndPopup();
+                            }
+
+                            if (currentCharacter.characterFamily != null)
+                            {
+                                foreach (KeyValuePair<string, string> relation in currentCharacter.characterFamily)
+                                {
+                                    ImGui.Text($"{relation.Key} : ");
+                                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                                    UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterFamily, relation.Key), $"FamilyRelation_{relation.Key}", editingCharsheet);
+                                }
+                            }
+                        }
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        using (var friends = ImRaii.Child("##Friends", new Vector2(200.0f, 150.0f), true))
+                        {
+                            if (ImGui.Button("Ajouter"))
+                            {
+                                showFriendsPopup = true;
+                            }
+                            if (showFriendsPopup)
+                            {
+                                ImGui.BeginPopupModal("NouvelAmi", ref showFriendsPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                ImGui.InputText("Nom de l'ami", ref newMemberName, 100);
+                                ImGui.InputText("Description", ref newMemberDescription, 500);
+                                if (ImGui.Button("Ajouter"))
+                                {
+                                    if (currentCharacter.characterFriends == null)
+                                        currentCharacter.characterFriends = new Dictionary<string, string>();
+                                    if (!currentCharacter.characterFriends.ContainsKey(newMemberName))
+                                        currentCharacter.characterFriends.Add(newMemberName, newMemberDescription);
+                                    showFriendsPopup = false;
+                                }
+                                ImGui.OpenPopup("NouvelAmi");
+                                ImGui.EndPopup();
+                            }
+
+                            if (currentCharacter.characterFriends != null)
+                            {
+                                foreach (KeyValuePair<string, string> relation in currentCharacter.characterFriends)
+                                {
+                                    ImGui.Text($"{relation.Key} : ");
+                                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                                    UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterFriends, relation.Key), $"FamilyRelation_{relation.Key}", editingCharsheet);
+                                }
+                            }
+                        }
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        using (var enemies = ImRaii.Child("##Enemies", new Vector2(200.0f, 150.0f), true))
+                        {
+                            if (ImGui.Button("Ajouter"))
+                            {
+                                showEnemiesPopup = true;
+                            }
+                            if (showEnemiesPopup)
+                            {
+                                ImGui.BeginPopupModal("NouvelEnnemi", ref showEnemiesPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                ImGui.InputText("Nom de l'ennemi", ref newMemberName, 100);
+                                ImGui.InputText("Description", ref newMemberDescription, 500);
+                                if (ImGui.Button("Ajouter"))
+                                {
+                                    if (currentCharacter.characterEnnemies == null)
+                                        currentCharacter.characterEnnemies = new Dictionary<string, string>();
+                                    if (!currentCharacter.characterEnnemies.ContainsKey(newMemberName))
+                                        currentCharacter.characterEnnemies.Add(newMemberName, newMemberDescription);
+                                    showEnemiesPopup = false;
+                                }
+                                ImGui.OpenPopup("NouvelEnnemi");
+                                ImGui.EndPopup();
+                            }
+
+                            if (currentCharacter.characterEnnemies != null)
+                            {
+                                foreach (KeyValuePair<string, string> relation in currentCharacter.characterEnnemies)
+                                {
+                                    ImGui.Text($"{relation.Key} : ");
+                                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                                    UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterEnnemies, relation.Key), $"FamilyRelation_{relation.Key}", editingCharsheet);
+                                }
+                            }
+                        }
+
+                        ImGui.Text("Histoire personnelle :");
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        UiUtils.ManageBigInputField(ref currentCharacter.characterBackground, "CharacterBackground", editingCharsheet);
+
+                    }
                 }
             }
         }

@@ -54,17 +54,17 @@ namespace Soulstone
         public string characterQuickLook5;
 
         //Character dynamic background fields
-        public Dictionary<string, string> characterFamily;
-        public Dictionary<string, string> characterFriends;
-        public Dictionary<string, string> characterEnnemies;
+        public Dictionary<string, string> characterFamily = new Dictionary<string, string>();
+        public Dictionary<string, string> characterFriends = new Dictionary<string, string>();
+        public Dictionary<string, string> characterEnnemies = new Dictionary<string, string>();
 
         //Character dynamic inventory fields
         // TODO : Implement inventory system
 
         //Character Dynamic ability fields
-        public Dictionary<string, int> characterAttributes;
-        public Dictionary<string, int> characterSkills;
-        public Dictionary<string, int> characterAbilities;
+        public Dictionary<string, int> characterAttributes = new Dictionary<string, int>();
+        public Dictionary<string, int> characterSkills = new Dictionary<string, int>();
+        public Dictionary<string, int> characterAbilities = new Dictionary<string, int>();
 
         public string CharacterFullName { get => characterFullName; set => characterFullName = value;}
         public string CharacterNickName { get => characterNickName; set => characterNickName = value; }
@@ -100,6 +100,16 @@ namespace Soulstone
         public Dictionary<string, int> CharacterAbilities { get => characterAbilities; set => characterAbilities = value; }
         public string CharacterJob { get => characterJob; set => characterJob = value; }
 
+        public CharacterSheet()
+        {
+            characterFamily = new Dictionary<string, string>();
+            characterFriends = new Dictionary<string, string>();
+            characterEnnemies = new Dictionary<string, string>();
+            characterAttributes = new Dictionary<string, int>();
+            characterAbilities = new Dictionary<string, int>();
+            characterSkills = new Dictionary<string, int>();
+        }
+
         public static CharacterSheet LoadSheet(string characterName)
         {
             CharacterSheet loadedSheet = null;
@@ -127,6 +137,22 @@ namespace Soulstone
             {
                 Plugin.Log.Information("Failed to load character sheet.");
             }
+
+            if(loadedSheet.characterFamily == null)
+            {
+                loadedSheet.characterFamily = new Dictionary<string, string>();
+            }
+
+            if (loadedSheet.characterFriends == null)
+            {
+                loadedSheet.characterFriends = new Dictionary<string, string>();
+            }
+
+            if(loadedSheet.characterEnnemies == null)
+            {
+                loadedSheet.characterEnnemies = new Dictionary<string, string>();
+            }
+
             return loadedSheet;
         }
 

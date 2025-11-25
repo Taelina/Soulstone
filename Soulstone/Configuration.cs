@@ -11,6 +11,8 @@ public class Configuration : IPluginConfiguration
     public bool IsConfigWindowMovable { get; set; } = true;
     public bool SomePropertyToBeSavedAndWithADefault { get; set; } = true;
 
+    public bool detailedRolls = false;
+
     // The below exist just to make saving less cumbersome
     public void Save()
     {

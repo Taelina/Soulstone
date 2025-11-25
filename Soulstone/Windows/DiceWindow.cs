@@ -15,19 +15,22 @@ namespace Soulstone.Windows
         private bool detailedRoll = false;
         private string rollInputText = "";
 
-        public DiceWindow()
+        private readonly Plugin plugin;
+
+        private readonly Configuration configuration;
+
+        public DiceWindow(Plugin _plugin)
         {
+            plugin = _plugin;
+            configuration = plugin.Configuration;
         }
 
         public void Dispose() { }
 
-        public void DrawDiceTab(Plugin plugin)
+        public void DrawDiceTab()
         {
             ImGui.InputText("Manual Roll Input", ref rollInputText);
-            if (ImGui.Checkbox("Detailed Roll", ref detailedRoll))
-            {
-                //DO THING ?
-            }
+            detailedRoll = configuration.detailedRolls;
 
             if (ImGui.Button("Roll dice"))
             {
@@ -38,21 +41,21 @@ namespace Soulstone.Windows
                 {
                     if (!detailedRoll)
                     {
-                        XivChatEntry testeuh = new XivChatEntry
+                        XivChatEntry rollMessage = new XivChatEntry
                         {
                             Message = DR.RollResultString,
                             Type = XivChatType.Say
                         };
-                        Messages.SendMessage(testeuh);
+                        Messages.SendMessage(rollMessage);
                     }
                     else
                     {
-                        XivChatEntry testeuh = new XivChatEntry
+                        XivChatEntry rollMessage = new XivChatEntry
                         {
                             Message = DR.RollDetailedResultString,
                             Type = XivChatType.Say
                         };
-                        Messages.SendMessage(testeuh);
+                        Messages.SendMessage(rollMessage);
                     }
 
                 }

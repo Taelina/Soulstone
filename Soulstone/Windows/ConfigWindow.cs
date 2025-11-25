@@ -41,10 +41,10 @@ public class ConfigWindow : Window, IDisposable
     public override void Draw()
     {
         // Can't ref a property, so use a local copy
-        var configValue = configuration.SomePropertyToBeSavedAndWithADefault;
-        if (ImGui.Checkbox("Random Config Bool", ref configValue))
+        bool detailedRollsVal = configuration.detailedRolls;
+        if (ImGui.Checkbox("Detailed rolls", ref detailedRollsVal))
         {
-            configuration.SomePropertyToBeSavedAndWithADefault = configValue;
+            configuration.detailedRolls = detailedRollsVal;
             // Can save immediately on change if you don't want to provide a "Save and Close" button
             configuration.Save();
         }

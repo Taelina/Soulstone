@@ -16,16 +16,16 @@ namespace Soulstone.Windows;
 
 public class MainWindow : Window, IDisposable
 {
-    private readonly string goatImagePath;
     private readonly Plugin plugin;
     private readonly CharacterWindow charwin;
     private readonly DiceWindow dicewin;
+    private readonly CharStatsWindow statwin;
 
 
     // We give this window a hidden ID using ##.
     // The user will see "My Amazing Window" as window title,
     // but for ImGui the ID is "My Amazing Window##With a hidden ID"
-    public MainWindow(Plugin plugin, string goatImagePath)
+    public MainWindow(Plugin plugin)
         : base("Soulstone##With a hidden ID", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
@@ -33,11 +33,10 @@ public class MainWindow : Window, IDisposable
             MinimumSize = new Vector2(375, 330),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
-
-        this.goatImagePath = goatImagePath;
         this.plugin = plugin;
-        this.charwin = new CharacterWindow();
-        this.dicewin = new DiceWindow();
+        this.charwin = new CharacterWindow(plugin);
+        this.dicewin = new DiceWindow(plugin);
+        this.statwin = new CharStatsWindow(plugin);
     }
 
     public void Dispose() { }
@@ -51,17 +50,19 @@ public class MainWindow : Window, IDisposable
             
         ImGui.Spacing();
         ImGui.BeginTabBar("SoulstoneTabs");
-        if (ImGui.BeginTabItem("Character Sheet"))
+        if (ImGui.BeginTabItem("Fiche RP"))
         {
-            using (var child = ImRaii.Child("##Charsheet", Vector2.Zero, true))
-            {
-                charwin.DrawCharTab(plugin);
-                ImGui.EndTabItem();
-            }
+            charwin.DrawCharTab();
+            ImGui.EndTabItem();
         }
-        if (ImGui.BeginTabItem("Dice Roller"))
+        if (ImGui.BeginTabItem("Lanceur de dés"))
         { 
-            dicewin.DrawDiceTab(plugin);
+            dicewin.DrawDiceTab();
+            ImGui.EndTabItem();
+        }
+        if (ImGui.BeginTabItem("Fiche de statistique"))
+        {
+            statwin.CharStatsDraw();
             ImGui.EndTabItem();
         }
         ImGui.EndTabBar();
