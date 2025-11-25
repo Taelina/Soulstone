@@ -20,6 +20,7 @@ public class MainWindow : Window, IDisposable
     private readonly CharacterWindow charwin;
     private readonly DiceWindow dicewin;
     private readonly CharStatsWindow statwin;
+    private readonly DiceSystemWindow dicesyswin;
 
 
     // We give this window a hidden ID using ##.
@@ -37,6 +38,7 @@ public class MainWindow : Window, IDisposable
         this.charwin = new CharacterWindow(plugin);
         this.dicewin = new DiceWindow(plugin);
         this.statwin = new CharStatsWindow(plugin);
+        this.dicesyswin = new DiceSystemWindow(plugin);
     }
 
     public void Dispose() { }
@@ -63,6 +65,11 @@ public class MainWindow : Window, IDisposable
         if (ImGui.BeginTabItem("Fiche de statistique"))
         {
             statwin.CharStatsDraw();
+            ImGui.EndTabItem();
+        }
+        if (ImGui.BeginTabItem("Système de dés"))
+        {
+            dicesyswin.DrawDiceSystemTab();
             ImGui.EndTabItem();
         }
         ImGui.EndTabBar();

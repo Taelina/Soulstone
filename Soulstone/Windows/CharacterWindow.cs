@@ -2,6 +2,8 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using ECommons.ImGuiMethods;
+using Soulstone.Datamodels;
+using Soulstone.Managers;
 using Soulstone.Utils;
 using System;
 using System.Collections.Generic;

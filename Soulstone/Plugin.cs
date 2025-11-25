@@ -2,13 +2,13 @@ using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
-using Dalamud.Plugin.Services;  
+using Dalamud.Plugin.Services;
 using Soulstone.Windows;
-using Soulstone;
 using System.IO;
 using Dalamud.Plugin.Ipc;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Game.Text.SeStringHandling;
+using Soulstone.Managers;
 
 namespace Soulstone;
 
@@ -88,7 +88,7 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow.Toggle();
         dataLocation = PluginInterface.GetPluginLocDirectory();
         Log.Information($"Data location: {dataLocation}");
-        CharacterManager.Instance.Init();
+        InitManagers();
     }
     
     public void ToggleConfigUi() => ConfigWindow.Toggle();
@@ -96,6 +96,12 @@ public sealed class Plugin : IDalamudPlugin
     {
         MainWindow.Toggle();
         dataLocation = PluginInterface.GetPluginLocDirectory();
+        InitManagers();
+    }
+
+    public void InitManagers()
+    {
         CharacterManager.Instance.Init();
+        DiceSystemManager.Instance.Init();
     }
 }

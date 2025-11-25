@@ -1,14 +1,14 @@
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Plugin.Services;
-using Soulstone;
+using Soulstone.Datamodels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Soulstone
+namespace Soulstone.Managers
 {
     internal class CharacterManager
     {
@@ -38,7 +38,7 @@ namespace Soulstone
 
         public void Init()
         {
-            IPlayerCharacter localPlayer = Plugin.ClientState.LocalPlayer;
+            var localPlayer = Plugin.ClientState.LocalPlayer;
             SeString playerName = localPlayer.Name;
             Plugin.Log.Information($"Loading character data for {playerName.TextValue}");
             instance.CharacterSheet = instance.LoadCharacterData(playerName.TextValue);

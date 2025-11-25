@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace Soulstone
+namespace Soulstone.Datamodels
 {
     internal class CharacterSheet
     {
@@ -113,16 +113,16 @@ namespace Soulstone
         public static CharacterSheet LoadSheet(string characterName)
         {
             CharacterSheet loadedSheet = null;
-            string formatedName = characterName.Replace(" ", "_").ToLower();
+            var formatedName = characterName.Replace(" ", "_").ToLower();
             if (!File.Exists($"{Plugin.dataLocation}/sheets/{formatedName}.json"))
             {
                 Plugin.Log.Information("No existing character sheet found, creating a new one.");
-                CharacterSheet newsheet = new CharacterSheet();
+                var newsheet = new CharacterSheet();
                 newsheet.CharacterFullName = characterName;
                 SaveSheet(newsheet);
             }
 
-            string loadedfile = File.ReadAllText($"{Plugin.dataLocation}/sheets/{formatedName}.json");
+            var loadedfile = File.ReadAllText($"{Plugin.dataLocation}/sheets/{formatedName}.json");
 
             if(!string.IsNullOrEmpty(loadedfile))
             {
@@ -162,7 +162,7 @@ namespace Soulstone
             {
                 Directory.CreateDirectory($"{Plugin.dataLocation}/sheets");
             }
-            string characterName = sheet.CharacterFullName.Replace(" ", "_").ToLower();
+            var characterName = sheet.CharacterFullName.Replace(" ", "_").ToLower();
             File.WriteAllText($"{Plugin.dataLocation}/sheets/{characterName}.json", JsonSerializer.Serialize(sheet));
         }
     }

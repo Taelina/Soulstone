@@ -19,7 +19,8 @@ namespace Soulstone.Utils
         public SeString RollResultString { get => rollResultString; set => rollResultString = value; }
         public SeString RollDetailedResultString { get => rollDetailedResultString; set => rollDetailedResultString = value; }
 
-        public static DiceRoll RollDice(int numberOfDice, int sidesPerDie, int addedValue = 0, string rollName = "")
+        //To be called for normal, dnd style dice rolls
+        public static DiceRoll RollDiceRegular(int numberOfDice, int sidesPerDie, int addedValue = 0, string rollName = "")
         {
             DiceRoll diceRoll = new DiceRoll();
             Random rand = new Random();
@@ -33,7 +34,6 @@ namespace Soulstone.Utils
             }
             total += addedValue;
             string rollResults = string.Join(", ", rolls);
-            //Plugin.Log.Information($"Rolled {numberOfDice}d{sidesPerDie}: Total: {total}");
             diceRoll.rollResult = total;
             if (addedValue != 0)
             {
@@ -49,6 +49,31 @@ namespace Soulstone.Utils
             return diceRoll;
         }
 
+        // To be called for dice pool style rolls where each die that meets or exceeds a threshold counts as a success
+        public static DiceRoll RollDicePool(int numberOfDice, int sidesPerDie, int successThreshold, string rollName = "")
+        {
+            DiceRoll diceRoll = new DiceRoll();
+            Random rand = new Random();
+            List<int> rolls = new List<int>();
+            int successes = 0;
+            for (int i = 0; i < numberOfDice; i++)
+            {
+                int roll = rand.Next(1, sidesPerDie + 1);
+                rolls.Add(roll);
+                if (roll >= successThreshold)
+                {
+                    successes++;
+                }
+            }
+            string rollResults = string.Join(", ", rolls);
+            diceRoll.rollResult = successes;
+            diceRoll.RollResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} (Success Threshold: {successThreshold}): Successes: {successes}";
+            diceRoll.RollDetailedResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} (Success Threshold: {successThreshold}): [{rollResults}] Successes: {successes}";
+            diceRoll.individualRolls = rolls;
+            return diceRoll;
+        }
+
+        // To be called when parsing a generic chat like dice roll string like "2d6" or "3d8+2"
         public static DiceRoll ParseDiceRollString(string input)
         {
             DiceRoll result = null;
@@ -62,11 +87,11 @@ namespace Soulstone.Utils
             {
                 if (bonus.Length == 2 && int.TryParse(bonus[1], out int addedValue))
                 {
-                    result = RollDice(numberOfDice, sidesPerDie, addedValue);
+                    result = RollDiceRegular(numberOfDice, sidesPerDie, addedValue);
                 }
                 else
                 {
-                    result = RollDice(numberOfDice, sidesPerDie);
+                    result = RollDiceRegular(numberOfDice, sidesPerDie);
                 }
             }
             else

@@ -2,6 +2,8 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Utility.Raii;
 using ECommons;
+using Soulstone.Datamodels;
+using Soulstone.Managers;
 using Soulstone.Utils;
 using System;
 using System.Collections.Generic;
@@ -22,6 +24,7 @@ namespace Soulstone.Windows
         private bool showAttributesPopup = false;
 
         CharacterSheet currentCharacter = null;
+        DiceSystem currentDiceSystem = null;
 
         private bool editingStats = false;
 
@@ -52,10 +55,17 @@ namespace Soulstone.Windows
                 {
                     currentCharacter = CharacterManager.Instance.CharacterSheet;
                 }
+                if (DiceSystemManager.Instance.CurrentDiceSystem != null)
+                {
+                    currentDiceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
+                    diceType = Enum.GetName(typeof(DiceType),DiceSystemManager.Instance.CurrentDiceSystem.DiceType);
+                }
                 if (currentCharacter != null)
                 {
                     ImGui.SetNextItemWidth(50.0f);
-                    ImGui.InputText("Type de dé du système", ref diceType, 10);
+                    ImGui.Text("Type de dé du système :");
+                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                    ImGui.Text(diceType);
                     if (ImGui.Checkbox("Éditer les stats du personnage", ref editingStats))
                     { }
                     if (ImGui.Button("Sauvegarder la fiche de personnage"))
@@ -96,26 +106,58 @@ namespace Soulstone.Windows
                                 ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                                 if (ImGui.Button("Lancer"))
                                 {
-                                    DiceRoll roll = DiceRoll.RollDice(1, Convert.ToInt32(diceType), attribute.Value, attribute.Key);
-                                    if (roll != null)
+                                    if (currentDiceSystem != null)
                                     {
-                                        if (!detailedRoll)
+                                        if (currentDiceSystem.DicePoolSystemEnabled)
                                         {
-                                            XivChatEntry rollMessage = new XivChatEntry
+                                            string[] parsedType = diceType.Split('d');
+                                            int parsedSides = Convert.ToInt32(parsedType[1]);
+                                            Plugin.Log.Information($"Rolling {attribute.Value}d{parsedSides} against success threshold {currentDiceSystem.SuccessThreshold}");
+                                            DiceRoll roll = DiceRoll.RollDicePool(attribute.Value, parsedSides, currentDiceSystem.SuccessThreshold, attribute.Key);
+                                            if (!detailedRoll)
                                             {
-                                                Message = roll.RollResultString,
-                                                Type = XivChatType.Say
-                                            };
-                                            Messages.SendMessage(rollMessage);
+                                                XivChatEntry rollMessage = new XivChatEntry
+                                                {
+                                                    Message = roll.RollResultString,
+                                                    Type = XivChatType.Say
+                                                };
+                                                Messages.SendMessage(rollMessage);
+                                            }
+                                            else
+                                            {
+                                                XivChatEntry rollMessage = new XivChatEntry
+                                                {
+                                                    Message = roll.RollDetailedResultString,
+                                                    Type = XivChatType.Say
+                                                };
+                                                Messages.SendMessage(rollMessage);
+                                            }
                                         }
-                                        else
+                                        if (currentDiceSystem.RegularDiceSystemEnabled)
                                         {
-                                            XivChatEntry rollMessage = new XivChatEntry
+                                            string[] parsedType = diceType.Split('d');
+                                            int parsedSides = Convert.ToInt32(parsedType[1]);
+                                            Plugin.Log.Information($"Rolling {attribute.Value}d{parsedSides}");
+                                            DiceRoll roll = DiceRoll.RollDiceRegular(1, parsedSides, attribute.Value, attribute.Key);
+                                            if (!detailedRoll)
                                             {
-                                                Message = roll.RollDetailedResultString,
-                                                Type = XivChatType.Say
-                                            };
-                                            Messages.SendMessage(rollMessage);
+                                                XivChatEntry rollMessage = new XivChatEntry
+                                                {
+                                                    Message = roll.RollResultString,
+                                                    Type = XivChatType.Say
+                                                };
+                                                Messages.SendMessage(rollMessage);
+                                            }
+                                            else
+                                            {
+                                                XivChatEntry rollMessage = new XivChatEntry
+                                                {
+                                                    Message = roll.RollDetailedResultString,
+                                                    Type = XivChatType.Say
+                                                };
+                                                Messages.SendMessage(rollMessage);
+
+                                            }
                                         }
                                     }
                                 }
