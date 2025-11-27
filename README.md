@@ -24,4 +24,4 @@ Open the plugin using: ```/soulstone```
 ---
 
 ## 💬 Community
-[<img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/discord.svg" width="20" height="20" alt="Discord Logo"> **Join the Community Discord**](https://discord.gg/6hkvbXbPRF)
+[<img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/discord.svg" width="20" height="20" alt="Discord Logo" style="filter: invert(1);"> **Join the Community Discord**](https://discord.gg/6hkvbXbPRF)
