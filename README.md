@@ -4,7 +4,7 @@
 
 <h1 align="center">Soulstone</h1>
 
-**Soulstone** is a lightweight **FFXIV roleplay plugin** designed to centralize all essential RP and character-sheet features in one place.
+**Soulstone** is a **FFXIV plugin** designed to centralize all essential RP and character-sheet features in one place.
 Keep your character’s **stats, image, items, descriptions, notes, and dice rolls** neatly organized and easily accessible.
 
 ---
@@ -19,9 +19,9 @@ Keep your character’s **stats, image, items, descriptions, notes, and dice rol
 ---
 
 ## 🕹️ In-Game Command
-Open the plugin using: ```/soulstone```
+Open the plugin using : ```/soulstone```
 
 ---
 
 ## 💬 Community
-[<img src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/discord.svg" width="20" height="20" alt="Discord Logo" style="filter: invert(1);"> **Join the Community Discord**](https://discord.gg/6hkvbXbPRF)
+[<img src="https://upload.wikimedia.org/wikipedia/fr/4/4f/Discord_Logo_sans_texte.svg" width="20" height="20" alt="Discord Logo"> **Join the Community Discord**](https://discord.gg/6hkvbXbPRF)
