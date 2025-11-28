@@ -31,6 +31,12 @@ namespace Soulstone.Windows
         private string newAttributeName = "";
         private int newAttributeValue = 0;
 
+        private string newSkillName = "";
+        private int newSkillValue = 0;
+        private int selectedAttributeIndex = 0;
+        private string selectedAttribute = "";
+        private Skill newSkill = null;
+
         private readonly Plugin plugin;
 
         public  bool detailedRoll = false;
@@ -73,7 +79,7 @@ namespace Soulstone.Windows
                         CharacterSheet.SaveSheet(currentCharacter);
                     }
                     ImGui.Text("Attributs :");
-                    using (var family = ImRaii.Child("##Attributes", new Vector2(200.0f, 150.0f), true))
+                    using (var family = ImRaii.Child("##Attributes", new Vector2(200.0f, 200.0f), true))
                     {
                         if (ImGui.Button("Ajouter"))
                         {
@@ -162,6 +168,42 @@ namespace Soulstone.Windows
                                     }
                                 }
                             }
+                        }
+                    }
+                    ImGui.Text("Compétences :");
+                    using (var family = ImRaii.Child("##Skills", new Vector2(200.0f, 200.0f), true))
+                    {
+                        if (ImGui.Button("Ajouter"))
+                        {
+                            showSkillPopup = true;
+                        }
+                        if (showSkillPopup)
+                        {
+                            string[] attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
+                            ImGui.BeginPopupModal("Nouvel Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                            ImGui.InputText("Nom de la compétence", ref newSkillName, 100);
+                            ImGui.InputInt("Valeur", ref newSkillValue, 1);
+                            ImGui.SetNextItemWidth(75.0f);
+                            if (ImGui.Combo("Attribut lié##Combo", ref selectedAttributeIndex, attributeKeys))
+                            {
+                                selectedAttribute = attributeKeys[selectedAttributeIndex];
+                            }
+                            if (ImGui.Button("Ajouter"))
+                            {
+                                newSkill = new Skill
+                                {
+                                    skillName = newSkillName,
+                                    skillModifier = newSkillValue,
+                                    linkedAttribute = selectedAttribute
+                                };
+                                if (currentCharacter.characterSkills == null)
+                                    currentCharacter.characterSkills = new Dictionary<string, Skill>();
+                                if (!currentCharacter.characterSkills.ContainsKey(newAttributeName))
+                                    currentCharacter.characterSkills.Add(newAttributeName, newSkill);
+                                showSkillPopup = false;
+                            }
+                            ImGui.OpenPopup("Nouvel attribut");
+                            ImGui.EndPopup();
                         }
                     }
                 }                

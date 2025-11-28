@@ -25,6 +25,12 @@ namespace Soulstone.Datamodels
 
         public bool dicePoolSystemEnabled = false;
         public bool regularDiceSystemEnabled = true;
+        public bool dndStyleAttributes = true;
+        public bool skillLinkedToOneAttribute = true;
+        public bool abilityLinkedToOneAttribute = true; //This one and the following are not mutually exclusive
+        public bool abilityLinkedToOneSkill = true;
+        public bool systemHasSaves = true;
+        public bool systemHasAdvantageDisadvantage = true;
 
         public DiceType diceType = DiceType.d20;
 
@@ -35,6 +41,12 @@ namespace Soulstone.Datamodels
         public bool RegularDiceSystemEnabled { get => regularDiceSystemEnabled; set => regularDiceSystemEnabled = value; }
         public DiceType DiceType { get => diceType; set => diceType = value; }
         public int SuccessThreshold { get => successThreshold; set => successThreshold = value; }
+        public bool DndStyleAttributes { get => dndStyleAttributes; set => dndStyleAttributes = value; }
+        public bool SkillLinkedToOneAttribute { get => skillLinkedToOneAttribute; set => skillLinkedToOneAttribute = value; }
+        public bool AbilityLinkedToOneAttribute { get => abilityLinkedToOneAttribute; set => abilityLinkedToOneAttribute = value; }
+        public bool AbilityLinkedToOneSkill { get => abilityLinkedToOneSkill; set => abilityLinkedToOneSkill = value; }
+        public bool SystemHasSaves { get => systemHasSaves; set => systemHasSaves = value; }
+        public bool SystemHasAdvantageDisadvantage { get => systemHasAdvantageDisadvantage; set => systemHasAdvantageDisadvantage = value; }
 
         public static DiceSystem LoadDiceSystem(string systemName)
         {

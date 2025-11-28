@@ -61,6 +61,13 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
                     ImGui.SetNextItemWidth(50.0f);
                     ImGui.InputInt("##SuccessThreshold", ref currentSystem.successThreshold);
+
+                    ImGui.Checkbox("Attributs de style DnD", ref currentSystem.dndStyleAttributes);
+                    ImGui.Checkbox("Compétence liée à un seul attribut", ref currentSystem.skillLinkedToOneAttribute);
+                    ImGui.Checkbox("Capacité liée à un seul attribut", ref currentSystem.abilityLinkedToOneAttribute);
+                    ImGui.Checkbox("Capacité liée à une seule compétence", ref currentSystem.abilityLinkedToOneSkill);
+                    ImGui.Checkbox("Le système gère les jets de sauvegarde", ref currentSystem.systemHasSaves);
+                    ImGui.Checkbox("Le système gère l'avantage et le désavantage", ref currentSystem.systemHasAdvantageDisadvantage);
                 }
             }            
         }

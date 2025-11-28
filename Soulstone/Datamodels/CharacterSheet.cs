@@ -63,8 +63,8 @@ namespace Soulstone.Datamodels
 
         //Character Dynamic ability fields
         public Dictionary<string, int> characterAttributes = new Dictionary<string, int>();
-        public Dictionary<string, int> characterSkills = new Dictionary<string, int>();
-        public Dictionary<string, int> characterAbilities = new Dictionary<string, int>();
+        public Dictionary<string, Skill> characterSkills = new Dictionary<string, Skill>();
+        public Dictionary<string, Ability> characterAbilities = new Dictionary<string, Ability>();
 
         public string CharacterFullName { get => characterFullName; set => characterFullName = value;}
         public string CharacterNickName { get => characterNickName; set => characterNickName = value; }
@@ -96,8 +96,8 @@ namespace Soulstone.Datamodels
         public Dictionary<string, string> CharacterFriends { get => characterFriends; set => characterFriends = value; }
         public Dictionary<string, string> CharacterEnnemies { get => characterEnnemies; set => characterEnnemies = value; }
         public Dictionary<string, int> CharacterAttributes { get => characterAttributes; set => characterAttributes = value; }
-        public Dictionary<string, int> CharacterSkills { get => characterSkills; set => characterSkills = value; }
-        public Dictionary<string, int> CharacterAbilities { get => characterAbilities; set => characterAbilities = value; }
+        public Dictionary<string, Skill> CharacterSkills { get => characterSkills; set => characterSkills = value; }
+        public Dictionary<string, Ability> CharacterAbilities { get => characterAbilities; set => characterAbilities = value; }
         public string CharacterJob { get => characterJob; set => characterJob = value; }
 
         public CharacterSheet()
@@ -106,8 +106,8 @@ namespace Soulstone.Datamodels
             characterFriends = new Dictionary<string, string>();
             characterEnnemies = new Dictionary<string, string>();
             characterAttributes = new Dictionary<string, int>();
-            characterAbilities = new Dictionary<string, int>();
-            characterSkills = new Dictionary<string, int>();
+            characterAbilities = new Dictionary<string, Ability>();
+            characterSkills = new Dictionary<string, Skill>();
         }
 
         public static CharacterSheet LoadSheet(string characterName)
