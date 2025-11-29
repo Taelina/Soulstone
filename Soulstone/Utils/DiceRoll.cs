@@ -20,7 +20,7 @@ namespace Soulstone.Utils
         public SeString RollDetailedResultString { get => rollDetailedResultString; set => rollDetailedResultString = value; }
 
         //To be called for normal, dnd style dice rolls
-        public static DiceRoll RollDiceRegular(int numberOfDice, int sidesPerDie, int addedValue = 0, string rollName = "")
+        public static DiceRoll RollDiceRegular(int numberOfDice, int sidesPerDie, int addedValue = 0, string rollName = "", bool advantage = false, bool disadvantage = false)
         {
             DiceRoll diceRoll = new DiceRoll();
             Random rand = new Random();
@@ -28,9 +28,29 @@ namespace Soulstone.Utils
             int total = 0;
             for (int i = 0; i < numberOfDice; i++)
             {
-                int roll = rand.Next(1, sidesPerDie + 1);
-                rolls.Add(roll);
-                total += roll;
+                int roll, roll1, roll2;
+                if (!advantage && !disadvantage)
+                {
+                    roll = rand.Next(1, sidesPerDie + 1);
+                    rolls.Add(roll);
+                    total += roll;
+                }
+                else if(advantage)
+                {
+                    roll1 = rand.Next(1, sidesPerDie + 1);
+                    roll2 = rand.Next(1, sidesPerDie + 1);
+                    roll = Math.Max(roll1, roll2);
+                    rolls.Add(roll);
+                    total += roll;
+                }
+                else if(disadvantage)
+                {
+                    roll1 = rand.Next(1, sidesPerDie + 1);
+                    roll2 = rand.Next(1, sidesPerDie + 1);
+                    roll = Math.Min(roll1, roll2);
+                    rolls.Add(roll);
+                    total += roll;
+                }
             }
             total += addedValue;
             string rollResults = string.Join(", ", rolls);
@@ -74,7 +94,7 @@ namespace Soulstone.Utils
         }
 
         // To be called when parsing a generic chat like dice roll string like "2d6" or "3d8+2"
-        public static DiceRoll ParseDiceRollString(string input)
+        public static DiceRoll ParseDiceRollString(string input, bool advantage = false, bool disadvantage = false)
         {
             DiceRoll result = null;
             // Expected format: XdY where X is number of dice and Y is sides per die
@@ -87,11 +107,11 @@ namespace Soulstone.Utils
             {
                 if (bonus.Length == 2 && int.TryParse(bonus[1], out int addedValue))
                 {
-                    result = RollDiceRegular(numberOfDice, sidesPerDie, addedValue);
+                    result = RollDiceRegular(numberOfDice, sidesPerDie, addedValue,"", advantage, disadvantage);
                 }
                 else
                 {
-                    result = RollDiceRegular(numberOfDice, sidesPerDie);
+                    result = RollDiceRegular(numberOfDice, sidesPerDie,0,"0",advantage,disadvantage);
                 }
             }
             else

@@ -15,6 +15,9 @@ namespace Soulstone.Windows
         private bool detailedRoll = false;
         private string rollInputText = "";
 
+        private bool advantage = false;
+        private bool disadvantage = false;
+
         private readonly Plugin plugin;
 
         private readonly Configuration configuration;
@@ -31,6 +34,11 @@ namespace Soulstone.Windows
         {
             ImGui.InputText("Manual Roll Input", ref rollInputText);
             detailedRoll = configuration.detailedRolls;
+
+            ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+            ImGui.Checkbox("Advantage", ref advantage);
+            ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+            ImGui.Checkbox("Disadvantage", ref disadvantage);
 
             if (ImGui.Button("Roll dice"))
             {
