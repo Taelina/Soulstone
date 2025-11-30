@@ -48,12 +48,5 @@ public class ConfigWindow : Window, IDisposable
             // Can save immediately on change if you don't want to provide a "Save and Close" button
             configuration.Save();
         }
-
-        var movable = configuration.IsConfigWindowMovable;
-        if (ImGui.Checkbox("Movable Config Window", ref movable))
-        {
-            configuration.IsConfigWindowMovable = movable;
-            configuration.Save();
-        }
     }
 }

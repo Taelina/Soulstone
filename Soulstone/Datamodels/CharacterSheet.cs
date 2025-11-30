@@ -163,7 +163,7 @@ namespace Soulstone.Datamodels
                 Directory.CreateDirectory($"{Plugin.dataLocation}/sheets");
             }
             var characterName = sheet.CharacterFullName.Replace(" ", "_").ToLower();
-            File.WriteAllText($"{Plugin.dataLocation}/sheets/{characterName}.json", JsonSerializer.Serialize(sheet));
+            File.WriteAllText($"{Plugin.dataLocation}/sheets/{characterName}.json", JsonSerializer.Serialize(sheet, new JsonSerializerOptions { WriteIndented = true}));
         }
     }
 }

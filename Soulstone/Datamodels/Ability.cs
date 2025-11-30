@@ -17,7 +17,7 @@ namespace Soulstone.Datamodels
 
         public string AbilityName { get => abilityName; set => abilityName = value; }
         public string AbilityDescription { get => abilityDescription; set => abilityDescription = value; }
-        internal Skill LinkedSkill { get => linkedSkill; set => linkedSkill = value; }
+        public Skill LinkedSkill { get => linkedSkill; set => linkedSkill = value; }
         public string LinkedAttribute { get => linkedAttribute; set => linkedAttribute = value; }
         public int AbilityModifier { get => abilityModifier; set => abilityModifier = value; }
         public int Id { get => id; set => id = value; }

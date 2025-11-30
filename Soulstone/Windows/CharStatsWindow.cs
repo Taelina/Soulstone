@@ -2,6 +2,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Utility.Raii;
 using ECommons;
+using ECommons.ImGuiMethods;
 using Soulstone.Datamodels;
 using Soulstone.Managers;
 using Soulstone.Utils;
@@ -36,7 +37,9 @@ namespace Soulstone.Windows
         private int selectedAttributeIndex = 0;
         private string selectedAttribute = "";
         private Skill newSkill = null;
-        
+
+        private bool setupCombo = false;
+
         private string newAbilityName = "";
         private int newAbilityValue = 0;
         private int selectedSkillIndex = 0;
@@ -45,6 +48,9 @@ namespace Soulstone.Windows
 
         private bool advantageRoll = false;
         private bool disadvantageRoll = false;
+
+        private string[] attributeKeys = new string[] { };
+        private string[] skillKeys = new string[] { };
 
         private readonly Plugin plugin;
 
@@ -201,38 +207,42 @@ namespace Soulstone.Windows
                         if (ImGui.Button("Ajouter"))
                         {
                             showSkillPopup = true;
+                            if (currentCharacter.characterAttributes != null)
+                                attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
                         }
                         if (showSkillPopup)
                         {
-                            string[] attributeKeys;
-                            if (currentCharacter.characterAttributes == null)
-                                attributeKeys = new string[] { };
-                            else
-                                attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
-                            ImGui.BeginPopupModal("Nouvelle Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize);
-                            ImGui.InputText("Nom de la compétence", ref newSkillName, 100);
-                            ImGui.InputInt("Valeur", ref newSkillValue, 1);
-                            ImGui.SetNextItemWidth(75.0f);
-                            if (ImGui.Combo("Attribut lié##Combo", ref selectedAttributeIndex, attributeKeys))
+                            if (ImGui.BeginPopupModal("Nouvelle Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize))
                             {
-                                selectedAttribute = attributeKeys[selectedAttributeIndex];
-                            }
-                            if (ImGui.Button("Ajouter"))
-                            {
-                                newSkill = new Skill
+                                selectedAttributeIndex = 0;
+                                ImGui.InputText("Nom de la compétence", ref newSkillName, 100);
+                                ImGui.InputInt("Valeur", ref newSkillValue, 1);
+                                ImGui.SetNextItemWidth(75.0f);
+                                ImGui.InputText("Attribut lié##InputSkill", ref selectedAttribute, 100);
+                                if (ImGui.Button("Ajouter"))
                                 {
-                                    skillName = newSkillName,
-                                    skillModifier = newSkillValue,
-                                    linkedAttribute = selectedAttribute
-                                };
-                                if (currentCharacter.characterSkills == null)
-                                {
-                                    currentCharacter.characterSkills = new Dictionary<string, Skill>();
-                                    currentCharacter.characterSkills.Add(newSkillName, newSkill);
+                                    if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute))
+                                    {
+                                        Plugin.Log.Information("L'attribut lié n'existe pas.");
+                                    }
+                                    else
+                                    {
+                                        newSkill = new Skill
+                                        {
+                                            skillName = newSkillName,
+                                            skillModifier = newSkillValue,
+                                            linkedAttribute = selectedAttribute
+                                        };
+                                        if (currentCharacter.characterSkills == null)
+                                        {
+                                            currentCharacter.characterSkills = new Dictionary<string, Skill>();
+                                            currentCharacter.characterSkills.Add(newSkillName, newSkill);
+                                        }
+                                        if (!currentCharacter.characterSkills.ContainsKey(newSkillName))
+                                            currentCharacter.characterSkills.Add(newSkillName, newSkill);
+                                        showSkillPopup = false;
+                                    }
                                 }
-                                if (!currentCharacter.characterSkills.ContainsKey(newSkillName))
-                                    currentCharacter.characterSkills.Add(newSkillName, newSkill);
-                                showSkillPopup = false;
                             }
                             ImGui.OpenPopup("Nouvelle Compétence");
                             ImGui.EndPopup();
@@ -254,7 +264,8 @@ namespace Soulstone.Windows
                                         {
                                             string[] parsedType = diceType.Split('d');
                                             int parsedSides = Convert.ToInt32(parsedType[1]);
-                                            int attributeValue = currentCharacter.characterAttributes[skill.Value.linkedAttribute];
+                                            int attributeValue = 0;
+                                            currentCharacter.characterAttributes.TryGetValue(skill.Value.linkedAttribute, out attributeValue);
                                             int totalDice = skill.Value.skillModifier + attributeValue;
                                             Plugin.Log.Information($"Rolling {totalDice}d{parsedSides} against success threshold {currentDiceSystem.SuccessThreshold}");
                                             DiceRoll roll = DiceRoll.RollDicePool(totalDice, parsedSides, currentDiceSystem.SuccessThreshold, skill.Value.skillName);
@@ -310,54 +321,55 @@ namespace Soulstone.Windows
                         }
                     }
                     ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                    using (var family = ImRaii.Child("##Abilities", new Vector2(200.0f, 200.0f), true))
+                    using (var family = ImRaii.Child("##Abilities", new Vector2(300.0f, 200.0f), true))
                     {
                         if (ImGui.Button("Ajouter"))
                         {
                             showAbilitiesPopup = true;
+                            if (currentCharacter.characterAttributes != null)
+                                attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
+
+                            if (currentCharacter.characterSkills != null)
+                                skillKeys = currentCharacter.characterSkills.Keys.ToArray<string>();
                         }
                         if (showAbilitiesPopup)
                         {
-                            string[] attributeKeys;
-                            string[] skillKeys;
-                            if (currentCharacter.characterAttributes == null)
-                                attributeKeys = new string[] { };
-                            else
-                                attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
-                            if (currentCharacter.characterSkills == null)
-                                skillKeys = new string[] { };
-                            else
-                                skillKeys = currentCharacter.characterSkills.Keys.ToArray<string>();
                             ImGui.BeginPopupModal("Nouvelle Capacité", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                            selectedAttributeIndex = 0;
+                            selectedSkillIndex = 0;
                             ImGui.InputText("Nom de la capacité", ref newAbilityName, 100);
                             ImGui.InputInt("Valeur", ref newAbilityValue, 1);
-                            ImGui.SetNextItemWidth(75.0f);
-                            if (ImGui.Combo("Attribut lié##Combo", ref selectedAttributeIndex, attributeKeys))
-                            {
-                                selectedAttribute = attributeKeys[selectedAttributeIndex];
-                            }
-                            if (ImGui.Combo("Compétence lié##Combo", ref selectedSkillIndex, attributeKeys))
-                            {
-                                selectedSkill = skillKeys[selectedAttributeIndex];
-                            }
+                            ImGui.SetNextItemWidth(100.0f);
+                            ImGui.InputText("Attribut lié##InputCap", ref selectedAttribute, 100);
+                            ImGui.SetNextItemWidth(100.0f);
+                            ImGui.InputText("Compétence lié##InputCap", ref selectedSkill,100);
                             if (ImGui.Button("Ajouter"))
                             {
-                                newAbility = new Ability
+                                if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute)
+                                    && currentCharacter.characterSkills != null && !currentCharacter.characterSkills.ContainsKey(selectedSkill))
                                 {
-                                    abilityName = newAbilityName,
-                                    abilityModifier = newAbilityValue,
-                                    linkedAttribute = selectedAttribute,
-                                    linkedSkill = currentCharacter.characterSkills[selectedSkill]
-                                };
-                                if (currentCharacter.characterAbilities == null)
-
-                                {
-                                    currentCharacter.characterAbilities = new Dictionary<string, Ability>();
-                                    currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
+                                    Plugin.Log.Information("L'attribut ou compenténce lié n'existe pas.");
+                                    return;
                                 }
-                                if (!currentCharacter.characterAbilities.ContainsKey(newAttributeName))
-                                    currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
-                                showAbilitiesPopup = false;
+                                else
+                                {
+                                    newAbility = new Ability
+                                    {
+                                        abilityName = newAbilityName,
+                                        abilityModifier = newAbilityValue,
+                                        linkedAttribute = selectedAttribute
+                                    };
+                                    currentCharacter.characterSkills.TryGetValue(selectedSkill, out newAbility.linkedSkill);
+                                    if (currentCharacter.characterAbilities == null)
+
+                                    {
+                                        currentCharacter.characterAbilities = new Dictionary<string, Ability>();
+                                        currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
+                                    }
+                                    if (!currentCharacter.characterAbilities.ContainsKey(newAttributeName))
+                                        currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
+                                    showAbilitiesPopup = false;
+                                }
                             }
                             ImGui.OpenPopup("Nouvelle Capacité");
                             ImGui.EndPopup();

@@ -1,13 +1,13 @@
 {
   "Author": "Jago & Taelina",
   "Name": "Soulstone",
-  "Punchline": "A short one-liner that shows up in /xlplugins.",
-  "Description": "A description that shows up in /xlplugins. List any major slash-command(s).",
+  "Punchline": "A plugin for roleplay utility and tools",
+  "Description": "A suite of tools and utilities for roleplay. /soulstone opens the plugin and display the main window.",
   "ApplicableVersion": "any",
   "IconUrl" : "https://www.aht.li/3945121/Soulstone.png",
   "Tags": [
-    "sample",
-    "plugin",
-    "goats"
+    "RP",
+    "Utility",
+    "Dices"
   ]
 }

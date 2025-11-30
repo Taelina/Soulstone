@@ -70,7 +70,7 @@ namespace Soulstone.Datamodels
                 Directory.CreateDirectory($"{Plugin.dataLocation}/diceSystem");
             }
             string systemName = system.SystemName.Replace(" ", "_").ToLower();
-            File.WriteAllText($"{Plugin.dataLocation}/diceSystem/{systemName}.json", JsonSerializer.Serialize(system));
+            File.WriteAllText($"{Plugin.dataLocation}/diceSystem/{systemName}.json", JsonSerializer.Serialize(system, new JsonSerializerOptions { WriteIndented = true }));
         }
     }
 }
