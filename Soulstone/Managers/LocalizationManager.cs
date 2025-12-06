@@ -38,6 +38,8 @@ namespace Soulstone.Managers
             French.Language = Language.Français;
             French.LocalizedStrings = new Dictionary<string, string>
             {
+                //Generic Buttons
+                {"AddButton", "+" },
                 //Config Window
                 {"ConfigButton","Configurer" },
                 {"ConfigDetailedRollsCheck", "Jets détaillés" },
@@ -63,6 +65,41 @@ namespace Soulstone.Managers
                 {"PlayerOOCInfo", "Infos HRP :" },
                 {"PlayerTimezone", "Fuseau Horaire :" },
                 {"PlayerAvailability", "Disponibilité :" },
+                //Charsheet Tab, third part (Appearance)
+                {"CharHeightField", "Taille :" },
+                {"CharWeightField", "Poids :" },
+                {"CharBuildField", "Corpulence :" },
+                {"CharEyeColorField", "Couleur des yeux :" },
+                {"CharHairColorField", "Couleur des cheveux :" },
+                {"CharSkinColorField", "Couleur de peau :" },
+                {"CharScarsField", "Cicatrices :" },
+                {"CharTatooField", "Tatouages :" },
+                {"CharOtherQuirkField", "Autre(s) particulrité(s)" },
+                //Charsheet Tab, fourth part (Quick Looks)
+                {"QuickLookField1", "Aperçu rapide :" },
+                {"QuickLookField2", "Aperçu rapide 2 :" },
+                {"QuickLookField3", "Aperçu rapide 3 :" },
+                {"QuickLookField4", "Aperçu rapide 4 :" },
+                {"QuickLookField5", "Aperçu rapide 5 :" },
+                //Charsheet Tab, Fifth part (Background)
+                {"CharBirthplaceField", "Lieu de Naissance :" },
+                {"CharOriginField", "Origine :" },
+                {"CharAffiliationField", "Affiliation :" },
+                {"CharWorkField", "Metier :" },
+                {"CharReputationField", "Réputation :" },
+                {"CharFamilyRelationTab", "Relations familiales :" },
+                {"CharFriendsTab", "Relations amicales :" },
+                {"CharEnemiesTab", "Ennemis :" },
+                {"CharBackgroundField", "Histoire personnelle :" },
+                //Family member popup
+                {"MemberNameField", "Nom du membre" },
+                {"MemberDescriptionField", "Description" },
+                //Friend popup
+                {"FriendNameField", "Nom de l'ami" },
+                {"FriendDescriptionField", "Description" },
+                //Enemy Popup
+                {"EnemyNameField", "Nom de l'ennemi" },
+                {"EnemyDescriptionField", "Description" },
             };
 
             Localization English = new Localization();
@@ -94,6 +131,42 @@ namespace Soulstone.Managers
                 {"PlayerOOCInfo", "OOC Info :" },
                 {"PlayerTimezone", "Timezone :" },
                 {"PlayerAvailability", "Availability :" },
+                //Charsheet Tab, third part (Appearance)
+                {"CharHeightField", "Height :" },
+                {"CharWeightField", "Weight :" },
+                {"CharBuildField", "Build :" },
+                {"CharEyeColorField", "Eye color :" },
+                {"CharHairColorField", "Hair color :" },
+                {"CharSkinColorField", "Skin color :" },
+                {"CharScarsField", "Scars :" },
+                {"CharTatooField", "Tatoos :" },
+                {"CharOtherQuirkField", "Other Quirks" },
+                //Charsheet Tab, fourth part (Quick Looks)
+                {"QuickLookField1", "Quick look :" },
+                {"QuickLookField2", "Quick look 2 :" },
+                {"QuickLookField3", "Quick look 3 :" },
+                {"QuickLookField4", "Quick look 4 :" },
+                {"QuickLookField5", "Quick look 5 :" },
+                //Charsheet Tab, Fifth part (Background)
+                {"CharBirthplaceField", "Birth place :" },
+                {"CharOriginField", "Origin :" },
+                {"CharAffiliationField", "Affiliation :" },
+                {"CharWorkField", "Work :" },
+                {"CharReputationField", "Reputation :" },
+                {"CharFamilyRelationTab", "Family :" },
+                {"CharFriendsTab", "Friends :" },
+                {"CharEnemiesTab", "Enemies :" },
+                {"CharBackgroundField", "Background :" },
+                //Family member popup
+                {"MemberNameField", "Member Name" },
+                {"MemberDescriptionField", "Description" },
+                //Friend popup
+                {"FriendNameField", "Friend's name" },
+                {"FriendDescriptionField", "Description" },
+                //Enemy Popup
+                {"EnemyNameField", "Enemy's name" },
+                {"EnemyDescriptionField", "Description" },
+
             };
 
             instance.LocalizedLanguages.Add(Language.Français, French);
