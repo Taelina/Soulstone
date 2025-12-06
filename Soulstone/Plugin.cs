@@ -97,5 +97,6 @@ public sealed class Plugin : IDalamudPlugin
     {
         CharacterManager.Instance.Init();
         DiceSystemManager.Instance.Init();
+        LocalizationManager.Instance.InitLoc(this);
     }
 }

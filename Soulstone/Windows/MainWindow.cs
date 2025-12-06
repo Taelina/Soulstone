@@ -11,6 +11,7 @@ using Soulstone;
 using FFXIVClientStructs.FFXIV.Client.System.String;
 using Dalamud.Game.Text.SeStringHandling;
 using Soulstone.Utils;
+using Soulstone.Managers;
 
 namespace Soulstone.Windows;
 
@@ -21,6 +22,7 @@ public class MainWindow : Window, IDisposable
     private readonly DiceWindow dicewin;
     private readonly CharStatsWindow statwin;
     private readonly DiceSystemWindow dicesyswin;
+    private readonly Configuration configuration;
 
 
     // We give this window a hidden ID using ##.
@@ -39,35 +41,36 @@ public class MainWindow : Window, IDisposable
         this.dicewin = new DiceWindow(plugin);
         this.statwin = new CharStatsWindow(plugin);
         this.dicesyswin = new DiceSystemWindow(plugin);
+        configuration = plugin.Configuration;
     }
 
     public void Dispose() { }
 
     public override void Draw()
     {        
-        if (ImGui.Button("Show Settings"))
+        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ConfigButton")}##SettingsButton"))
         {
             plugin.ToggleConfigUi();
         }
             
         ImGui.Spacing();
         ImGui.BeginTabBar("SoulstoneTabs");
-        if (ImGui.BeginTabItem("Fiche RP"))
+        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("RPTab")}##RPSheet"))
         {
             charwin.DrawCharTab();
             ImGui.EndTabItem();
         }
-        if (ImGui.BeginTabItem("Lanceur de dés"))
+        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceRollTab")}##DiceSheet"))
         { 
             dicewin.DrawDiceTab();
             ImGui.EndTabItem();
         }
-        if (ImGui.BeginTabItem("Fiche de statistique"))
+        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}##StatSheet"))
         {
             statwin.CharStatsDraw();
             ImGui.EndTabItem();
         }
-        if (ImGui.BeginTabItem("Système de dés"))
+        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}##DiceSystem"))
         {
             dicesyswin.DrawDiceSystemTab();
             ImGui.EndTabItem();

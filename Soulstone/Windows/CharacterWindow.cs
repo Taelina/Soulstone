@@ -58,65 +58,65 @@ namespace Soulstone.Windows
 
                 if (currentCharacter != null)
                 {
-                    if (ImGui.Checkbox("Éditer la fiche de personnage", ref editingCharsheet))
+                    if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("EditCharsheetCheck")}##EditCheck", ref editingCharsheet))
                     { }
-                    if (ImGui.Button("Sauvegarder la fiche de personnage"))
+                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("SaveCharsheetButton")}##SaveButton"))
                     {
                         CharacterSheet.SaveSheet(currentCharacter);
                     }
                     using (var child = ImRaii.Child("##Identity", new Vector2(0.0f, defaultContentHeight), true))
                     {
-                        ImGui.Text("Nom/Prénom :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharFullnameField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
                         UiUtils.ManageInputField(ref currentCharacter.characterFullName, "FullName", editingCharsheet);
 
                         ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
-                        ImGui.Text("Surnom :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharNicknameField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterNickName, "NickName", editingCharsheet);
 
-                        ImGui.Text("Race :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharSpecieField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterRace, "CharacterRace", editingCharsheet);
                         ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
 
-                        ImGui.Text("Sous-Race :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharSubSpecieField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterSubRace, "CharacterSubRace", editingCharsheet);
 
-                        ImGui.Text("Classe :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharClassField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterJob, "CharacterJob", editingCharsheet);
 
-                        ImGui.Text("Sexe :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharSexField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterSex, "CharacterSex", editingCharsheet);
 
                         ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
-                        ImGui.Text("Genre :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharGenderField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterGender, "CharacterGender", editingCharsheet);
 
-                        ImGui.Text("Pronoms :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharPronounsField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterPronouns, "CharacterPronouns", editingCharsheet);
 
-                        ImGui.Text("Âge :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("CharAgeField")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterAge, "CharacterAge", editingCharsheet);
                     }
 
                     using (var child = ImRaii.Child("##HRP", new Vector2(0.0f, defaultContentHeight), true))
                     {
-                        ImGui.Text("Infos HRP :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.characterInfo, "CharacterHrpInfo", editingCharsheet);
 
-                        ImGui.Text("Timezone :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("PlayerTimezone")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.playerTimezone, "PlayerTimezone", editingCharsheet);
 
-                        ImGui.Text("Disponibilités :");
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("PlayerAvailability")}");
                         ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                         UiUtils.ManageInputField(ref currentCharacter.playerAvailability, "PlayerAvailability", editingCharsheet);
                     }

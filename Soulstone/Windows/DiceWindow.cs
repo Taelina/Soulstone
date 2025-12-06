@@ -32,6 +32,7 @@ namespace Soulstone.Windows
 
         public void DrawDiceTab()
         {
+            ImGui.SetNextItemWidth(200.0f);
             ImGui.InputText("Manual Roll Input", ref rollInputText);
             detailedRoll = configuration.detailedRolls;
 
