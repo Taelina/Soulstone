@@ -60,6 +60,7 @@ namespace Soulstone.Windows
                 {
                     if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("EditCharsheetCheck")}##EditCheck", ref editingCharsheet))
                     { }
+                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                     if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("SaveCharsheetButton")}##SaveButton"))
                     {
                         CharacterSheet.SaveSheet(currentCharacter);
