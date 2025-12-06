@@ -106,6 +106,8 @@ namespace Soulstone.Managers
             English.Language = Language.English;
             English.LocalizedStrings = new Dictionary<string, string>
             {
+                //Generic Buttons
+                {"AddButton", "+" },
                 //Config Window
                 {"ConfigButton","Config" },
                 {"ConfigDetailedRollsCheck", "Detailed Dice throws" },
