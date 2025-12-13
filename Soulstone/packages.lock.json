@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net9.0-windows7.0": {
+      "DalamudPackager": {
+        "type": "Direct",
+        "requested": "[13.1.0, )",
+        "resolved": "13.1.0",
+        "contentHash": "XdoNhJGyFby5M/sdcRhnc5xTop9PHy+H50PTWpzLhJugjB19EDBiHD/AsiDF66RETM+0qKUdJBZrNuebn7qswQ=="
+      },
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.39, )",
+        "resolved": "1.2.39",
+        "contentHash": "fcFN01tDTIQqDuTwr1jUQK/geofiwjG5DycJQOnC72i1SsLAk1ELe+apBOuZ11UMQG8YKFZG1FgvjZPbqHyatg=="
+      },
+      "ECommons": {
+        "type": "Direct",
+        "requested": "[3.0.1.32, )",
+        "resolved": "3.0.1.32",
+        "contentHash": "OqmNYOrdnNBDnod+JvqyktD+sE2/I7RAp4uZXXXcSKThV8q9pFyrZhZhhYDcMhhAJMtWKeWt5FTiKLgYMH4eCQ=="
+      }
+    }
+  }
+}

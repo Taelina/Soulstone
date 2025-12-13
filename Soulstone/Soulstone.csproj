@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/13.1.0">
+  <PropertyGroup>
+    <Version>0.0.0.1</Version>
+    <Description>Plugin for roleplay systems and utilities.</Description>
+    <PackageProjectUrl>https://github.com/Taelina/Soulstone</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ECommons" Version="3.0.1.32" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.39" />
+  </ItemGroup>
+</Project>
