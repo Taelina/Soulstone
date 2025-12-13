@@ -1,5 +1,7 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
+using Soulstone.Datamodels;
+using Soulstone.Managers;
 using Soulstone.Utils;
 using System;
 using System.Collections.Generic;
@@ -32,16 +34,26 @@ namespace Soulstone.Windows
 
         public void DrawDiceTab()
         {
+            DiceSystem currentSystem = DiceSystemManager.Instance.CurrentDiceSystem;
             ImGui.SetNextItemWidth(200.0f);
-            ImGui.InputText("Manual Roll Input", ref rollInputText);
+            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("RollInputLabel")}", ref rollInputText);
             detailedRoll = configuration.detailedRolls;
 
-            ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-            ImGui.Checkbox("Advantage", ref advantage);
-            ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-            ImGui.Checkbox("Disadvantage", ref disadvantage);
+            if(currentSystem.systemHasAdvantageDisadvantage)
+            {
+                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("AdvantageCheckbox")}", ref advantage))
+                {
+                    disadvantage = false;
+                }
+                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DisadvantageCheckbox")}", ref disadvantage))
+                {
+                    advantage = false;
+                }
+            }            
 
-            if (ImGui.Button("Roll dice"))
+            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
             {
 
                 Plugin.Log.Info($"Rolling dice with input: {rollInputText}");

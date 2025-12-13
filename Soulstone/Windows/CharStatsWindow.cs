@@ -84,41 +84,46 @@ namespace Soulstone.Windows
                 if (currentCharacter != null)
                 {
                     ImGui.SetNextItemWidth(50.0f);
-                    ImGui.Text("Type de dé du système :");
+                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SystemDiceTypeLabel")}");
                     ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                     ImGui.Text(diceType);
-                    if (ImGui.Checkbox("Éditer les stats du personnage", ref editingStats))
+                    if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("EditStatCheckbox")}", ref editingStats))
                     { }
-                    if (ImGui.Button("Sauvegarder la fiche de personnage"))
+                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("SaveStatButton")}"))
                     {
                         CharacterSheet.SaveSheet(currentCharacter);
                     }
-                    if (ImGui.Checkbox("Jet avec avantage", ref advantageRoll))
+                    if(currentDiceSystem.systemHasAdvantageDisadvantage)
                     {
-                        disadvantageRoll = false;
+                        if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("AdvantageRollCheckbox")}", ref advantageRoll))
+                        {
+                            disadvantageRoll = false;
+                        }
+                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DisadvantageRollCheckbox")}", ref disadvantageRoll))
+                        {
+                            advantageRoll = false;
+                        }
                     }
-                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                    if (ImGui.Checkbox("Jet avec désavantage", ref disadvantageRoll))
-                    {
-                        advantageRoll = false;
-                    }
-                    ImGui.Text("Attributs :");
+                    
+                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("AttributeLabel")}");
                     ImGui.SameLine(0.0f, 145.0f);
-                    ImGui.Text("Compétences :");
+                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SkillLabel")}");
                     ImGui.SameLine(0.0f, 120.0f);
-                    ImGui.Text("Capacités :");
+                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("AbilityLabel")}");
                     using (var family = ImRaii.Child("##Attributes", new Vector2(200.0f, 200.0f), true))
                     {
-                        if (ImGui.Button("Ajouter"))
+                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
                         {
                             showAttributesPopup = true;
                         }
                         if (showAttributesPopup)
                         {
                             ImGui.BeginPopupModal("Nouvel attribut", ref showAttributesPopup, ImGuiWindowFlags.AlwaysAutoResize);
-                            ImGui.InputText("Nom de l'attribut", ref newAttributeName, 100);
-                            ImGui.InputInt("Valeur", ref newAttributeValue, 1);
-                            if (ImGui.Button("Ajouter"))
+                            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeNameLabel")}", ref newAttributeName, 100);
+                            ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeValueLabel")}", ref newAttributeValue, 1);
+                            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
                             {
                                 if (currentCharacter.characterAttributes == null)
                                 {
@@ -141,61 +146,15 @@ namespace Soulstone.Windows
                                 ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                                 UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAttributes, attribute.Key), $"FamilyRelation_{attribute.Key}", editingStats);
                                 ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                if (ImGui.Button("Lancer"))
+                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
                                 {
                                     if (currentDiceSystem != null)
                                     {
-                                        if (currentDiceSystem.DicePoolSystemEnabled)
-                                        {
-                                            string[] parsedType = diceType.Split('d');
-                                            int parsedSides = Convert.ToInt32(parsedType[1]);
-                                            Plugin.Log.Information($"Rolling {attribute.Value}d{parsedSides} against success threshold {currentDiceSystem.SuccessThreshold}");
-                                            DiceRoll roll = DiceRoll.RollDicePool(attribute.Value, parsedSides, currentDiceSystem.SuccessThreshold, attribute.Key);
-                                            if (!detailedRoll)
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                            else
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollDetailedResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                        }
-                                        if (currentDiceSystem.RegularDiceSystemEnabled)
-                                        {
-                                            string[] parsedType = diceType.Split('d');
-                                            int parsedSides = Convert.ToInt32(parsedType[1]);
-                                            Plugin.Log.Information($"Rolling {attribute.Value}d{parsedSides}");
-                                            DiceRoll roll = DiceRoll.RollDiceRegular(1, parsedSides, attribute.Value, attribute.Key);
-                                            if (!detailedRoll)
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                            else
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollDetailedResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-
-                                            }
-                                        }
+                                        int attributeValue = attribute.Value;
+                                        int totalDice = attributeValue;
+                                        int totalModifier = attributeValue;
+                                        int totalTarget = attributeValue;
+                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, attribute.Key, detailedRoll, totalTarget);
                                     }
                                 }
                             }
@@ -204,7 +163,7 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                     using (var family = ImRaii.Child("##Skills", new Vector2(200.0f, 200.0f), true))
                     {
-                        if (ImGui.Button("Ajouter"))
+                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
                         {
                             showSkillPopup = true;
                             if (currentCharacter.characterAttributes != null)
@@ -215,11 +174,11 @@ namespace Soulstone.Windows
                             if (ImGui.BeginPopupModal("Nouvelle Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize))
                             {
                                 selectedAttributeIndex = 0;
-                                ImGui.InputText("Nom de la compétence", ref newSkillName, 100);
-                                ImGui.InputInt("Valeur", ref newSkillValue, 1);
+                                ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewSkillName")}", ref newSkillName, 100);
+                                ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}", ref newSkillValue, 1);
                                 ImGui.SetNextItemWidth(75.0f);
-                                ImGui.InputText("Attribut lié##InputSkill", ref selectedAttribute, 100);
-                                if (ImGui.Button("Ajouter"))
+                                ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute")}##InputSkill", ref selectedAttribute, 100);
+                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
                                 {
                                     if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute))
                                     {
@@ -252,69 +211,19 @@ namespace Soulstone.Windows
                         {
                             foreach (KeyValuePair<string, Skill> skill in currentCharacter.characterSkills)
                             {
-                                ImGui.Text($"{skill.Value.skillName} (lié à {skill.Value.linkedAttribute}) : ");
+                                ImGui.Text($"{skill.Value.skillName} {LocalizationManager.Instance.GetLocalizedString("SkillLinkText")}{skill.Value.linkedAttribute}) : ");
                                 ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                                 UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterSkills, skill.Key).skillModifier, $"Skill_{skill.Value.skillName}", editingStats);
                                 ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                if (ImGui.Button("Lancer"))
+                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
                                 {
                                     if (currentDiceSystem != null)
                                     {
-                                        if (currentDiceSystem.DicePoolSystemEnabled)
-                                        {
-                                            string[] parsedType = diceType.Split('d');
-                                            int parsedSides = Convert.ToInt32(parsedType[1]);
-                                            int attributeValue = 0;
-                                            currentCharacter.characterAttributes.TryGetValue(skill.Value.linkedAttribute, out attributeValue);
-                                            int totalDice = skill.Value.skillModifier + attributeValue;
-                                            Plugin.Log.Information($"Rolling {totalDice}d{parsedSides} against success threshold {currentDiceSystem.SuccessThreshold}");
-                                            DiceRoll roll = DiceRoll.RollDicePool(totalDice, parsedSides, currentDiceSystem.SuccessThreshold, skill.Value.skillName);
-                                            if (!detailedRoll)
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                            else
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollDetailedResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                        }
-                                        if (currentDiceSystem.RegularDiceSystemEnabled)
-                                        {
-                                            string[] parsedType = diceType.Split('d');
-                                            int parsedSides = Convert.ToInt32(parsedType[1]);
-                                            int attributeValue = currentCharacter.characterAttributes[skill.Value.linkedAttribute];
-                                            int totalModifier = skill.Value.skillModifier + attributeValue;
-                                            Plugin.Log.Information($"Rolling 1d{parsedSides} + {totalModifier}");
-                                            DiceRoll roll = DiceRoll.RollDiceRegular(1, parsedSides, totalModifier, skill.Value.skillName, advantageRoll, disadvantageRoll);
-                                            if (!detailedRoll)
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                            else
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollDetailedResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                        }
+                                        int attributeValue = currentCharacter.characterAttributes[skill.Value.linkedAttribute];
+                                        int totalDice = skill.Value.skillModifier + attributeValue;
+                                        int totalModifier = skill.Value.skillModifier + attributeValue; 
+                                        int totalTarget = skill.Value.skillModifier + attributeValue;
+                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, skill.Value.skillName, detailedRoll, totalTarget);
                                     }
                                 }
                             }
@@ -323,7 +232,7 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                     using (var family = ImRaii.Child("##Abilities", new Vector2(300.0f, 200.0f), true))
                     {
-                        if (ImGui.Button("Ajouter"))
+                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
                         {
                             showAbilitiesPopup = true;
                             if (currentCharacter.characterAttributes != null)
@@ -337,13 +246,13 @@ namespace Soulstone.Windows
                             ImGui.BeginPopupModal("Nouvelle Capacité", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize);
                             selectedAttributeIndex = 0;
                             selectedSkillIndex = 0;
-                            ImGui.InputText("Nom de la capacité", ref newAbilityName, 100);
-                            ImGui.InputInt("Valeur", ref newAbilityValue, 1);
+                            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityName")}", ref newAbilityName, 100);
+                            ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}", ref newAbilityValue, 1);
                             ImGui.SetNextItemWidth(100.0f);
-                            ImGui.InputText("Attribut lié##InputCap", ref selectedAttribute, 100);
+                            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute")}##InputCap", ref selectedAttribute, 100);
                             ImGui.SetNextItemWidth(100.0f);
-                            ImGui.InputText("Compétence lié##InputCap", ref selectedSkill,100);
-                            if (ImGui.Button("Ajouter"))
+                            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedSkill")}##InputCap", ref selectedSkill,100);
+                            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
                             {
                                 if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute)
                                     && currentCharacter.characterSkills != null && !currentCharacter.characterSkills.ContainsKey(selectedSkill))
@@ -378,70 +287,20 @@ namespace Soulstone.Windows
                         {
                             foreach (KeyValuePair<string, Ability> ability in currentCharacter.characterAbilities)
                             {
-                                ImGui.Text($"{ability.Value.abilityName} (lié à {ability.Value.linkedAttribute} et {ability.Value.linkedSkill.skillName}) : ");
+                                ImGui.Text($"{ability.Value.abilityName} {LocalizationManager.Instance.GetLocalizedString("AbilityLinkText")}{ability.Value.linkedAttribute} & {ability.Value.linkedSkill.skillName}) : ");
                                 ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
                                 UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAbilities, ability.Key).abilityModifier, $"Ability_{ability.Value.abilityName}", editingStats);
                                 ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                if (ImGui.Button("Lancer"))
+                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
                                 {
                                     if (currentDiceSystem != null)
                                     {
-                                        if (currentDiceSystem.DicePoolSystemEnabled)
-                                        {
-                                            string[] parsedType = diceType.Split('d');
-                                            int parsedSides = Convert.ToInt32(parsedType[1]);
-                                            int attributeValue = currentCharacter.characterAttributes[ability.Value.linkedAttribute];
-                                            int skillValue = ability.Value.linkedSkill.skillModifier;
-                                            int totalDice = ability.Value.abilityModifier + attributeValue + skillValue;
-                                            Plugin.Log.Information($"Rolling {totalDice}d{parsedSides} against success threshold {currentDiceSystem.SuccessThreshold}");
-                                            DiceRoll roll = DiceRoll.RollDicePool(totalDice, parsedSides, currentDiceSystem.SuccessThreshold, ability.Value.abilityName);
-                                            if (!detailedRoll)
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                            else
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollDetailedResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                        }
-                                        if (currentDiceSystem.RegularDiceSystemEnabled)
-                                        {
-                                            string[] parsedType = diceType.Split('d');
-                                            int parsedSides = Convert.ToInt32(parsedType[1]);
-                                            int attributeValue = currentCharacter.characterAttributes[ability.Value.linkedAttribute];
-                                            int skillValue = ability.Value.linkedSkill.skillModifier;
-                                            int totalModifier = ability.Value.abilityModifier + attributeValue + skillValue;
-                                            Plugin.Log.Information($"Rolling 1d{parsedSides} + {totalModifier}");
-                                            DiceRoll roll = DiceRoll.RollDiceRegular(1, parsedSides, totalModifier, ability.Value.abilityName, advantageRoll, disadvantageRoll);
-                                            if (!detailedRoll)
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                            else
-                                            {
-                                                XivChatEntry rollMessage = new XivChatEntry
-                                                {
-                                                    Message = roll.RollDetailedResultString,
-                                                    Type = XivChatType.Say
-                                                };
-                                                Messages.SendMessage(rollMessage);
-                                            }
-                                        }
+                                        int attributeValue = currentCharacter.characterAttributes[ability.Value.linkedAttribute];
+                                        int skillValue = ability.Value.linkedSkill.skillModifier;
+                                        int totalDice = ability.Value.abilityModifier + attributeValue + skillValue;
+                                        int totalModifier = ability.Value.abilityModifier + attributeValue + skillValue;
+                                        int totalTarget = ability.Value.abilityModifier + attributeValue + skillValue;
+                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, ability.Value.abilityName, detailedRoll, totalTarget);
                                     }
                                 }
                             }

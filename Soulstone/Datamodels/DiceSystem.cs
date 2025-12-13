@@ -19,6 +19,14 @@ namespace Soulstone.Datamodels
         d20 = 5,
         d100 = 6
     }
+
+    public enum SystemType
+    {
+        DnDSystem = 0,
+        DicePoolSystem = 1,
+        PercentileSystem = 2
+    }
+
     internal class DiceSystem
     {
         public string systemName = "Standard Dice System";
@@ -33,8 +41,10 @@ namespace Soulstone.Datamodels
         public bool systemHasAdvantageDisadvantage = true;
 
         public DiceType diceType = DiceType.d20;
+        public SystemType systemType = SystemType.DnDSystem;
 
         public int successThreshold = 0;
+        public int successInterval = 0;
 
         public string SystemName { get => systemName; set => systemName = value; }
         public bool DicePoolSystemEnabled { get => dicePoolSystemEnabled; set => dicePoolSystemEnabled = value; }
@@ -47,6 +57,8 @@ namespace Soulstone.Datamodels
         public bool AbilityLinkedToOneSkill { get => abilityLinkedToOneSkill; set => abilityLinkedToOneSkill = value; }
         public bool SystemHasSaves { get => systemHasSaves; set => systemHasSaves = value; }
         public bool SystemHasAdvantageDisadvantage { get => systemHasAdvantageDisadvantage; set => systemHasAdvantageDisadvantage = value; }
+        public SystemType SystemType { get => systemType; set => systemType = value; }
+        public int SuccessInterval { get => successInterval; set => successInterval = value; }
 
         public static DiceSystem LoadDiceSystem(string systemName)
         {

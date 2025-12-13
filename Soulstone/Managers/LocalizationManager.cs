@@ -40,6 +40,9 @@ namespace Soulstone.Managers
             {
                 //Generic Buttons
                 {"AddButton", "+" },
+                {"SupprButton", "-" },
+                {"ThrowButton", "Lancer" },
+                {"AddConfirmButton", "Ajouter" },
                 //Config Window
                 {"ConfigButton","Configurer" },
                 {"ConfigDetailedRollsCheck", "Jets détaillés" },
@@ -100,6 +103,42 @@ namespace Soulstone.Managers
                 //Enemy Popup
                 {"EnemyNameField", "Nom de l'ennemi" },
                 {"EnemyDescriptionField", "Description" },
+                //Dice Tab
+                {"RollInputLabel", "Jet" },
+                {"AdvantageCheckbox", "Avantage" },
+                {"DisadvantageCheckbox", "Désavantage" },
+                //Stat Tab
+                {"SystemDiceTypeLabel", "Type de dé du système :" },
+                {"EditStatCheckbox", "Editer les stats du personnage" },
+                {"SaveStatButton", "Sauvegarder la fiche de personnage" },
+                {"AdvantageRollCheckbox", "Jet avec avantage" },
+                {"DisadvantageRollCheckbox", "Jet avec désavantage" },
+                {"AttributeLabel", "Attributs :" },
+                {"SkillLabel", "Compétences :" },
+                {"AbilityLabel", "Capacités :" },
+                {"NewAttributeNameLabel", "Nom de l'attribut" },
+                {"NewAttributeValueLabel", "Valeur" },
+                {"NewSkillName", "Nom de la compétence" },
+                {"NewSkillValue", "Valeur" },
+                {"NewLinkedAttribute", "Attribut lié" },
+                {"NewAbilityName", "Nom de la capacité" },
+                {"NewAbilityValue", "Valeur" },
+                {"NewLinkedSkill", "Compétence lié" },
+                {"SkillLinkText", "(lié à " },
+                {"AbilityLinkText", "(lié à " },
+                //Dice System Tab
+                {"DiceSystemSaveButton", "Sauvegarder le système de dés" },
+                {"DiceSystemNameLabel", "Nom du système de dés :" },
+                {"SystemTypeCombo", "Type de système de dés" },
+                {"DiceTypeCombo", "Type de dé :" },
+                {"SuccessThresholdLabel", "Seuil de réussite (pour les systèmes à pool de dés) :" },
+                {"SuccessIntervalLabel", "Interval de réussite (pour les systèmes pourcentage) :" },
+                {"DndStyleAttrCheckbox", "Attributs de style DnD" },
+                {"SkillUniqueAttrCheckbox", "Compétence liée à un seul attribut" },
+                {"AbilityUniqueAttrCheckbox", "Capacité liée à un seul attribut" },
+                {"AbilityUniqueSkillCheckbox", "Capacité lieée à une seule compétence" },
+                {"DnDStyleSavesCheckbox", "Le système gère les jets de sauvegarde" },
+                {"DnDStyleAdvDisadvCheckbox", "Le système gère l'avantage et le désavantage" },
             };
 
             Localization English = new Localization();
@@ -108,6 +147,9 @@ namespace Soulstone.Managers
             {
                 //Generic Buttons
                 {"AddButton", "+" },
+                {"SupprButton", "-" },
+                {"ThrowButton", "Roll" },
+                {"AddConfirmButton", "Add" },
                 //Config Window
                 {"ConfigButton","Config" },
                 {"ConfigDetailedRollsCheck", "Detailed Dice throws" },
@@ -168,6 +210,42 @@ namespace Soulstone.Managers
                 //Enemy Popup
                 {"EnemyNameField", "Enemy's name" },
                 {"EnemyDescriptionField", "Description" },
+                //Dice Window
+                {"RollInputLabel", "Dice Roll" },
+                {"AdvantageCheckbox", "Advantage" },
+                {"DisadvantageCheckbox", "Disadvantage" },
+                //Stat Tab
+                {"SystemDiceTypeLabel", "System dice type :" },
+                {"EditStatCheckbox", "Edit stats" },
+                {"SaveStatButton", "Save stats" },
+                {"AdvantageRollCheckbox", "Roll with advantage" },
+                {"DisadvantageRollCheckbox", "Roll with disadvantage" },
+                {"AttributeLabel", "Attributes :" },
+                {"SkillLabel", "Skills :" },
+                {"AbilityLabel", "Abilities :" },
+                {"NewAttributeNameLabel", "Attribute name" },
+                {"NewAttributeValueLabel", "Value" },
+                {"NewSkillName", "Skill name" },
+                {"NewSkillValue", "Value" },
+                {"NewLinkedAttribute", "Linked attribute" },
+                {"NewAbilityName", "Skill name" },
+                {"NewAbilityValue", "Value" },
+                {"NewLinkedSkill", "Linked Skill" },
+                {"SkillLinkText", " (linked to " },
+                {"AbilityLinkText", " (linked to " },
+                //Dice System Tab
+                {"DiceSystemSaveButton", "Save dice system" },
+                {"DiceSystemNameLabel", "System name :" },
+                {"SystemTypeCombo", "System type :" },
+                {"DiceTypeCombo", "Dice Type :" },
+                {"SuccessThresholdLabel", "Success Threshold (for dice pool systems) :" },
+                {"SuccessIntervalLabel", "Success Interval (for percentile dice systems) :" },
+                {"DndStyleAttrCheckbox", "DnD style attributes" },
+                {"SkillUniqueAttrCheckbox", "Skill linked only to one attribute" },
+                {"AbilityUniqueAttrCheckbox", "Ability linked only to one attribute" },
+                {"AbilityUniqueSkillCheckbox", "Ability linked only to one skill" },
+                {"DnDStyleSavesCheckbox", "System has saving throws" },
+                {"DnDStyleAdvDisadvCheckbox", "System handles advantage and disadvantage" },
 
             };
 

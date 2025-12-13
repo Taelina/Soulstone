@@ -19,6 +19,7 @@ namespace Soulstone.Windows
         private readonly Configuration configuration;
 
         private int selectedDiceTypeIndex = 0;
+        private int selectedSystemTypeIndex = 0;
 
         public DiceSystemWindow(Plugin _plugin)
         {
@@ -32,42 +33,49 @@ namespace Soulstone.Windows
         {
             DiceSystem currentSystem = DiceSystemManager.Instance.CurrentDiceSystem;
             selectedDiceTypeIndex = (int)currentSystem.diceType;
+            selectedSystemTypeIndex = (int)currentSystem.systemType;
             if (currentSystem != null)
             {
-                if (ImGui.Button("Sauvegarder le système de dés"))
+                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemSaveButton")}"))
                 {
                     DiceSystem.SaveDiceSystem(currentSystem);
                 }
                 using (var parent = ImRaii.Child("##DiceSystem", Vector2.Zero))
                 {
-                    ImGui.Text("Nom du système de dés :");
+                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemNameLabel")}");
                     ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
                     ImGui.SetNextItemWidth(200.0f);
                     ImGui.InputText("##DiceSystemName", ref currentSystem.systemName, 100);
                     ImGui.Separator();
-                    ImGui.Checkbox("Système à pool de dés", ref currentSystem.dicePoolSystemEnabled);
-                    ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
-                    ImGui.Checkbox("Système de dés standard", ref currentSystem.regularDiceSystemEnabled);
+                    ImGui.SetNextItemWidth(150.0f);
+                    if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("SystemTypeCombo")}##DiceSystemCombo", ref selectedSystemTypeIndex, Enum.GetNames(typeof(SystemType))))
+                    {
+                        currentSystem.systemType = (SystemType)selectedSystemTypeIndex;
+                    }
                     ImGui.Separator();
 
                     //Should have d20, d6, d10, d12, d100 like inputs
                     ImGui.SetNextItemWidth(75.0f);
-                    if(ImGui.Combo("Type de dé ##Combo", ref selectedDiceTypeIndex, Enum.GetNames(typeof(DiceType))))
+                    if(ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("DiceTypeCombo")}##DiceTypeCombo", ref selectedDiceTypeIndex, Enum.GetNames(typeof(DiceType))))
                     {
                         currentSystem.diceType = (DiceType)selectedDiceTypeIndex;
                     }
 
-                    ImGui.Text("Seuil de réussite (pour les systèmes à pool de dés) :");
+                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SuccessThresholdLabel")}");
                     ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
                     ImGui.SetNextItemWidth(50.0f);
                     ImGui.InputInt("##SuccessThreshold", ref currentSystem.successThreshold);
+                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SuccessIntervalLabel")}");
+                    ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                    ImGui.SetNextItemWidth(50.0f);
+                    ImGui.InputInt("##SuccessInterval", ref currentSystem.successInterval);
 
-                    ImGui.Checkbox("Attributs de style DnD", ref currentSystem.dndStyleAttributes);
-                    ImGui.Checkbox("Compétence liée à un seul attribut", ref currentSystem.skillLinkedToOneAttribute);
-                    ImGui.Checkbox("Capacité liée à un seul attribut", ref currentSystem.abilityLinkedToOneAttribute);
-                    ImGui.Checkbox("Capacité liée à une seule compétence", ref currentSystem.abilityLinkedToOneSkill);
-                    ImGui.Checkbox("Le système gère les jets de sauvegarde", ref currentSystem.systemHasSaves);
-                    ImGui.Checkbox("Le système gère l'avantage et le désavantage", ref currentSystem.systemHasAdvantageDisadvantage);
+                    //ImGui.Checkbox("Attributs de style DnD", ref currentSystem.dndStyleAttributes); TODO Implement real D&D Style modifiers for attributes for this.
+                    //ImGui.Checkbox("Compétence liée à un seul attribut", ref currentSystem.skillLinkedToOneAttribute);
+                    //ImGui.Checkbox("Capacité liée à un seul attribut", ref currentSystem.abilityLinkedToOneAttribute);
+                    //ImGui.Checkbox("Capacité liée à une seule compétence", ref currentSystem.abilityLinkedToOneSkill); TODO : Determine if this is relevant anymore.
+                    //ImGui.Checkbox("Le système gère les jets de sauvegarde", ref currentSystem.systemHasSaves); TODO : Implement real D&D Style saves.
+                    ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DnDStyleAdvDisadvCheckbox")}", ref currentSystem.systemHasAdvantageDisadvantage);
                 }
             }            
         }
