@@ -34,15 +34,11 @@ namespace Soulstone.Windows
 
         private string newSkillName = "";
         private int newSkillValue = 0;
-        private int selectedAttributeIndex = 0;
         private string selectedAttribute = "";
         private Skill newSkill = null;
 
-        private bool setupCombo = false;
-
         private string newAbilityName = "";
         private int newAbilityValue = 0;
-        private int selectedSkillIndex = 0;
         private string selectedSkill = "";
         private Ability newAbility = null;
 
@@ -173,7 +169,6 @@ namespace Soulstone.Windows
                         {
                             if (ImGui.BeginPopupModal("Nouvelle Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize))
                             {
-                                selectedAttributeIndex = 0;
                                 ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewSkillName")}", ref newSkillName, 100);
                                 ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}", ref newSkillValue, 1);
                                 ImGui.SetNextItemWidth(75.0f);
@@ -244,8 +239,6 @@ namespace Soulstone.Windows
                         if (showAbilitiesPopup)
                         {
                             ImGui.BeginPopupModal("Nouvelle Capacité", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize);
-                            selectedAttributeIndex = 0;
-                            selectedSkillIndex = 0;
                             ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityName")}", ref newAbilityName, 100);
                             ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}", ref newAbilityValue, 1);
                             ImGui.SetNextItemWidth(100.0f);

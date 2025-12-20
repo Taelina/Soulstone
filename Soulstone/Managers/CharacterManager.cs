@@ -38,7 +38,7 @@ namespace Soulstone.Managers
 
         public void Init()
         {
-            var localPlayer = Plugin.ClientState.LocalPlayer;
+            var localPlayer = Plugin.ObjectTable.LocalPlayer;
             SeString playerName = localPlayer.Name;
             Plugin.Log.Information($"Loading character data for {playerName.TextValue}");
             instance.CharacterSheet = instance.LoadCharacterData(playerName.TextValue);

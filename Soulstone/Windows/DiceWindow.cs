@@ -13,7 +13,6 @@ namespace Soulstone.Windows
 {
     internal class DiceWindow
     {
-        private string testroll = "";
         private bool detailedRoll = false;
         private string rollInputText = "";
 
