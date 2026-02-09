@@ -42,40 +42,43 @@ namespace Soulstone.Windows
                 }
                 using (var parent = ImRaii.Child("##DiceSystem", Vector2.Zero))
                 {
-                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemNameLabel")}");
-                    ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
-                    ImGui.SetNextItemWidth(200.0f);
-                    ImGui.InputText("##DiceSystemName", ref currentSystem.systemName, 100);
-                    ImGui.Separator();
-                    ImGui.SetNextItemWidth(150.0f);
-                    if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("SystemTypeCombo")}##DiceSystemCombo", ref selectedSystemTypeIndex, Enum.GetNames(typeof(SystemType))))
+                    if(parent.Success)
                     {
-                        currentSystem.systemType = (SystemType)selectedSystemTypeIndex;
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemNameLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.SetNextItemWidth(200.0f);
+                        ImGui.InputText("##DiceSystemName", ref currentSystem.systemName, 100);
+                        ImGui.Separator();
+                        ImGui.SetNextItemWidth(150.0f);
+                        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("SystemTypeCombo")}##DiceSystemCombo", ref selectedSystemTypeIndex, Enum.GetNames(typeof(SystemType))))
+                        {
+                            currentSystem.systemType = (SystemType)selectedSystemTypeIndex;
+                        }
+                        ImGui.Separator();
+
+                        //Should have d20, d6, d10, d12, d100 like inputs
+                        ImGui.SetNextItemWidth(75.0f);
+                        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("DiceTypeCombo")}##DiceTypeCombo", ref selectedDiceTypeIndex, Enum.GetNames(typeof(DiceType))))
+                        {
+                            currentSystem.diceType = (DiceType)selectedDiceTypeIndex;
+                        }
+
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SuccessThresholdLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.SetNextItemWidth(50.0f);
+                        ImGui.InputInt("##SuccessThreshold", ref currentSystem.successThreshold);
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SuccessIntervalLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.SetNextItemWidth(50.0f);
+                        ImGui.InputInt("##SuccessInterval", ref currentSystem.successInterval);
+
+                        //ImGui.Checkbox("Attributs de style DnD", ref currentSystem.dndStyleAttributes); TODO Implement real D&D Style modifiers for attributes for this.
+                        //ImGui.Checkbox("Compétence liée à un seul attribut", ref currentSystem.skillLinkedToOneAttribute);
+                        //ImGui.Checkbox("Capacité liée à un seul attribut", ref currentSystem.abilityLinkedToOneAttribute);
+                        //ImGui.Checkbox("Capacité liée à une seule compétence", ref currentSystem.abilityLinkedToOneSkill); TODO : Determine if this is relevant anymore.
+                        //ImGui.Checkbox("Le système gère les jets de sauvegarde", ref currentSystem.systemHasSaves); TODO : Implement real D&D Style saves.
+                        ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DnDStyleAdvDisadvCheckbox")}", ref currentSystem.systemHasAdvantageDisadvantage);
                     }
-                    ImGui.Separator();
-
-                    //Should have d20, d6, d10, d12, d100 like inputs
-                    ImGui.SetNextItemWidth(75.0f);
-                    if(ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("DiceTypeCombo")}##DiceTypeCombo", ref selectedDiceTypeIndex, Enum.GetNames(typeof(DiceType))))
-                    {
-                        currentSystem.diceType = (DiceType)selectedDiceTypeIndex;
-                    }
-
-                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SuccessThresholdLabel")}");
-                    ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
-                    ImGui.SetNextItemWidth(50.0f);
-                    ImGui.InputInt("##SuccessThreshold", ref currentSystem.successThreshold);
-                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SuccessIntervalLabel")}");
-                    ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
-                    ImGui.SetNextItemWidth(50.0f);
-                    ImGui.InputInt("##SuccessInterval", ref currentSystem.successInterval);
-
-                    //ImGui.Checkbox("Attributs de style DnD", ref currentSystem.dndStyleAttributes); TODO Implement real D&D Style modifiers for attributes for this.
-                    //ImGui.Checkbox("Compétence liée à un seul attribut", ref currentSystem.skillLinkedToOneAttribute);
-                    //ImGui.Checkbox("Capacité liée à un seul attribut", ref currentSystem.abilityLinkedToOneAttribute);
-                    //ImGui.Checkbox("Capacité liée à une seule compétence", ref currentSystem.abilityLinkedToOneSkill); TODO : Determine if this is relevant anymore.
-                    //ImGui.Checkbox("Le système gère les jets de sauvegarde", ref currentSystem.systemHasSaves); TODO : Implement real D&D Style saves.
-                    ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DnDStyleAdvDisadvCheckbox")}", ref currentSystem.systemHasAdvantageDisadvantage);
                 }
             }            
         }

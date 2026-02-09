@@ -54,28 +54,30 @@ public class MainWindow : Window, IDisposable
         }
             
         ImGui.Spacing();
-        ImGui.BeginTabBar("SoulstoneTabs");
-        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("RPTab")}##RPSheet"))
+        if(ImGui.BeginTabBar("SoulstoneTabs"))
         {
-            charwin.DrawCharTab();
-            ImGui.EndTabItem();
+            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("RPTab")}##RPSheet"))
+            {
+                charwin.DrawCharTab();
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceRollTab")}##DiceSheet"))
+            {
+                dicewin.DrawDiceTab();
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}##StatSheet"))
+            {
+                statwin.CharStatsDraw();
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}##DiceSystem"))
+            {
+                dicesyswin.DrawDiceSystemTab();
+                ImGui.EndTabItem();
+            }
+            ImGui.EndTabBar();
         }
-        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceRollTab")}##DiceSheet"))
-        { 
-            dicewin.DrawDiceTab();
-            ImGui.EndTabItem();
-        }
-        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}##StatSheet"))
-        {
-            statwin.CharStatsDraw();
-            ImGui.EndTabItem();
-        }
-        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}##DiceSystem"))
-        {
-            dicesyswin.DrawDiceSystemTab();
-            ImGui.EndTabItem();
-        }
-        ImGui.EndTabBar();
 
         // Normally a BeginChild() would have to be followed by an unconditional EndChild(),
         // ImRaii takes care of this after the scope ends.
