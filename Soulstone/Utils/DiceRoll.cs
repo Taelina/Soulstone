@@ -131,7 +131,7 @@ namespace Soulstone.Utils
                 }
                 else
                 {
-                    result = RollDiceRegular(numberOfDice, sidesPerDie,0,"0",advantage,disadvantage);
+                    result = RollDiceRegular(numberOfDice, sidesPerDie,0,"",advantage,disadvantage);
                 }
             }
             else
@@ -144,7 +144,7 @@ namespace Soulstone.Utils
         public static void RollDice(int numberOfDice, int addedValue = 0, bool advantage = false, bool disadvantage = false, string rollName = "", bool detailedRoll = false, int target = 0)
         {
             DiceSystem currentDiceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
-            string diceType = Enum.GetName(typeof(DiceType), DiceSystemManager.Instance.CurrentDiceSystem.DiceType);
+            string diceType = Enum.GetName<DiceType>(DiceSystemManager.Instance.CurrentDiceSystem.DiceType);
             string[] parsedType = diceType.Split('d');
             int parsedSides = Convert.ToInt32(parsedType[1]);
             DiceRoll roll = null;

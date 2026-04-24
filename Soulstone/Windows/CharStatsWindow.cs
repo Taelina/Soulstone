@@ -1,8 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Utility.Raii;
-using ECommons;
-using ECommons.ImGuiMethods;
 using Soulstone.Datamodels;
 using Soulstone.Managers;
 using Soulstone.Utils;
@@ -63,7 +61,7 @@ namespace Soulstone.Windows
         public void Dispose()
         { }
 
-        public void CharStatsDraw()
+        public void DrawCharStats()
         {
             detailedRoll = configuration.detailedRolls;
             using (var parent = ImRaii.Child("##CharStats", Vector2.Zero))
@@ -77,17 +75,17 @@ namespace Soulstone.Windows
                     if (DiceSystemManager.Instance.CurrentDiceSystem != null)
                     {
                         currentDiceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
-                        diceType = Enum.GetName(typeof(DiceType), DiceSystemManager.Instance.CurrentDiceSystem.DiceType);
+                        diceType = Enum.GetName<DiceType>(DiceSystemManager.Instance.CurrentDiceSystem.DiceType);
                     }
                     if (currentCharacter != null)
                     {
                         ImGui.SetNextItemWidth(50.0f);
                         ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SystemDiceTypeLabel")}");
-                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                         ImGui.Text(diceType);
                         if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("EditStatCheckbox")}", ref editingStats))
                         { }
-                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                         if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("SaveStatButton")}"))
                         {
                             CharacterSheet.SaveSheet(currentCharacter);
@@ -98,7 +96,7 @@ namespace Soulstone.Windows
                             {
                                 disadvantageRoll = false;
                             }
-                            ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                            ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                             if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DisadvantageRollCheckbox")}", ref disadvantageRoll))
                             {
                                 advantageRoll = false;
@@ -120,22 +118,24 @@ namespace Soulstone.Windows
                                 }
                                 if (showAttributesPopup)
                                 {
-                                    ImGui.BeginPopupModal("Nouvel attribut", ref showAttributesPopup, ImGuiWindowFlags.AlwaysAutoResize);
-                                    ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeNameLabel")}", ref newAttributeName, 100);
-                                    ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeValueLabel")}", ref newAttributeValue, 1);
-                                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
+                                    var popup = ImRaii.PopupModal("Nouvel attribut", ref showAttributesPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                    if (popup.Success)
                                     {
-                                        if (currentCharacter.characterAttributes == null)
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeNameLabel")}", ref newAttributeName, 100);
+                                        ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeValueLabel")}", ref newAttributeValue, 1);
+                                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
                                         {
-                                            currentCharacter.characterAttributes = new Dictionary<string, int>();
-                                            currentCharacter.characterAttributes.Add(newAttributeName, newAttributeValue);
+                                            if (currentCharacter.characterAttributes == null)
+                                            {
+                                                currentCharacter.characterAttributes = new Dictionary<string, int>();
+                                                currentCharacter.characterAttributes.Add(newAttributeName, newAttributeValue);
+                                            }
+                                            if (!currentCharacter.characterAttributes.ContainsKey(newAttributeName))
+                                                currentCharacter.characterAttributes.Add(newAttributeName, newAttributeValue);
+                                            showAttributesPopup = false;
                                         }
-                                        if (!currentCharacter.characterAttributes.ContainsKey(newAttributeName))
-                                            currentCharacter.characterAttributes.Add(newAttributeName, newAttributeValue);
-                                        showAttributesPopup = false;
                                     }
                                     ImGui.OpenPopup("Nouvel attribut");
-                                    ImGui.EndPopup();
                                 }
 
                                 if (currentCharacter.characterAttributes != null)
@@ -143,9 +143,10 @@ namespace Soulstone.Windows
                                     foreach (KeyValuePair<string, int> attribute in currentCharacter.characterAttributes)
                                     {
                                         ImGui.Text($"{attribute.Key} : ");
-                                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                        UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAttributes, attribute.Key), $"FamilyRelation_{attribute.Key}", editingStats);
-                                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                                        bool test;
+                                        UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrAddDefault(currentCharacter.characterAttributes, attribute.Key, out test), $"FamilyRelation_{attribute.Key}", editingStats);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                                         if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
                                         {
                                             if (currentDiceSystem != null)
@@ -161,7 +162,7 @@ namespace Soulstone.Windows
                                 }
                             }
                         }
-                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                         using (var family = ImRaii.Child("##Skills", new Vector2(200.0f, 200.0f), true))
                         {
                             if (family.Success)
@@ -174,7 +175,8 @@ namespace Soulstone.Windows
                                 }
                                 if (showSkillPopup)
                                 {
-                                    if (ImGui.BeginPopupModal("Nouvelle Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize))
+                                    var popup = ImRaii.PopupModal("Nouvelle Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                    if (popup.Success)
                                     {
                                         ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewSkillName")}", ref newSkillName, 100);
                                         ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}", ref newSkillValue, 1);
@@ -206,7 +208,6 @@ namespace Soulstone.Windows
                                         }
                                     }
                                     ImGui.OpenPopup("Nouvelle Compétence");
-                                    ImGui.EndPopup();
                                 }
 
                                 if (currentCharacter.characterSkills != null)
@@ -214,9 +215,9 @@ namespace Soulstone.Windows
                                     foreach (KeyValuePair<string, Skill> skill in currentCharacter.characterSkills)
                                     {
                                         ImGui.Text($"{skill.Value.skillName} {LocalizationManager.Instance.GetLocalizedString("SkillLinkText")}{skill.Value.linkedAttribute}) : ");
-                                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                                         UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterSkills, skill.Key).skillModifier, $"Skill_{skill.Value.skillName}", editingStats);
-                                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                                         if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
                                         {
                                             if (currentDiceSystem != null)
@@ -232,7 +233,7 @@ namespace Soulstone.Windows
                                 }
                             }
                         }
-                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                         using (var family = ImRaii.Child("##Abilities", new Vector2(300.0f, 200.0f), true))
                         {
                             if (family.Success)
@@ -248,52 +249,54 @@ namespace Soulstone.Windows
                                 }
                                 if (showAbilitiesPopup)
                                 {
-                                    ImGui.BeginPopupModal("Nouvelle Capacité", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize);
-                                    ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityName")}", ref newAbilityName, 100);
-                                    ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}", ref newAbilityValue, 1);
-                                    ImGui.SetNextItemWidth(100.0f);
-                                    ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute")}##InputCap", ref selectedAttribute, 100);
-                                    ImGui.SetNextItemWidth(100.0f);
-                                    ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedSkill")}##InputCap", ref selectedSkill, 100);
-                                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
+                                    var popup = ImRaii.PopupModal("Nouvelle Capacité", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                    if (popup.Success)
                                     {
-                                        if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute)
-                                            && currentCharacter.characterSkills != null && !currentCharacter.characterSkills.ContainsKey(selectedSkill))
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityName")}", ref newAbilityName, 100);
+                                        ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}", ref newAbilityValue, 1);
+                                        ImGui.SetNextItemWidth(100.0f);
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute")}##InputCap", ref selectedAttribute, 100);
+                                        ImGui.SetNextItemWidth(100.0f);
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedSkill")}##InputCap", ref selectedSkill, 100);
+                                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
                                         {
-                                            Plugin.Log.Information("L'attribut ou compenténce lié n'existe pas.");
-                                            return;
-                                        }
-                                        else
-                                        {
-                                            newAbility = new Ability
+                                            if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute)
+                                                && currentCharacter.characterSkills != null && !currentCharacter.characterSkills.ContainsKey(selectedSkill))
                                             {
-                                                abilityName = newAbilityName,
-                                                abilityModifier = newAbilityValue,
-                                                linkedAttribute = selectedAttribute
-                                            };
-                                            currentCharacter.characterSkills.TryGetValue(selectedSkill, out newAbility.linkedSkill);
-                                            if (currentCharacter.characterAbilities == null)
-
-                                            {
-                                                currentCharacter.characterAbilities = new Dictionary<string, Ability>();
-                                                currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
+                                                Plugin.Log.Information("L'attribut ou compenténce lié n'existe pas.");
+                                                return;
                                             }
-                                            if (!currentCharacter.characterAbilities.ContainsKey(newAttributeName))
-                                                currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
-                                            showAbilitiesPopup = false;
+                                            else
+                                            {
+                                                newAbility = new Ability
+                                                {
+                                                    abilityName = newAbilityName,
+                                                    abilityModifier = newAbilityValue,
+                                                    linkedAttribute = selectedAttribute
+                                                };
+                                                currentCharacter.characterSkills.TryGetValue(selectedSkill, out newAbility.linkedSkill);
+                                                if (currentCharacter.characterAbilities == null)
+
+                                                {
+                                                    currentCharacter.characterAbilities = new Dictionary<string, Ability>();
+                                                    currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
+                                                }
+                                                if (!currentCharacter.characterAbilities.ContainsKey(newAttributeName))
+                                                    currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
+                                                showAbilitiesPopup = false;
+                                            }
                                         }
                                     }
                                     ImGui.OpenPopup("Nouvelle Capacité");
-                                    ImGui.EndPopup();
                                 }
                                 if (currentCharacter.characterAbilities != null)
                                 {
                                     foreach (KeyValuePair<string, Ability> ability in currentCharacter.characterAbilities)
                                     {
                                         ImGui.Text($"{ability.Value.abilityName} {LocalizationManager.Instance.GetLocalizedString("AbilityLinkText")}{ability.Value.linkedAttribute} & {ability.Value.linkedSkill.skillName}) : ");
-                                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                                         UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAbilities, ability.Key).abilityModifier, $"Ability_{ability.Value.abilityName}", editingStats);
-                                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                                         if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
                                         {
                                             if (currentDiceSystem != null)

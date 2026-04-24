@@ -9,6 +9,7 @@ using Dalamud.Plugin.Ipc;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Game.Text.SeStringHandling;
 using Soulstone.Managers;
+using System;
 
 namespace Soulstone;
 
@@ -27,6 +28,7 @@ public sealed class Plugin : IDalamudPlugin
     private const string CommandName = "/soulstone";
 
     public static string dataLocation;
+    private Boolean pluginInitialized = false;
 
     public Configuration Configuration { get; init; }
 
@@ -97,8 +99,13 @@ public sealed class Plugin : IDalamudPlugin
 
     public void InitManagers()
     {
-        CharacterManager.Instance.Init();
-        DiceSystemManager.Instance.Init();
-        LocalizationManager.Instance.InitLoc(this);
+        if(!pluginInitialized)
+        {
+            pluginInitialized = true;
+            Log.Information("Initializing managers...");
+            CharacterManager.Instance.Init();
+            DiceSystemManager.Instance.Init();
+            LocalizationManager.Instance.InitLoc(this);
+        }
     }
 }

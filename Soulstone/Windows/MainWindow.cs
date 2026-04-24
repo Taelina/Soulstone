@@ -29,7 +29,7 @@ public class MainWindow : Window, IDisposable
     // The user will see "My Amazing Window" as window title,
     // but for ImGui the ID is "My Amazing Window##With a hidden ID"
     public MainWindow(Plugin plugin)
-        : base("Soulstone##With a hidden ID", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("Soulstone##SoulstoneMainWin", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -54,10 +54,11 @@ public class MainWindow : Window, IDisposable
         }
             
         ImGui.Spacing();
-        if(ImGui.BeginTabBar("SoulstoneTabs"))
+        var tabs = ImRaii.TabBar("SoulstoneTabs");
+        if(tabs.Success)
         {
-            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("RPTab")}##RPSheet"))
-            {
+            if(ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("RPTab")}##RPSheet"))
+        {
                 charwin.DrawCharTab();
                 ImGui.EndTabItem();
             }
@@ -68,7 +69,7 @@ public class MainWindow : Window, IDisposable
             }
             if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}##StatSheet"))
             {
-                statwin.CharStatsDraw();
+                statwin.DrawCharStats();
                 ImGui.EndTabItem();
             }
             if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}##DiceSystem"))
@@ -76,7 +77,6 @@ public class MainWindow : Window, IDisposable
                 dicesyswin.DrawDiceSystemTab();
                 ImGui.EndTabItem();
             }
-            ImGui.EndTabBar();
         }
 
         // Normally a BeginChild() would have to be followed by an unconditional EndChild(),

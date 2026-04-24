@@ -15,6 +15,8 @@ namespace Soulstone.Managers
         private static CharacterManager? instance = null;
         private static readonly object padlock = new object();
 
+        private static bool charLoaded = false;
+
         private CharacterSheet? characterSheet;
 
         private CharacterManager()
@@ -39,17 +41,23 @@ namespace Soulstone.Managers
         public void Init()
         {
             var localPlayer = Plugin.ObjectTable.LocalPlayer;
-            SeString playerName = localPlayer.Name;
-            Plugin.Log.Information($"Loading character data for {playerName.TextValue}");
-            instance.CharacterSheet = instance.LoadCharacterData(playerName.TextValue);
+            if(localPlayer != null)
+                {
+                SeString playerName = localPlayer.Name;
+                Plugin.Log.Information($"Loading character data for {playerName.TextValue}");
+                instance.CharacterSheet = instance.LoadCharacterData(playerName.TextValue);
+            }            
         }
 
         private CharacterSheet LoadCharacterData(string charName)
         {
-
-            CharacterSheet = CharacterSheet.LoadSheet(charName);
+            if (!charLoaded)
+            {
+                CharacterSheet = CharacterSheet.LoadSheet(charName);
+            }
             if (CharacterSheet != null)
             {
+                charLoaded = true;
                 return CharacterSheet;
             }
             else

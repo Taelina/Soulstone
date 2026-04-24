@@ -45,12 +45,12 @@ namespace Soulstone.Windows
                     if(parent.Success)
                     {
                         ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemNameLabel")}");
-                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultFieldSpacing);
                         ImGui.SetNextItemWidth(200.0f);
                         ImGui.InputText("##DiceSystemName", ref currentSystem.systemName, 100);
                         ImGui.Separator();
                         ImGui.SetNextItemWidth(150.0f);
-                        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("SystemTypeCombo")}##DiceSystemCombo", ref selectedSystemTypeIndex, Enum.GetNames(typeof(SystemType))))
+                        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("SystemTypeCombo")}##DiceSystemCombo", ref selectedSystemTypeIndex, Enum.GetNames<SystemType>()))
                         {
                             currentSystem.systemType = (SystemType)selectedSystemTypeIndex;
                         }
@@ -58,17 +58,17 @@ namespace Soulstone.Windows
 
                         //Should have d20, d6, d10, d12, d100 like inputs
                         ImGui.SetNextItemWidth(75.0f);
-                        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("DiceTypeCombo")}##DiceTypeCombo", ref selectedDiceTypeIndex, Enum.GetNames(typeof(DiceType))))
+                        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("DiceTypeCombo")}##DiceTypeCombo", ref selectedDiceTypeIndex, Enum.GetNames<DiceType>()))
                         {
                             currentSystem.diceType = (DiceType)selectedDiceTypeIndex;
                         }
 
                         ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SuccessThresholdLabel")}");
-                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultFieldSpacing);
                         ImGui.SetNextItemWidth(50.0f);
                         ImGui.InputInt("##SuccessThreshold", ref currentSystem.successThreshold);
                         ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SuccessIntervalLabel")}");
-                        ImGui.SameLine(0.0f, UiUtils.defaultFieldSpacing);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultFieldSpacing);
                         ImGui.SetNextItemWidth(50.0f);
                         ImGui.InputInt("##SuccessInterval", ref currentSystem.successInterval);
 

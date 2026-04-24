@@ -17,7 +17,7 @@ public class ConfigWindow : Window, IDisposable
     // We give this window a constant ID using ###.
     // This allows for labels to be dynamic, like "{FPS Counter}fps###XYZ counter window",
     // and the window ID will always be "###XYZ counter window" for ImGui
-    public ConfigWindow(Plugin plugin) : base("SoulstoneConfig###With a constant ID")
+    public ConfigWindow(Plugin plugin) : base("SoulstoneConfig###SoulstoneConfig")
     {
         Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
                 ImGuiWindowFlags.NoScrollWithMouse;
@@ -56,7 +56,7 @@ public class ConfigWindow : Window, IDisposable
         }
 
         ImGui.SetNextItemWidth(100.0f);
-        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("ConfigLanguageCombo")}##Combo", ref selectedLanguageIndex, Enum.GetNames(typeof(Language))))
+        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("ConfigLanguageCombo")}##Combo", ref selectedLanguageIndex, Enum.GetNames<Language>()))
         {
             configuration.Language = (Language)selectedLanguageIndex;
             configuration.Save();
