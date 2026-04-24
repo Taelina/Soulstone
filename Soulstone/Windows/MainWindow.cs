@@ -29,7 +29,7 @@ public class MainWindow : Window, IDisposable
     // The user will see "My Amazing Window" as window title,
     // but for ImGui the ID is "My Amazing Window##With a hidden ID"
     public MainWindow(Plugin plugin)
-        : base("Soulstone##With a hidden ID", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("Soulstone##SoulstoneMainWin", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -54,28 +54,30 @@ public class MainWindow : Window, IDisposable
         }
             
         ImGui.Spacing();
-        ImGui.BeginTabBar("SoulstoneTabs");
-        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("RPTab")}##RPSheet"))
+        var tabs = ImRaii.TabBar("SoulstoneTabs");
+        if(tabs.Success)
         {
-            charwin.DrawCharTab();
-            ImGui.EndTabItem();
-        }
-        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceRollTab")}##DiceSheet"))
-        { 
-            dicewin.DrawDiceTab();
-            ImGui.EndTabItem();
-        }
-        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}##StatSheet"))
+            if(ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("RPTab")}##RPSheet"))
         {
-            statwin.CharStatsDraw();
-            ImGui.EndTabItem();
+                charwin.DrawCharTab();
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceRollTab")}##DiceSheet"))
+            {
+                dicewin.DrawDiceTab();
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}##StatSheet"))
+            {
+                statwin.DrawCharStats();
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}##DiceSystem"))
+            {
+                dicesyswin.DrawDiceSystemTab();
+                ImGui.EndTabItem();
+            }
         }
-        if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}##DiceSystem"))
-        {
-            dicesyswin.DrawDiceSystemTab();
-            ImGui.EndTabItem();
-        }
-        ImGui.EndTabBar();
 
         // Normally a BeginChild() would have to be followed by an unconditional EndChild(),
         // ImRaii takes care of this after the scope ends.

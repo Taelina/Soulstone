@@ -40,12 +40,12 @@ namespace Soulstone.Windows
 
             if(currentSystem.systemHasAdvantageDisadvantage)
             {
-                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                 if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("AdvantageCheckbox")}", ref advantage))
                 {
                     disadvantage = false;
                 }
-                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
+                ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
                 if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DisadvantageCheckbox")}", ref disadvantage))
                 {
                     advantage = false;

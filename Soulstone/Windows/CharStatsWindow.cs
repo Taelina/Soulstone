@@ -1,8 +1,6 @@
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Utility.Raii;
-using ECommons;
-using ECommons.ImGuiMethods;
 using Soulstone.Datamodels;
 using Soulstone.Managers;
 using Soulstone.Utils;
@@ -63,240 +61,257 @@ namespace Soulstone.Windows
         public void Dispose()
         { }
 
-        public void CharStatsDraw()
+        public void DrawCharStats()
         {
             detailedRoll = configuration.detailedRolls;
             using (var parent = ImRaii.Child("##CharStats", Vector2.Zero))
             {
-                if (CharacterManager.Instance.CharacterSheet != null)
+                if(parent.Success)
                 {
-                    currentCharacter = CharacterManager.Instance.CharacterSheet;
-                }
-                if (DiceSystemManager.Instance.CurrentDiceSystem != null)
-                {
-                    currentDiceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
-                    diceType = Enum.GetName(typeof(DiceType), DiceSystemManager.Instance.CurrentDiceSystem.DiceType);
-                }
-                if (currentCharacter != null)
-                {
-                    ImGui.SetNextItemWidth(50.0f);
-                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SystemDiceTypeLabel")}");
-                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                    ImGui.Text(diceType);
-                    if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("EditStatCheckbox")}", ref editingStats))
-                    { }
-                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("SaveStatButton")}"))
+                    if (CharacterManager.Instance.CharacterSheet != null)
                     {
-                        CharacterSheet.SaveSheet(currentCharacter);
+                        currentCharacter = CharacterManager.Instance.CharacterSheet;
                     }
-                    if(currentDiceSystem.systemHasAdvantageDisadvantage)
+                    if (DiceSystemManager.Instance.CurrentDiceSystem != null)
                     {
-                        if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("AdvantageRollCheckbox")}", ref advantageRoll))
-                        {
-                            disadvantageRoll = false;
-                        }
-                        ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                        if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DisadvantageRollCheckbox")}", ref disadvantageRoll))
-                        {
-                            advantageRoll = false;
-                        }
+                        currentDiceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
+                        diceType = Enum.GetName<DiceType>(DiceSystemManager.Instance.CurrentDiceSystem.DiceType);
                     }
-                    
-                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("AttributeLabel")}");
-                    ImGui.SameLine(0.0f, 145.0f);
-                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SkillLabel")}");
-                    ImGui.SameLine(0.0f, 120.0f);
-                    ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("AbilityLabel")}");
-                    using (var family = ImRaii.Child("##Attributes", new Vector2(200.0f, 200.0f), true))
+                    if (currentCharacter != null)
                     {
-                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
+                        ImGui.SetNextItemWidth(50.0f);
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SystemDiceTypeLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        ImGui.Text(diceType);
+                        if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("EditStatCheckbox")}", ref editingStats))
+                        { }
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("SaveStatButton")}"))
                         {
-                            showAttributesPopup = true;
+                            CharacterSheet.SaveSheet(currentCharacter);
                         }
-                        if (showAttributesPopup)
+                        if (currentDiceSystem.systemHasAdvantageDisadvantage)
                         {
-                            ImGui.BeginPopupModal("Nouvel attribut", ref showAttributesPopup, ImGuiWindowFlags.AlwaysAutoResize);
-                            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeNameLabel")}", ref newAttributeName, 100);
-                            ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeValueLabel")}", ref newAttributeValue, 1);
-                            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
+                            if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("AdvantageRollCheckbox")}", ref advantageRoll))
                             {
-                                if (currentCharacter.characterAttributes == null)
-                                {
-                                    currentCharacter.characterAttributes = new Dictionary<string, int>();
-                                    currentCharacter.characterAttributes.Add(newAttributeName, newAttributeValue);
-                                }
-                                if (!currentCharacter.characterAttributes.ContainsKey(newAttributeName))
-                                    currentCharacter.characterAttributes.Add(newAttributeName, newAttributeValue);
-                                showAttributesPopup = false;
+                                disadvantageRoll = false;
                             }
-                            ImGui.OpenPopup("Nouvel attribut");
-                            ImGui.EndPopup();
+                            ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                            if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DisadvantageRollCheckbox")}", ref disadvantageRoll))
+                            {
+                                advantageRoll = false;
+                            }
                         }
 
-                        if (currentCharacter.characterAttributes != null)
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("AttributeLabel")}");
+                        ImGui.SameLine(0.0f, 145.0f);
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SkillLabel")}");
+                        ImGui.SameLine(0.0f, 120.0f);
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("AbilityLabel")}");
+                        using (var family = ImRaii.Child("##Attributes", new Vector2(200.0f, 200.0f), true))
                         {
-                            foreach (KeyValuePair<string, int> attribute in currentCharacter.characterAttributes)
+                            if(family.Success)
                             {
-                                ImGui.Text($"{attribute.Key} : ");
-                                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAttributes, attribute.Key), $"FamilyRelation_{attribute.Key}", editingStats);
-                                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
+                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
                                 {
-                                    if (currentDiceSystem != null)
-                                    {
-                                        int attributeValue = attribute.Value;
-                                        int totalDice = attributeValue;
-                                        int totalModifier = attributeValue;
-                                        int totalTarget = attributeValue;
-                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, attribute.Key, detailedRoll, totalTarget);
-                                    }
+                                    showAttributesPopup = true;
                                 }
-                            }
-                        }
-                    }
-                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                    using (var family = ImRaii.Child("##Skills", new Vector2(200.0f, 200.0f), true))
-                    {
-                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
-                        {
-                            showSkillPopup = true;
-                            if (currentCharacter.characterAttributes != null)
-                                attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
-                        }
-                        if (showSkillPopup)
-                        {
-                            if (ImGui.BeginPopupModal("Nouvelle Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize))
-                            {
-                                ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewSkillName")}", ref newSkillName, 100);
-                                ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}", ref newSkillValue, 1);
-                                ImGui.SetNextItemWidth(75.0f);
-                                ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute")}##InputSkill", ref selectedAttribute, 100);
-                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
+                                if (showAttributesPopup)
                                 {
-                                    if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute))
+                                    var popup = ImRaii.PopupModal("Nouvel attribut", ref showAttributesPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                    if (popup.Success)
                                     {
-                                        Plugin.Log.Information("L'attribut lié n'existe pas.");
-                                    }
-                                    else
-                                    {
-                                        newSkill = new Skill
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeNameLabel")}", ref newAttributeName, 100);
+                                        ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeValueLabel")}", ref newAttributeValue, 1);
+                                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
                                         {
-                                            skillName = newSkillName,
-                                            skillModifier = newSkillValue,
-                                            linkedAttribute = selectedAttribute
-                                        };
-                                        if (currentCharacter.characterSkills == null)
-                                        {
-                                            currentCharacter.characterSkills = new Dictionary<string, Skill>();
-                                            currentCharacter.characterSkills.Add(newSkillName, newSkill);
+                                            if (currentCharacter.characterAttributes == null)
+                                            {
+                                                currentCharacter.characterAttributes = new Dictionary<string, int>();
+                                                currentCharacter.characterAttributes.Add(newAttributeName, newAttributeValue);
+                                            }
+                                            if (!currentCharacter.characterAttributes.ContainsKey(newAttributeName))
+                                                currentCharacter.characterAttributes.Add(newAttributeName, newAttributeValue);
+                                            showAttributesPopup = false;
                                         }
-                                        if (!currentCharacter.characterSkills.ContainsKey(newSkillName))
-                                            currentCharacter.characterSkills.Add(newSkillName, newSkill);
-                                        showSkillPopup = false;
                                     }
+                                    ImGui.OpenPopup("Nouvel attribut");
                                 }
-                            }
-                            ImGui.OpenPopup("Nouvelle Compétence");
-                            ImGui.EndPopup();
-                        }
 
-                        if (currentCharacter.characterSkills != null)
-                        {
-                            foreach (KeyValuePair<string, Skill> skill in currentCharacter.characterSkills)
-                            {
-                                ImGui.Text($"{skill.Value.skillName} {LocalizationManager.Instance.GetLocalizedString("SkillLinkText")}{skill.Value.linkedAttribute}) : ");
-                                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterSkills, skill.Key).skillModifier, $"Skill_{skill.Value.skillName}", editingStats);
-                                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
+                                if (currentCharacter.characterAttributes != null)
                                 {
-                                    if (currentDiceSystem != null)
+                                    foreach (KeyValuePair<string, int> attribute in currentCharacter.characterAttributes)
                                     {
-                                        int attributeValue = currentCharacter.characterAttributes[skill.Value.linkedAttribute];
-                                        int totalDice = skill.Value.skillModifier + attributeValue;
-                                        int totalModifier = skill.Value.skillModifier + attributeValue; 
-                                        int totalTarget = skill.Value.skillModifier + attributeValue;
-                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, skill.Value.skillName, detailedRoll, totalTarget);
+                                        ImGui.Text($"{attribute.Key} : ");
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                                        bool test;
+                                        UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrAddDefault(currentCharacter.characterAttributes, attribute.Key, out test), $"FamilyRelation_{attribute.Key}", editingStats);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
+                                        {
+                                            if (currentDiceSystem != null)
+                                            {
+                                                int attributeValue = attribute.Value;
+                                                int totalDice = attributeValue;
+                                                int totalModifier = attributeValue;
+                                                int totalTarget = attributeValue;
+                                                DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, attribute.Key, detailedRoll, totalTarget);
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                    using (var family = ImRaii.Child("##Abilities", new Vector2(300.0f, 200.0f), true))
-                    {
-                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        using (var family = ImRaii.Child("##Skills", new Vector2(200.0f, 200.0f), true))
                         {
-                            showAbilitiesPopup = true;
-                            if (currentCharacter.characterAttributes != null)
-                                attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
+                            if (family.Success)
+                            {
+                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
+                                {
+                                    showSkillPopup = true;
+                                    if (currentCharacter.characterAttributes != null)
+                                        attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
+                                }
+                                if (showSkillPopup)
+                                {
+                                    var popup = ImRaii.PopupModal("Nouvelle Compétence", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                    if (popup.Success)
+                                    {
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewSkillName")}", ref newSkillName, 100);
+                                        ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}", ref newSkillValue, 1);
+                                        ImGui.SetNextItemWidth(75.0f);
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute")}##InputSkill", ref selectedAttribute, 100);
+                                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
+                                        {
+                                            if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute))
+                                            {
+                                                Plugin.Log.Information("L'attribut lié n'existe pas.");
+                                            }
+                                            else
+                                            {
+                                                newSkill = new Skill
+                                                {
+                                                    skillName = newSkillName,
+                                                    skillModifier = newSkillValue,
+                                                    linkedAttribute = selectedAttribute
+                                                };
+                                                if (currentCharacter.characterSkills == null)
+                                                {
+                                                    currentCharacter.characterSkills = new Dictionary<string, Skill>();
+                                                    currentCharacter.characterSkills.Add(newSkillName, newSkill);
+                                                }
+                                                if (!currentCharacter.characterSkills.ContainsKey(newSkillName))
+                                                    currentCharacter.characterSkills.Add(newSkillName, newSkill);
+                                                showSkillPopup = false;
+                                            }
+                                        }
+                                    }
+                                    ImGui.OpenPopup("Nouvelle Compétence");
+                                }
 
-                            if (currentCharacter.characterSkills != null)
-                                skillKeys = currentCharacter.characterSkills.Keys.ToArray<string>();
-                        }
-                        if (showAbilitiesPopup)
-                        {
-                            ImGui.BeginPopupModal("Nouvelle Capacité", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize);
-                            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityName")}", ref newAbilityName, 100);
-                            ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}", ref newAbilityValue, 1);
-                            ImGui.SetNextItemWidth(100.0f);
-                            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute")}##InputCap", ref selectedAttribute, 100);
-                            ImGui.SetNextItemWidth(100.0f);
-                            ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedSkill")}##InputCap", ref selectedSkill,100);
-                            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
-                            {
-                                if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute)
-                                    && currentCharacter.characterSkills != null && !currentCharacter.characterSkills.ContainsKey(selectedSkill))
+                                if (currentCharacter.characterSkills != null)
                                 {
-                                    Plugin.Log.Information("L'attribut ou compenténce lié n'existe pas.");
-                                    return;
-                                }
-                                else
-                                {
-                                    newAbility = new Ability
+                                    foreach (KeyValuePair<string, Skill> skill in currentCharacter.characterSkills)
                                     {
-                                        abilityName = newAbilityName,
-                                        abilityModifier = newAbilityValue,
-                                        linkedAttribute = selectedAttribute
-                                    };
-                                    currentCharacter.characterSkills.TryGetValue(selectedSkill, out newAbility.linkedSkill);
-                                    if (currentCharacter.characterAbilities == null)
+                                        ImGui.Text($"{skill.Value.skillName} {LocalizationManager.Instance.GetLocalizedString("SkillLinkText")}{skill.Value.linkedAttribute}) : ");
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                                        UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterSkills, skill.Key).skillModifier, $"Skill_{skill.Value.skillName}", editingStats);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
+                                        {
+                                            if (currentDiceSystem != null)
+                                            {
+                                                int attributeValue = currentCharacter.characterAttributes[skill.Value.linkedAttribute];
+                                                int totalDice = skill.Value.skillModifier + attributeValue;
+                                                int totalModifier = skill.Value.skillModifier + attributeValue;
+                                                int totalTarget = skill.Value.skillModifier + attributeValue;
+                                                DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, skill.Value.skillName, detailedRoll, totalTarget);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        using (var family = ImRaii.Child("##Abilities", new Vector2(300.0f, 200.0f), true))
+                        {
+                            if (family.Success)
+                            {
+                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddButton")}"))
+                                {
+                                    showAbilitiesPopup = true;
+                                    if (currentCharacter.characterAttributes != null)
+                                        attributeKeys = currentCharacter.characterAttributes.Keys.ToArray<string>();
 
-                                    {
-                                        currentCharacter.characterAbilities = new Dictionary<string, Ability>();
-                                        currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
-                                    }
-                                    if (!currentCharacter.characterAbilities.ContainsKey(newAttributeName))
-                                        currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
-                                    showAbilitiesPopup = false;
+                                    if (currentCharacter.characterSkills != null)
+                                        skillKeys = currentCharacter.characterSkills.Keys.ToArray<string>();
                                 }
-                            }
-                            ImGui.OpenPopup("Nouvelle Capacité");
-                            ImGui.EndPopup();
-                        }
-                        if (currentCharacter.characterAbilities != null)
-                        {
-                            foreach (KeyValuePair<string, Ability> ability in currentCharacter.characterAbilities)
-                            {
-                                ImGui.Text($"{ability.Value.abilityName} {LocalizationManager.Instance.GetLocalizedString("AbilityLinkText")}{ability.Value.linkedAttribute} & {ability.Value.linkedSkill.skillName}) : ");
-                                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAbilities, ability.Key).abilityModifier, $"Ability_{ability.Value.abilityName}", editingStats);
-                                ImGui.SameLine(0.0f, UiUtils.defaultNextToSpace);
-                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
+                                if (showAbilitiesPopup)
                                 {
-                                    if (currentDiceSystem != null)
+                                    var popup = ImRaii.PopupModal("Nouvelle Capacité", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize);
+                                    if (popup.Success)
                                     {
-                                        int attributeValue = currentCharacter.characterAttributes[ability.Value.linkedAttribute];
-                                        int skillValue = ability.Value.linkedSkill.skillModifier;
-                                        int totalDice = ability.Value.abilityModifier + attributeValue + skillValue;
-                                        int totalModifier = ability.Value.abilityModifier + attributeValue + skillValue;
-                                        int totalTarget = ability.Value.abilityModifier + attributeValue + skillValue;
-                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, ability.Value.abilityName, detailedRoll, totalTarget);
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityName")}", ref newAbilityName, 100);
+                                        ImGui.InputInt($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}", ref newAbilityValue, 1);
+                                        ImGui.SetNextItemWidth(100.0f);
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute")}##InputCap", ref selectedAttribute, 100);
+                                        ImGui.SetNextItemWidth(100.0f);
+                                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewLinkedSkill")}##InputCap", ref selectedSkill, 100);
+                                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}"))
+                                        {
+                                            if (currentCharacter.characterAttributes != null && !currentCharacter.characterAttributes.ContainsKey(selectedAttribute)
+                                                && currentCharacter.characterSkills != null && !currentCharacter.characterSkills.ContainsKey(selectedSkill))
+                                            {
+                                                Plugin.Log.Information("L'attribut ou compenténce lié n'existe pas.");
+                                                return;
+                                            }
+                                            else
+                                            {
+                                                newAbility = new Ability
+                                                {
+                                                    abilityName = newAbilityName,
+                                                    abilityModifier = newAbilityValue,
+                                                    linkedAttribute = selectedAttribute
+                                                };
+                                                currentCharacter.characterSkills.TryGetValue(selectedSkill, out newAbility.linkedSkill);
+                                                if (currentCharacter.characterAbilities == null)
+
+                                                {
+                                                    currentCharacter.characterAbilities = new Dictionary<string, Ability>();
+                                                    currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
+                                                }
+                                                if (!currentCharacter.characterAbilities.ContainsKey(newAttributeName))
+                                                    currentCharacter.characterAbilities.Add(newAttributeName, newAbility);
+                                                showAbilitiesPopup = false;
+                                            }
+                                        }
+                                    }
+                                    ImGui.OpenPopup("Nouvelle Capacité");
+                                }
+                                if (currentCharacter.characterAbilities != null)
+                                {
+                                    foreach (KeyValuePair<string, Ability> ability in currentCharacter.characterAbilities)
+                                    {
+                                        ImGui.Text($"{ability.Value.abilityName} {LocalizationManager.Instance.GetLocalizedString("AbilityLinkText")}{ability.Value.linkedAttribute} & {ability.Value.linkedSkill.skillName}) : ");
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                                        UiUtils.ManageInputField(ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAbilities, ability.Key).abilityModifier, $"Ability_{ability.Value.abilityName}", editingStats);
+                                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}"))
+                                        {
+                                            if (currentDiceSystem != null)
+                                            {
+                                                int attributeValue = currentCharacter.characterAttributes[ability.Value.linkedAttribute];
+                                                int skillValue = ability.Value.linkedSkill.skillModifier;
+                                                int totalDice = ability.Value.abilityModifier + attributeValue + skillValue;
+                                                int totalModifier = ability.Value.abilityModifier + attributeValue + skillValue;
+                                                int totalTarget = ability.Value.abilityModifier + attributeValue + skillValue;
+                                                DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, ability.Value.abilityName, detailedRoll, totalTarget);
+                                            }
+                                        }
                                     }
                                 }
-                            }
+                            }  
                         }
                     }
                 }

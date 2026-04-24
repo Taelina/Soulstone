@@ -1,4 +1,5 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,15 +12,19 @@ namespace Soulstone.Utils
     internal class UiUtils
     {
 
-        public static float defaultNextToSpace = 3.0f;
-        public static float defaultFieldSpacing = 10.0f;
-        public static float defaultInputWidth = 175.0f;
+        private static float defaultNextToSpace = 3.0f;
+        private static float defaultFieldSpacing = 10.0f;
+        private static float defaultInputWidth = 175.0f;
+
+        public static float DefaultInputWidth { get => defaultInputWidth * ImGuiHelpers.GlobalScale; set => defaultInputWidth = value; }
+        public static float DefaultFieldSpacing { get => defaultFieldSpacing * ImGuiHelpers.GlobalScale; set => defaultFieldSpacing = value; }
+        public static float DefaultNextToSpace { get => defaultNextToSpace * ImGuiHelpers.GlobalScale; set => defaultNextToSpace = value; }
 
         public static void ManageInputField(ref string field, string fieldname, bool editing)
         {
             if (editing)
             {
-                ImGui.SetNextItemWidth(defaultInputWidth);
+                ImGui.SetNextItemWidth(DefaultInputWidth);
                 ImGui.InputText($"##{fieldname}", ref field, 100);
             }
             else
@@ -32,7 +37,7 @@ namespace Soulstone.Utils
         {
             if (editing)
             {
-                ImGui.SetNextItemWidth(defaultInputWidth);
+                ImGui.SetNextItemWidth(DefaultInputWidth);
                 ImGui.InputInt($"##{fieldname}", ref field, 1);
             }
             else
