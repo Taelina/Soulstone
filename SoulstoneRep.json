@@ -12,7 +12,7 @@
     Punchline: 'A Roleplay tool suit',
     IsHide: false,
     IsTestingExclusive: true,
-    IconUrl: 'https://www.aht.li/3945121/Soulstone.png'
+    IconUrl: 'https://www.aht.li/3945121/Soulstone.png',
     DownloadLinkInstall: '',
     DownloadLinkTesting: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.1/latest.zip',
     DownloadLinkUpdate: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.1/latest.zip',
