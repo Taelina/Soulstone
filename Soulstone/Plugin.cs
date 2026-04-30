@@ -99,12 +99,12 @@ public sealed class Plugin : IDalamudPlugin
 
     public void InitManagers()
     {
+        CharacterManager.Instance.Init();
+        DiceSystemManager.Instance.Init();
         if(!pluginInitialized)
         {
             pluginInitialized = true;
             Log.Information("Initializing managers...");
-            CharacterManager.Instance.Init();
-            DiceSystemManager.Instance.Init();
             LocalizationManager.Instance.InitLoc(this);
         }
     }

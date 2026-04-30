@@ -1,0 +1,21 @@
+[
+  {
+    Author: 'Jago & Taelina',
+    Name: 'Soulstone',
+    Description: 'A suite of tools and utilities for roleplay.',
+    InternalName: 'Soulstone',
+    AssemblyVersion: '0.0.0.2',
+    TestingAssemblyVersion: null,
+    RepoUrl: 'https://github.com/Taelina/Soulstone',
+    ApplicableVersion: 'any',
+    DalamudApiLevel: 14,
+    Punchline: 'A Roleplay tool suit',
+    IsHide: false,
+    IsTestingExclusive: true,
+    IconUrl: 'https://www.aht.li/3945121/Soulstone.png',
+    DownloadLinkInstall: '',
+    DownloadLinkTesting: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.2/latest.zip',
+    DownloadLinkUpdate: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.2/latest.zip',
+    LastUpdate: '1777297172',
+  },
+]
