@@ -8,7 +8,7 @@
     TestingAssemblyVersion: null,
     RepoUrl: 'https://github.com/Taelina/Soulstone',
     ApplicableVersion: 'any',
-    DalamudApiLevel: 14,
+    DalamudApiLevel: 15,
     Punchline: 'A Roleplay tool suit',
     IsHide: false,
     IsTestingExclusive: true,

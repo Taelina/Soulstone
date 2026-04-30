@@ -1,12 +1,14 @@
 {
-  "Author": "Jago & Taelina",
-  "Name": "Soulstone",
-  "Punchline": "A plugin for roleplay utility and tools",
-  "Description": "A suite of tools and utilities for roleplay.",
-  "RepoUrl": "https://github.com/Taelina/Soulstone",
-  "Tags": [
-    "RP",
-    "Utility",
-    "Dices"
-  ]
+    "Author": "Jago & Taelina",
+    "Name": "Soulstone",
+    "InternalName": "Soulstone",
+    "AssemblyVersion": "0.0.0.3",
+    "Punchline": "A plugin for roleplay utility and tools",
+    "Description": "A suite of tools and utilities for roleplay.",
+    "RepoUrl": "https://github.com/Taelina/Soulstone",
+    "Tags": [
+        "RP",
+        "Utility",
+        "Dices"
+    ]
 }
