@@ -10,6 +10,7 @@ using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Game.Text.SeStringHandling;
 using Soulstone.Managers;
 using System;
+using Soulstone.Utils;
 
 namespace Soulstone;
 
@@ -34,6 +35,9 @@ public sealed class Plugin : IDalamudPlugin
 
     public readonly WindowSystem WindowSystem = new("Soulstone");
     private ConfigWindow ConfigWindow { get; init; }
+
+    public ImGuiFileBrowserWindow fileBrowserWindow;
+
     private MainWindow MainWindow { get; init; }
 
     public Plugin()
@@ -45,9 +49,12 @@ public sealed class Plugin : IDalamudPlugin
 
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
+        fileBrowserWindow = new ImGuiFileBrowserWindow();
+        fileBrowserWindow.SetConfiguration(Configuration);
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
+        WindowSystem.AddWindow(fileBrowserWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
@@ -71,7 +78,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
-        
+
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
@@ -88,7 +95,7 @@ public sealed class Plugin : IDalamudPlugin
         Log.Information($"Data location: {dataLocation}");
         InitManagers();
     }
-    
+
     public void ToggleConfigUi() => ConfigWindow.Toggle();
     public void ToggleMainUi()
     {
@@ -101,11 +108,22 @@ public sealed class Plugin : IDalamudPlugin
     {
         CharacterManager.Instance.Init();
         DiceSystemManager.Instance.Init();
-        if(!pluginInitialized)
+        if (!pluginInitialized)
         {
             pluginInitialized = true;
             Log.Information("Initializing managers...");
             LocalizationManager.Instance.InitLoc(this);
+            fileBrowserWindow.SetCurrentDirectory(dataLocation);
+        }
+    }
+
+    public void OpenFilePicker(string title, string filter, Action<string> onFileSelected, string? startDirectory = null)
+    {
+        // Use ImGui file browser
+        if (fileBrowserWindow != null)
+        {
+            fileBrowserWindow.OnFileSelected = onFileSelected;
+            fileBrowserWindow.Open(startDirectory);
         }
     }
 }

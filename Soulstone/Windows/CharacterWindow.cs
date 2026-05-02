@@ -22,6 +22,8 @@ namespace Soulstone.Windows
 
         private float defaultContentHeight = 150.0f;
 
+        private string newCharname = "Nouveau personnage";
+
         private bool showFamilyPopup = false;
         private bool showFriendsPopup = false;
         private bool showEnemiesPopup = false;
@@ -59,10 +61,30 @@ namespace Soulstone.Windows
                     {
                         if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("EditCharsheetCheck")}##EditCheck", ref editingCharsheet))
                         { }
+                        ImGui.SetNextItemWidth(UiUtils.DefaultInputWidth);
+                        ImGui.InputText($"{LocalizationManager.Instance.GetLocalizedString("NewCharnameField")}##Charname", ref newCharname);
                         ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("NewCharButton")}##CreateButton"))
+                        {
+                            CharacterSheet.CreateNewSheet(newCharname);
+                        }
+
                         if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("SaveCharsheetButton")}##SaveButton"))
                         {
                             CharacterSheet.SaveSheet(currentCharacter);
+                        }
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CharsheetChoose")}"))
+                        {
+                            plugin.OpenFilePicker("Choose a file", ".json", (path) =>
+                            {
+                                Plugin.Log.Information($"Selected file: {path}");
+                                CharacterSheet loadedSheet = CharacterSheet.LoadSheet(path, true);
+                                if (loadedSheet != null)
+                                {
+                                    CharacterManager.Instance.CharacterSheet = loadedSheet;
+                                }
+                            });
                         }
                         using (var child = ImRaii.Child("##Identity", new Vector2(0.0f, defaultContentHeight), true))
                         {

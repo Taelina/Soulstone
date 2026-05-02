@@ -103,6 +103,35 @@ namespace Soulstone.Windows
                             }
                         }
 
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("HealthLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        ImGui.SetNextItemWidth(50.0f);
+                        ImGui.InputInt("##HP", ref currentCharacter.characterHealthPoints);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        ImGui.Text($"/");
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        ImGui.SetNextItemWidth(50.0f);
+                        ImGui.InputInt("##MaxHP", ref currentCharacter.characterMaxHealthPoints);
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("ManaLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        ImGui.SetNextItemWidth(50.0f);
+                        ImGui.InputInt("##ManaPoints", ref currentCharacter.characterManaPoints);
+
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("ClassLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        UiUtils.ManageInputField(ref currentCharacter.characterClass, "##Class", editingStats);
+
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("LevelLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        ImGui.SetNextItemWidth(50.0f);
+                        ImGui.InputInt("##Level", ref currentCharacter.characterLevel);
+
+                        ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("XPLabel")}");
+                        ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                        ImGui.SetNextItemWidth(50.0f);
+                        ImGui.InputInt("##XP", ref currentCharacter.characterExperiencePoints);
+
                         ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("AttributeLabel")}");
                         ImGui.SameLine(0.0f, 145.0f);
                         ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("SkillLabel")}");

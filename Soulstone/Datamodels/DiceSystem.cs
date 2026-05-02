@@ -39,6 +39,8 @@ namespace Soulstone.Datamodels
         public bool abilityLinkedToOneSkill = true;
         public bool systemHasSaves = true;
         public bool systemHasAdvantageDisadvantage = true;
+        public bool systemHasManaOrResourcePoints = false;
+        public bool systemHasClasses = false;
 
         public DiceType diceType = DiceType.d20;
         public SystemType systemType = SystemType.DnDSystem;
@@ -59,12 +61,16 @@ namespace Soulstone.Datamodels
         public bool SystemHasAdvantageDisadvantage { get => systemHasAdvantageDisadvantage; set => systemHasAdvantageDisadvantage = value; }
         public SystemType SystemType { get => systemType; set => systemType = value; }
         public int SuccessInterval { get => successInterval; set => successInterval = value; }
+        public bool SystemHasManaOrResourcePoints { get => systemHasManaOrResourcePoints; set => systemHasManaOrResourcePoints = value; }
+        public bool SystemHasClasses { get => systemHasClasses; set => systemHasClasses = value; }
 
-        public static DiceSystem LoadDiceSystem(string systemName)
+        public static DiceSystem LoadDiceSystem(string systemName, bool isFullPath = false)
         {
-            if (File.Exists($"{Plugin.dataLocation}/diceSystem/{systemName}.json"))
+            string path = isFullPath ? systemName : $"{Plugin.dataLocation}/diceSystem/{systemName}.json";
+            if (File.Exists(path))
             {
-                return JsonSerializer.Deserialize<DiceSystem>(File.ReadAllText($"{Plugin.dataLocation}/diceSystem/{systemName}.json"));
+                Plugin.Log.Information($"Loading existing dice system from {path}");
+                return JsonSerializer.Deserialize<DiceSystem>(File.ReadAllText(path));
             }
             else
             {

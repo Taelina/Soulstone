@@ -1,3 +1,4 @@
+using Soulstone.Managers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -61,6 +62,15 @@ namespace Soulstone.Datamodels
         //Character dynamic inventory fields
         // TODO : Implement inventory system
 
+        //Character static ability fields
+        public int characterLevel;
+        public string characterClass;
+        public int characterExperiencePoints;
+        public int characterHealthPoints;
+        public int characterMaxHealthPoints;
+        public int characterManaPoints;
+        public int characterMaxManaPoints;
+
         //Character Dynamic ability fields
         public Dictionary<string, int> characterAttributes = new Dictionary<string, int>();
         public Dictionary<string, Skill> characterSkills = new Dictionary<string, Skill>();
@@ -99,6 +109,13 @@ namespace Soulstone.Datamodels
         public Dictionary<string, Skill> CharacterSkills { get => characterSkills; set => characterSkills = value; }
         public Dictionary<string, Ability> CharacterAbilities { get => characterAbilities; set => characterAbilities = value; }
         public string CharacterJob { get => characterJob; set => characterJob = value; }
+        public int CharacterLevel { get => characterLevel; set => characterLevel = value; }
+        public string CharacterClass { get => characterClass; set => characterClass = value; }
+        public int CharacterExperiencePoints { get => characterExperiencePoints; set => characterExperiencePoints = value; }
+        public int CharacterHealthPoints { get => characterHealthPoints; set => characterHealthPoints = value; }
+        public int CharacterMaxHealthPoints { get => characterMaxHealthPoints; set => characterMaxHealthPoints = value; }
+        public int CharacterManaPoints { get => characterManaPoints; set => characterManaPoints = value; }
+        public int CharacterMaxManaPoints { get => characterMaxManaPoints; set => characterMaxManaPoints = value; }
 
         public CharacterSheet()
         {
@@ -110,19 +127,28 @@ namespace Soulstone.Datamodels
             characterSkills = new Dictionary<string, Skill>();
         }
 
-        public static CharacterSheet LoadSheet(string characterName)
+        public static void CreateNewSheet(string characterName)
         {
+            CharacterSheet newsheet = new CharacterSheet();
+            newsheet.CharacterFullName = characterName;     
+            SaveSheet(newsheet);
+            CharacterManager.Instance.ForceLoadCharData(characterName);
+        }
+
+        public static CharacterSheet LoadSheet(string characterName, bool isFullPath = false)
+        {
+            string path = isFullPath ? characterName : $"{Plugin.dataLocation}/sheets/{characterName.Replace(" ", "_").ToLower()}.json";
             CharacterSheet loadedSheet = null;
-            var formatedName = characterName.Replace(" ", "_").ToLower();
-            if (!File.Exists($"{Plugin.dataLocation}/sheets/{formatedName}.json"))
+            if (!File.Exists(path))
             {
                 Plugin.Log.Information("No existing character sheet found, creating a new one.");
-                var newsheet = new CharacterSheet();
+                CharacterSheet newsheet = new CharacterSheet();
                 newsheet.CharacterFullName = characterName;
                 SaveSheet(newsheet);
             }
 
-            var loadedfile = File.ReadAllText($"{Plugin.dataLocation}/sheets/{formatedName}.json");
+            Plugin.Log.Information($"Loading existing character sheet from {path}");
+            string loadedfile = File.ReadAllText(path);
 
             if(!string.IsNullOrEmpty(loadedfile))
             {

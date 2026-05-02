@@ -1,3 +1,4 @@
+using ECommons;
 using Soulstone.Localizations;
 using System;
 using System.Collections.Generic;
@@ -54,7 +55,10 @@ namespace Soulstone.Managers
                 {"DiceSystemTab", "Système de dés" },
                 //CharSheet Tab First part (Char Info)
                 {"EditCharsheetCheck", "Editer la fiche de personnage" },
+                {"NewCharnameField", "Nom du nouveau personnage" },
+                {"NewCharButton", "Créer une nouvelle fiche de personnage" },
                 {"SaveCharsheetButton", "Sauvegarder la fiche de personnage" },
+                {"CharsheetChoose", "Charger une fiche de personnage" },
                 {"CharFullnameField", "Nom/Prénom :" },
                 {"CharNicknameField", "Surnom :" },
                 {"CharSpecieField", "Race :" },
@@ -113,6 +117,11 @@ namespace Soulstone.Managers
                 {"SaveStatButton", "Sauvegarder la fiche de personnage" },
                 {"AdvantageRollCheckbox", "Jet avec avantage" },
                 {"DisadvantageRollCheckbox", "Jet avec désavantage" },
+                {"HealthLabel", "Santé :" },
+                {"ManaLabel", "Mana :" },
+                {"ClassLabel", "Classe :" },
+                {"LevelLabel", "Niveau :" },
+                {"XPLabel", "XP :" },
                 {"AttributeLabel", "Attributs :" },
                 {"SkillLabel", "Compétences :" },
                 {"AbilityLabel", "Capacités :" },
@@ -128,6 +137,7 @@ namespace Soulstone.Managers
                 {"AbilityLinkText", "(lié à " },
                 //Dice System Tab
                 {"DiceSystemSaveButton", "Sauvegarder le système de dés" },
+                {"DiceSystemChoose", "Charger un système de dés" },
                 {"DiceSystemNameLabel", "Nom du système de dés :" },
                 {"SystemTypeCombo", "Type de système de dés" },
                 {"DiceTypeCombo", "Type de dé :" },
@@ -139,6 +149,8 @@ namespace Soulstone.Managers
                 {"AbilityUniqueSkillCheckbox", "Capacité lieée à une seule compétence" },
                 {"DnDStyleSavesCheckbox", "Le système gère les jets de sauvegarde" },
                 {"DnDStyleAdvDisadvCheckbox", "Le système gère l'avantage et le désavantage" },
+                {"DnDStyleManaCheckbox", "Le système gère les points de mana ou de ressources" },
+                {"DnDStyleClassesCheckbox", "Le système gère les classes" }
             };
 
             Localization English = new Localization();
@@ -161,7 +173,10 @@ namespace Soulstone.Managers
                 {"DiceSystemTab", "Dice System" },
                 //CharSheet Tab First part (Char Info)
                 {"EditCharsheetCheck", "Edit Character Sheet" },
+                {"NewCharnameField", "New Character name" },
+                {"NewCharButton", "Create new character sheet" },
                 {"SaveCharsheetButton", "Save Character Sheet" },
+                {"CharsheetChoose", "Load Character Sheet" },
                 {"CharFullnameField", "Fullname :" },
                 {"CharNicknameField", "Nickname :" },
                 {"CharSpecieField", "Specie :" },
@@ -220,6 +235,11 @@ namespace Soulstone.Managers
                 {"SaveStatButton", "Save stats" },
                 {"AdvantageRollCheckbox", "Roll with advantage" },
                 {"DisadvantageRollCheckbox", "Roll with disadvantage" },
+                {"HealthLabel", "Health :" },
+                {"ManaLabel", "Mana :" },
+                {"ClassLabel", "Class :" },
+                {"LevelLabel", "Level :" },
+                {"XPLabel", "XP :" },
                 {"AttributeLabel", "Attributes :" },
                 {"SkillLabel", "Skills :" },
                 {"AbilityLabel", "Abilities :" },
@@ -235,6 +255,7 @@ namespace Soulstone.Managers
                 {"AbilityLinkText", " (linked to " },
                 //Dice System Tab
                 {"DiceSystemSaveButton", "Save dice system" },
+                {"DiceSystemChoose", "Load dice system" },
                 {"DiceSystemNameLabel", "System name :" },
                 {"SystemTypeCombo", "System type :" },
                 {"DiceTypeCombo", "Dice Type :" },
@@ -246,6 +267,8 @@ namespace Soulstone.Managers
                 {"AbilityUniqueSkillCheckbox", "Ability linked only to one skill" },
                 {"DnDStyleSavesCheckbox", "System has saving throws" },
                 {"DnDStyleAdvDisadvCheckbox", "System handles advantage and disadvantage" },
+                {"DnDStyleManaCheckbox", "System handles mana or resource points" },
+                {"DnDStyleClassesCheckbox", "System handles classes" }
 
             };
 

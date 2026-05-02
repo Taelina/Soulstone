@@ -40,6 +40,19 @@ namespace Soulstone.Windows
                 {
                     DiceSystem.SaveDiceSystem(currentSystem);
                 }
+                ImGui.SameLine(0.0f, UiUtils.DefaultNextToSpace);
+                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemChoose")}"))
+                {
+                    plugin.OpenFilePicker("Choose a file", ".json", (path) =>
+                    {
+                        Plugin.Log.Information($"Selected file: {path}");
+                        DiceSystem loadedSystem = DiceSystem.LoadDiceSystem(path, true);
+                        if(loadedSystem != null)
+                        {
+                            DiceSystemManager.Instance.CurrentDiceSystem = loadedSystem;
+                        }
+                    });
+                }
                 using (var parent = ImRaii.Child("##DiceSystem", Vector2.Zero))
                 {
                     if(parent.Success)
@@ -78,6 +91,8 @@ namespace Soulstone.Windows
                         //ImGui.Checkbox("Capacité liée à une seule compétence", ref currentSystem.abilityLinkedToOneSkill); TODO : Determine if this is relevant anymore.
                         //ImGui.Checkbox("Le système gère les jets de sauvegarde", ref currentSystem.systemHasSaves); TODO : Implement real D&D Style saves.
                         ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DnDStyleAdvDisadvCheckbox")}", ref currentSystem.systemHasAdvantageDisadvantage);
+                        ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DnDStyleManaCheckbox")}", ref currentSystem.systemHasManaOrResourcePoints);
+                        ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DnDStyleClassesCheckbox")}", ref currentSystem.systemHasClasses);
                     }
                 }
             }            
