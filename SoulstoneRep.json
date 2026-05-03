@@ -5,7 +5,7 @@
     Description: 'A suite of tools and utilities for roleplay.',
     InternalName: 'Soulstone',
     AssemblyVersion: '0.0.4.0',
-    TestingAssemblyVersion: null,
+    TestingAssemblyVersion: '0.0.4.0',
     RepoUrl: 'https://github.com/Taelina/Soulstone',
     ApplicableVersion: 'any',
     DalamudApiLevel: 15,
