@@ -55,7 +55,7 @@ namespace Soulstone.Managers
             CharacterSheet = CharacterSheet.LoadSheet(charName);
         }
 
-        private CharacterSheet LoadCharacterData(string charName)
+        private CharacterSheet? LoadCharacterData(string charName)
         {
             if (!charLoaded)
             {

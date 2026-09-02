@@ -5,6 +5,7 @@ using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
+using Soulstone.Managers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,6 +21,7 @@ namespace Soulstone.Utils
         public string? SelectedPath { get; private set; }
         public bool Confirmed { get; private set; }
         public Action<string>? OnFileSelected { get; set; }
+        public string DialogTitle { get; private set; } = "Select File";
 
         private Configuration? configuration;
         private string currentDirectory;
@@ -28,10 +30,11 @@ namespace Soulstone.Utils
         private string? selectedFile;
         private string? previewPath;
         private string searchFilter = "";
-        private readonly string[] allowedExtensions;
+        private string[] allowedExtensions = Array.Empty<string>();
         private readonly List<string> quickAccessPaths = new();
         private readonly List<string> recentDirectories = new();
         private string pathInput = "";
+        private string urlInput = "";
 
         // Sort options
         private enum SortOption { Name, DateModified, Size, Type }
@@ -42,11 +45,19 @@ namespace Soulstone.Utils
         public ImGuiFileBrowserWindow(string title = "Select File", string[]? extensions = null)
             : base($"{title}###ImGuiFileBrowser")
         {
+            DialogTitle = title;
             Size = new Vector2(900, 600);
             SizeCondition = ImGuiCond.FirstUseEver;
             Flags = ImGuiWindowFlags.NoDocking;
 
-            allowedExtensions = extensions ?? new[] { ".json" };
+            if (extensions != null && extensions.Length > 0)
+            {
+                allowedExtensions = extensions;
+            }
+            else
+            {
+                allowedExtensions = new[] { ".json" };
+            }
 
             // Set initial directory
             currentDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -58,6 +69,40 @@ namespace Soulstone.Utils
             BuildQuickAccessPaths();
             RefreshDirectory();
         }
+
+        private string[] GetLocalizedSortOptionNames() => new[]
+        {
+            LocalizationManager.Instance.GetLocalizedString("FileBrowserSortName"),
+            LocalizationManager.Instance.GetLocalizedString("FileBrowserSortDate"),
+            LocalizationManager.Instance.GetLocalizedString("FileBrowserSortSize"),
+            LocalizationManager.Instance.GetLocalizedString("FileBrowserSortType")
+        };
+
+        public void SetAllowedExtensions(string? filter)
+        {
+            if (string.IsNullOrWhiteSpace(filter) || filter == "*.*" || filter == "*")
+            {
+                allowedExtensions = Array.Empty<string>();
+                return;
+            }
+
+            var exts = filter.Split(new[] { ';', ',', '|' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(e => e.Trim().TrimStart('*'))
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Select(e => e.StartsWith('.') ? e : "." + e)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            allowedExtensions = exts.Length > 0 ? exts : Array.Empty<string>();
+        }
+
+        public bool IsImageFilter => allowedExtensions.Length > 0 && allowedExtensions.Any(ext =>
+            ext.Equals(".png", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".jpg", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".webp", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".bmp", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".gif", StringComparison.OrdinalIgnoreCase));
 
         public void SetCurrentDirectory(string path)
         {
@@ -73,7 +118,7 @@ namespace Soulstone.Utils
             configuration = config;
         }
 
-        private bool IsPinned(string path)
+        private bool IsPathPinned(string path)
         {
             return configuration?.PinnedFileBrowserPaths.Contains(path) == true;
         }
@@ -135,7 +180,7 @@ namespace Soulstone.Utils
 
                 // Files sorted by current sort option
                 var files = Directory.GetFiles(currentDirectory)
-                    .Where(f => allowedExtensions.Any(ext => f.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+                    .Where(f => allowedExtensions.Length == 0 || allowedExtensions.Any(ext => f.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
                     .Where(f => !new FileInfo(f).Attributes.HasFlag(FileAttributes.Hidden));
 
                 currentFiles = ApplySorting(files).ToArray();
@@ -222,6 +267,8 @@ namespace Soulstone.Utils
 
             DrawPathBar();
             ImGui.Spacing();
+            DrawUrlBar();
+            ImGui.Spacing();
 
             var contentHeight = ImGui.GetContentRegionAvail().Y - 45;
 
@@ -266,25 +313,20 @@ namespace Soulstone.Utils
         private void DrawPathBar()
         {
             // Navigation buttons
-            ImGui.PushFont(UiBuilder.IconFont);
-
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.25f, 1f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.35f, 1f));
 
-            if (ImGui.Button(FontAwesomeIcon.ArrowUp.ToIconString(), new Vector2(30, 26)))
+            if (ImGui.Button("^##UpBtn", new Vector2(30, 26)))
                 NavigateUp();
-            ImGui.PopFont();
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Go up one directory");
+                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserGoUpTooltip"));
 
             ImGui.SameLine();
 
-            ImGui.PushFont(UiBuilder.IconFont);
-            if (ImGui.Button(FontAwesomeIcon.SyncAlt.ToIconString(), new Vector2(30, 26)))
+            if (ImGui.Button("R##RefreshBtn", new Vector2(30, 26)))
                 RefreshDirectory();
-            ImGui.PopFont();
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Refresh");
+                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserRefreshTooltip"));
 
             ImGui.PopStyleColor(2);
 
@@ -304,7 +346,7 @@ namespace Soulstone.Utils
                     NavigateTo(pathInput);
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Type a path and press Enter to navigate");
+                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserPathInputTooltip"));
 
             ImGui.PopStyleVar();
             ImGui.PopStyleColor(4);
@@ -322,8 +364,74 @@ namespace Soulstone.Utils
             ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.3f, 0.3f, 0.35f, 1f));
             ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
             ImGui.SetNextItemWidth(145);
-            ImGui.InputTextWithHint("##Search", "Filter files...", ref searchFilter, 100);
+            ImGui.InputTextWithHint("##Search", LocalizationManager.Instance.GetLocalizedString("FileBrowserFilterHint"), ref searchFilter, 100);
             ImGui.PopStyleVar();
+            ImGui.PopStyleColor(3);
+        }
+
+        private void DrawUrlBar()
+        {
+            ImGui.PushFont(UiBuilder.IconFont);
+            ImGui.TextColored(new Vector4(0.4f, 0.75f, 1f, 1f), FontAwesomeIcon.Link.ToIconString());
+            ImGui.PopFont();
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserUrlLabel"));
+            ImGui.SameLine();
+
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.18f, 0.18f, 0.2f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.22f, 0.22f, 0.25f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.3f, 0.3f, 0.35f, 1f));
+            ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
+
+            var previewBtnWidth = 90.0f;
+            var useBtnWidth = 80.0f;
+            var inputWidth = ImGui.GetContentRegionAvail().X - (previewBtnWidth + useBtnWidth + 18.0f);
+            if (inputWidth < 150) inputWidth = 150;
+
+            ImGui.SetNextItemWidth(inputWidth);
+            if (ImGui.InputTextWithHint("##UrlInput", LocalizationManager.Instance.GetLocalizedString("FileBrowserUrlHint"), ref urlInput, 1024, ImGuiInputTextFlags.EnterReturnsTrue))
+            {
+                if (!string.IsNullOrWhiteSpace(urlInput))
+                {
+                    ConfirmUrl(urlInput.Trim());
+                }
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserUrlTooltip"));
+
+            ImGui.PopStyleVar();
+            ImGui.PopStyleColor(3);
+
+            ImGui.SameLine(0, 6.0f);
+            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("FileBrowserPreviewButton")}##PreviewUrlBtn", new Vector2(previewBtnWidth, 26)))
+            {
+                if (!string.IsNullOrWhiteSpace(urlInput))
+                {
+                    selectedFile = null;
+                    previewPath = urlInput.Trim();
+                }
+            }
+
+            ImGui.SameLine(0, 4.0f);
+            var hasValidUrl = !string.IsNullOrWhiteSpace(urlInput);
+            if (!hasValidUrl)
+            {
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 0.4f, 0.4f, 1f));
+            }
+            else
+            {
+                ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.45f, 0.35f, 1f));
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.55f, 0.4f, 1f));
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 1f, 1f, 1f));
+            }
+
+            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("FileBrowserUseUrlButton")}##UseUrlBtn", new Vector2(useBtnWidth, 26)) && hasValidUrl)
+            {
+                ConfirmUrl(urlInput.Trim());
+            }
+
             ImGui.PopStyleColor(3);
         }
 
@@ -334,7 +442,7 @@ namespace Soulstone.Utils
             ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), FontAwesomeIcon.Star.ToIconString());
             ImGui.PopFont();
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), "Quick Access");
+            ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserQuickAccessHeader"));
 
             ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.3f, 0.5f, 0.7f, 0.5f));
             ImGui.Separator();
@@ -368,7 +476,7 @@ namespace Soulstone.Utils
                 ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.3f, 1f), FontAwesomeIcon.Thumbtack.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine();
-                ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.3f, 1f), "Pinned");
+                ImGui.TextColored(new Vector4(0.9f, 0.7f, 0.3f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserPinnedHeader"));
 
                 ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.9f, 0.7f, 0.3f, 0.3f));
                 ImGui.Separator();
@@ -399,7 +507,7 @@ namespace Soulstone.Utils
                     // Right-click to unpin
                     if (ImGui.BeginPopupContextItem($"##pinctx{i}"))
                     {
-                        if (ImGui.MenuItem("Unpin from Quick Access"))
+                        if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("FileBrowserUnpinContext")))
                             pathToRemove = pinPath;
                         ImGui.EndPopup();
                     }
@@ -419,7 +527,7 @@ namespace Soulstone.Utils
                 ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), FontAwesomeIcon.History.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine();
-                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), "Recent");
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserRecentHeader"));
 
                 ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.4f, 0.4f, 0.4f, 0.3f));
                 ImGui.Separator();
@@ -450,18 +558,18 @@ namespace Soulstone.Utils
             var downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
             var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-            if (path == pictures) return "Pictures";
-            if (path == documents) return "Documents";
-            if (path == desktop) return "Desktop";
-            if (path == downloads) return "Downloads";
-            if (path == userProfile) return "Home";
+            if (path == pictures) return LocalizationManager.Instance.GetLocalizedString("FileBrowserPictures");
+            if (path == documents) return LocalizationManager.Instance.GetLocalizedString("FileBrowserDocuments");
+            if (path == desktop) return LocalizationManager.Instance.GetLocalizedString("FileBrowserDesktop");
+            if (path == downloads) return LocalizationManager.Instance.GetLocalizedString("FileBrowserDownloads");
+            if (path == userProfile) return LocalizationManager.Instance.GetLocalizedString("FileBrowserHome");
 
             if (path.Length <= 3 && path.Contains(':'))
             {
                 try
                 {
                     var drive = new DriveInfo(path);
-                    var label = string.IsNullOrEmpty(drive.VolumeLabel) ? "Local Disk" : drive.VolumeLabel;
+                    var label = string.IsNullOrEmpty(drive.VolumeLabel) ? LocalizationManager.Instance.GetLocalizedString("FileBrowserLocalDisk") : drive.VolumeLabel;
                     return $"{label} ({drive.Name.TrimEnd('\\')})";
                 }
                 catch { return path; }
@@ -501,7 +609,7 @@ namespace Soulstone.Utils
             ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), FontAwesomeIcon.FolderOpen.ToIconString());
             ImGui.PopFont();
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), "Files");
+            ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserFilesHeader"));
             ImGui.SameLine();
 
             // Right-align the sort controls
@@ -514,7 +622,8 @@ namespace Soulstone.Utils
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.18f, 1f));
             ImGui.SetNextItemWidth(100);
             var sortIndex = (int)currentSort;
-            if (ImGui.Combo("##Sort", ref sortIndex, SortOptionNames, SortOptionNames.Length))
+            var localizedSortNames = GetLocalizedSortOptionNames();
+            if (ImGui.Combo("##Sort", ref sortIndex, localizedSortNames, localizedSortNames.Length))
             {
                 currentSort = (SortOption)sortIndex;
                 RefreshDirectory();
@@ -526,17 +635,15 @@ namespace Soulstone.Utils
             // Sort direction button
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.25f, 1f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.35f, 1f));
-            ImGui.PushFont(UiBuilder.IconFont);
-            var sortIcon = sortDescending ? FontAwesomeIcon.SortAmountDown : FontAwesomeIcon.SortAmountUp;
-            if (ImGui.Button(sortIcon.ToIconString(), new Vector2(26, 0)))
+            var sortText = sortDescending ? "v" : "^";
+            if (ImGui.Button($"{sortText}##SortDirBtn", new Vector2(26, 0)))
             {
                 sortDescending = !sortDescending;
                 RefreshDirectory();
             }
-            ImGui.PopFont();
             ImGui.PopStyleColor(2);
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(sortDescending ? "Descending" : "Ascending");
+                ImGui.SetTooltip(sortDescending ? LocalizationManager.Instance.GetLocalizedString("FileBrowserSortDesc") : LocalizationManager.Instance.GetLocalizedString("FileBrowserSortAsc"));
         }
 
         private void DrawFileListContent()
@@ -550,7 +657,7 @@ namespace Soulstone.Utils
                     !name.Contains(searchFilter, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                var pinned = IsPinned(dir);
+                var pinned = IsPathPinned(dir);
 
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.TextColored(pinned ? new Vector4(0.9f, 0.7f, 0.3f, 1f) : new Vector4(1f, 0.85f, 0.4f, 1f),
@@ -567,17 +674,17 @@ namespace Soulstone.Utils
                 // Right-click context menu
                 if (ImGui.BeginPopupContextItem($"##dirctx{di}"))
                 {
-                    if (ImGui.MenuItem("Open"))
+                    if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("FileBrowserOpenContext")))
                         NavigateTo(dir);
 
                     if (pinned)
                     {
-                        if (ImGui.MenuItem("Unpin from Quick Access"))
+                        if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("FileBrowserUnpinContext")))
                             TogglePin(dir);
                     }
                     else
                     {
-                        if (ImGui.MenuItem("Pin to Quick Access"))
+                        if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("FileBrowserPinContext")))
                             TogglePin(dir);
                     }
                     ImGui.EndPopup();
@@ -611,7 +718,7 @@ namespace Soulstone.Utils
             if (currentFiles.Length == 0 && currentDirectories.Length == 0)
             {
                 ImGui.Spacing();
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "No files found");
+                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserNoFilesFound"));
             }
         }
 
@@ -621,7 +728,7 @@ namespace Soulstone.Utils
             ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), FontAwesomeIcon.Eye.ToIconString());
             ImGui.PopFont();
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), "Preview");
+            ImGui.TextColored(new Vector4(0.6f, 0.7f, 0.85f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserPreviewHeader"));
 
             ImGui.PushStyleColor(ImGuiCol.Separator, new Vector4(0.3f, 0.5f, 0.7f, 0.5f));
             ImGui.Separator();
@@ -630,7 +737,48 @@ namespace Soulstone.Utils
             if (string.IsNullOrEmpty(previewPath))
             {
                 ImGui.Spacing();
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "Select a file to preview");
+                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserNoPreviewPrompt"));
+                return;
+            }
+
+            var isUrl = previewPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                        previewPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+
+            if (isUrl)
+            {
+                ImGui.TextWrapped(previewPath);
+                ImGui.TextColored(new Vector4(0.4f, 0.75f, 1f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserWebImageUrl"));
+                ImGui.Spacing();
+
+                var texture = ImageHelper.GetTexture(previewPath);
+                if (texture != null)
+                {
+                    var availSize = ImGui.GetContentRegionAvail();
+                    var texSize = new Vector2(texture.Width, texture.Height);
+
+                    var scale = Math.Min(availSize.X / texSize.X, (availSize.Y - 10) / texSize.Y);
+                    scale = Math.Min(scale, 1f);
+                    var displaySize = texSize * scale;
+
+                    var offsetX = (availSize.X - displaySize.X) / 2;
+                    if (offsetX > 0)
+                        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offsetX);
+
+                    var pos = ImGui.GetCursorScreenPos();
+                    var drawList = ImGui.GetWindowDrawList();
+                    drawList.AddRect(
+                        pos - new Vector2(2, 2),
+                        pos + displaySize + new Vector2(2, 2),
+                        ImGui.ColorConvertFloat4ToU32(new Vector4(0.3f, 0.5f, 0.7f, 0.5f)),
+                        4f, ImDrawFlags.None, 2f);
+
+                    ImGui.Image(texture.Handle, displaySize);
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), $"{texture.Width} x {texture.Height}");
+                }
+                else
+                {
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserLoadingPreview"));
+                }
                 return;
             }
 
@@ -653,7 +801,7 @@ namespace Soulstone.Utils
             // Load texture fresh each frame (like other components do)
             if (File.Exists(previewPath))
             {
-                var texture = Plugin.TextureProvider?.GetFromFile(previewPath).GetWrapOrDefault();
+                var texture = ImageHelper.GetTexture(previewPath) ?? Plugin.TextureProvider?.GetFromFile(previewPath).GetWrapOrDefault();
 
                 if (texture != null)
                 {
@@ -684,20 +832,23 @@ namespace Soulstone.Utils
                 }
                 else
                 {
-                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "Loading preview...");
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserLoadingPreview"));
                 }
             }
             else
             {
-                ImGui.TextColored(new Vector4(0.7f, 0.4f, 0.4f, 1f), "File not found");
+                ImGui.TextColored(new Vector4(0.7f, 0.4f, 0.4f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserFileNotFound"));
             }
         }
 
         private void DrawBottomBar()
         {
+            var hasUrl = !string.IsNullOrWhiteSpace(urlInput);
             // Selected file display
-            var selectedDisplay = selectedFile != null ? Path.GetFileName(selectedFile) : "No file selected";
-            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), $"Selected: {selectedDisplay}");
+            var selectedDisplay = selectedFile != null 
+                ? Path.GetFileName(selectedFile) 
+                : (hasUrl ? urlInput : LocalizationManager.Instance.GetLocalizedString("FileBrowserNoFileSelected"));
+            ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), string.Format(LocalizationManager.Instance.GetLocalizedString("FileBrowserSelectedLabel"), selectedDisplay));
 
             ImGui.SameLine();
 
@@ -705,7 +856,7 @@ namespace Soulstone.Utils
             ImGui.SetCursorPosX(ImGui.GetWindowWidth() - buttonWidth * 2 - 25);
 
             // Select button (now first)
-            var hasSelection = selectedFile != null;
+            var hasSelection = selectedFile != null || hasUrl || (previewPath != null && (previewPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || previewPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase)));
             if (!hasSelection)
             {
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
@@ -719,8 +870,21 @@ namespace Soulstone.Utils
                 ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 1f, 1f, 1f));
             }
 
-            if (ImGui.Button("Select", new Vector2(buttonWidth, 28)) && hasSelection)
-                ConfirmSelection();
+            if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("SelectButton"), new Vector2(buttonWidth, 28)) && hasSelection)
+            {
+                if (selectedFile != null)
+                {
+                    ConfirmSelection();
+                }
+                else if (hasUrl)
+                {
+                    ConfirmUrl(urlInput.Trim());
+                }
+                else if (previewPath != null)
+                {
+                    ConfirmUrl(previewPath.Trim());
+                }
+            }
 
             ImGui.PopStyleColor(3);
 
@@ -729,7 +893,7 @@ namespace Soulstone.Utils
             // Cancel button (now second)
             ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.2f, 0.2f, 1f));
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.5f, 0.25f, 0.25f, 1f));
-            if (ImGui.Button("Cancel", new Vector2(buttonWidth, 28)))
+            if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(buttonWidth, 28)))
             {
                 Confirmed = false;
                 SelectedPath = null;
@@ -757,12 +921,27 @@ namespace Soulstone.Utils
             }
         }
 
-        public void Open(string? startDirectory = null)
+        public void ConfirmUrl(string url)
         {
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                Confirmed = true;
+                SelectedPath = url;
+                OnFileSelected?.Invoke(url);
+                IsOpen = false;
+            }
+        }
+
+        public void Open(string title, string? filter = null, string? startDirectory = null)
+        {
+            DialogTitle = title;
+            WindowName = $"{DialogTitle}###ImGuiFileBrowser";
+            SetAllowedExtensions(filter);
             Confirmed = false;
             SelectedPath = null;
             selectedFile = null;
             previewPath = null;
+            urlInput = string.Empty;
             searchFilter = "";
 
             if (!string.IsNullOrEmpty(startDirectory) && Directory.Exists(startDirectory))
@@ -773,6 +952,11 @@ namespace Soulstone.Utils
 
             RefreshDirectory();
             IsOpen = true;
+        }
+
+        public void Open(string? startDirectory = null)
+        {
+            Open(DialogTitle, allowedExtensions != null && allowedExtensions.Length > 0 ? string.Join(";", allowedExtensions) : null, startDirectory);
         }
 
         public override void OnClose()

@@ -14,9 +14,10 @@ public class Configuration : IPluginConfiguration
     public bool SomePropertyToBeSavedAndWithADefault { get; set; } = true;
 
     public bool detailedRolls = false;
+    public bool showEpicBonus = false;
 
     public List<string> PinnedFileBrowserPaths = new List<string>();
-    public string LastBrowserDirectory;
+    public string? LastBrowserDirectory;
 
     public Language Language { get; set; } = Language.Français;
 

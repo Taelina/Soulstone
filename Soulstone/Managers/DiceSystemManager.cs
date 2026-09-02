@@ -11,7 +11,7 @@ namespace Soulstone.Managers
     {
         private static DiceSystemManager? instance = null;
 
-        private DiceSystem currentDiceSystem;
+        private DiceSystem? currentDiceSystem;
 
         private DiceSystemManager()
         {
@@ -30,7 +30,7 @@ namespace Soulstone.Managers
             }
         }
 
-        internal DiceSystem CurrentDiceSystem { get => currentDiceSystem; set => currentDiceSystem = value; }
+        internal DiceSystem? CurrentDiceSystem { get => currentDiceSystem; set => currentDiceSystem = value; }
 
         public void Init()
         {
