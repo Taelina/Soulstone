@@ -25,6 +25,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IChatGui ChatGui { get; set; } = null!;
     [PluginService] internal static IToastGui ToastGui { get; set; } = null!;
     [PluginService] internal static INotificationManager NotificationManager { get; set; } = null!;
+    [PluginService] internal static IPartyList PartyList { get; set; } = null!;
 
     [PluginService] internal static IObjectTable ObjectTable { get; set; } = null!;
 
@@ -38,6 +39,7 @@ public sealed class Plugin : IDalamudPlugin
     public readonly WindowSystem WindowSystem = new("Soulstone");
     private ConfigWindow ConfigWindow { get; init; }
     public InitiativeTrackerWindow InitiativeTrackerWindow { get; init; }
+    public GroupWindow GroupWindow { get; init; }
 
     public ImGuiFileBrowserWindow fileBrowserWindow;
 
@@ -53,12 +55,14 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow = new ConfigWindow(this);
         MainWindow = new MainWindow(this);
         InitiativeTrackerWindow = new InitiativeTrackerWindow(this);
+        GroupWindow = new GroupWindow(this);
         fileBrowserWindow = new ImGuiFileBrowserWindow();
         fileBrowserWindow.SetConfiguration(Configuration);
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(InitiativeTrackerWindow);
+        WindowSystem.AddWindow(GroupWindow);
         WindowSystem.AddWindow(fileBrowserWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -89,6 +93,8 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow.Dispose();
         MainWindow.Dispose();
         InitiativeTrackerWindow.Dispose();
+        GroupWindow.Dispose();
+        PartySyncManager.Instance.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }
@@ -103,6 +109,10 @@ public sealed class Plugin : IDalamudPlugin
         {
             ToggleInitiativeTrackerUi();
         }
+        else if (trimmedArgs == "group" || trimmedArgs == "party")
+        {
+            ToggleGroupUi();
+        }
         else
         {
             // In response to the slash command, toggle the display status of our main ui
@@ -113,6 +123,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public void ToggleConfigUi() => ConfigWindow.Toggle();
     public void ToggleInitiativeTrackerUi() => InitiativeTrackerWindow.Toggle();
+    public void ToggleGroupUi() => GroupWindow.Toggle();
     public void ToggleMainUi()
     {
         MainWindow.Toggle();
@@ -124,6 +135,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         CharacterManager.Instance.Init();
         DiceSystemManager.Instance.Init();
+        PartySyncManager.Instance.Init();
         if (!pluginInitialized)
         {
             pluginInitialized = true;

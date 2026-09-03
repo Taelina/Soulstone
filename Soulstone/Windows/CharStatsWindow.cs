@@ -22,6 +22,7 @@ namespace Soulstone.Windows
         private bool showAbilitiesPopup = false;
         private bool showSkillPopup = false;
         private bool showAttributesPopup = false;
+        private bool showBuffPopup = false;
 
         private CharacterSheet? currentCharacter = null;
         private DiceSystem? currentDiceSystem = null;
@@ -40,6 +41,13 @@ namespace Soulstone.Windows
         private int newAbilityValue = 0;
         private string selectedSkill = "";
         private Ability? newAbility = null;
+
+        private string newCharBuffName = "";
+        private int newCharBuffDuration = 3;
+        private string newCharBuffTargetStat = "";
+        private int newCharBuffValue = 1;
+        private bool newCharBuffIsDebuff = false;
+        private string newCharBuffDesc = "";
 
         private bool advantageRoll = false;
         private bool disadvantageRoll = false;
@@ -78,8 +86,113 @@ namespace Soulstone.Windows
 
             DrawVitalsBanner();
             ImGui.Spacing();
+            DrawActiveBuffsBanner();
+            ImGui.Spacing();
             DrawColumnsSection();
             DrawModals();
+        }
+
+        private void DrawActiveBuffsBanner()
+        {
+            if (currentCharacter == null) return;
+            var buffs = currentCharacter.ActiveBuffs;
+
+            using (var buffBar = ImRaii.Child("##ActiveBuffsBanner", new Vector2(0, 32.0f * ImGuiHelpers.GlobalScale), true))
+            {
+                if (buffBar.Success)
+                {
+                    ImGui.PushFont(UiBuilder.IconFont);
+                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Magic.ToIconString());
+                    ImGui.PopFont();
+                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                    ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("BuffsHeader")}:");
+
+                    string? buffToRemove = null;
+                    if (buffs != null && buffs.Count > 0)
+                    {
+                        for (int i = 0; i < buffs.Count; i++)
+                        {
+                            var buff = buffs[i];
+                            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+
+                            string badgeText = $"{buff.Name} ({buff.Duration}t)";
+                            var badgeBg = buff.IsDebuff ? new Vector4(0.35f, 0.12f, 0.12f, 0.85f) : new Vector4(0.12f, 0.30f, 0.16f, 0.85f);
+                            var badgeCol = buff.IsDebuff ? ImGuiColors.DalamudRed : ImGuiColors.ParsedGreen;
+
+                            UiUtils.Badge(badgeText, badgeBg, badgeCol);
+                            if (ImGui.IsItemHovered())
+                            {
+                                ImGui.BeginTooltip();
+                                ImGui.TextColored(badgeCol, $"{buff.Name} {(buff.IsDebuff ? "[Debuff]" : "[Buff]")}");
+                                ImGui.Separator();
+                                ImGui.Text(string.Format(LocalizationManager.Instance.GetLocalizedString("BuffDurationRemaining"), buff.Duration));
+                                if (!string.IsNullOrWhiteSpace(buff.Description))
+                                {
+                                    ImGui.TextDisabled(buff.Description);
+                                }
+                                string mods = buff.GetFormattedModifiers();
+                                if (!string.IsNullOrWhiteSpace(mods))
+                                {
+                                    ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("StatModifiersLabel")} {mods}");
+                                }
+                                ImGui.Separator();
+                                ImGui.TextDisabled("Right click to manage");
+                                ImGui.EndTooltip();
+                            }
+
+                            if (ImGui.BeginPopupContextItem($"CharBuffCtx_{buff.Id}"))
+                            {
+                                ImGui.TextColored(badgeCol, buff.Name);
+                                ImGui.Separator();
+                                if (ImGui.MenuItem("+1 Turn"))
+                                {
+                                    buff.Duration++;
+                                    currentCharacter.SyncWithInitiativeTracker();
+                                }
+                                if (ImGui.MenuItem("-1 Turn"))
+                                {
+                                    if (buff.Tick(1))
+                                    {
+                                        buffToRemove = buff.Id;
+                                    }
+                                    else
+                                    {
+                                        currentCharacter.SyncWithInitiativeTracker();
+                                    }
+                                }
+                                ImGui.Separator();
+                                if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("SupprButton") == "-" ? "Remove" : LocalizationManager.Instance.GetLocalizedString("SupprButton")))
+                                {
+                                    buffToRemove = buff.Id;
+                                }
+                                ImGui.EndPopup();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoActiveBuffs"));
+                    }
+
+                    ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                    if (UiUtils.IconButton("AddCharBuffBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddBuffButton"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                    {
+                        newCharBuffName = "";
+                        newCharBuffDuration = 3;
+                        newCharBuffTargetStat = "";
+                        newCharBuffValue = 1;
+                        newCharBuffIsDebuff = false;
+                        newCharBuffDesc = "";
+                        showBuffPopup = true;
+                    }
+
+                    if (buffToRemove != null)
+                    {
+                        currentCharacter.RemoveBuff(buffToRemove);
+                    }
+                }
+            }
         }
 
         private void DrawVitalsBanner()
@@ -447,8 +560,9 @@ namespace Soulstone.Windows
                                 int tempVal = hasBonusTemp ? attribute.Value.TempBonus : 0;
                                 int permVal = hasBonusPerm ? attribute.Value.PermBonus : 0;
                                 int gearBonus = currentCharacter.GetGearStatBonus(attribute.Key);
+                                int buffBonus = currentCharacter.GetBuffStatBonus(attribute.Key);
                                 int epicVal = showEpic ? attribute.Value.EpicBonus : 0;
-                                int totalVal = baseVal + tempVal + permVal + gearBonus;
+                                int totalVal = baseVal + tempVal + permVal + gearBonus + buffBonus;
 
                                 float rightItemsWidth = (hasSaves ? 58.0f : 30.0f) * ImGuiHelpers.GlobalScale;
                                 string baseText = baseVal.ToString();
@@ -468,6 +582,11 @@ namespace Soulstone.Windows
                                 {
                                     string gearText = FormatModifier(gearBonus);
                                     rightItemsWidth += ImGui.CalcTextSize(gearText).X + 16.0f * ImGuiHelpers.GlobalScale;
+                                }
+                                if (buffBonus != 0)
+                                {
+                                    string buffText = FormatModifier(buffBonus);
+                                    rightItemsWidth += ImGui.CalcTextSize(buffText).X + 16.0f * ImGuiHelpers.GlobalScale;
                                 }
                                 if (epicVal > 0)
                                 {
@@ -509,6 +628,15 @@ namespace Soulstone.Windows
                                     var gearBg = gearBonus > 0 ? new Vector4(0.12f, 0.22f, 0.38f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
                                     UiUtils.Badge(FormatModifier(gearBonus), gearBg, gearCol);
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(gearBonus)}");
+                                }
+
+                                if (buffBonus != 0)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    var buffCol = buffBonus > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+                                    var buffBg = buffBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                                    UiUtils.Badge(FormatModifier(buffBonus), buffBg, buffCol);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(buffBonus)}");
                                 }
 
                                 if (epicVal > 0)
@@ -660,9 +788,11 @@ namespace Soulstone.Windows
                                 rawSuccesses = (currentDiceSystem != null ? currentDiceSystem.systemHasEpicAttributes : configuration.showEpicBonus) ? linkedAttr.EpicBonus : 0;
                             }
                             int skillGearBonus = currentCharacter.GetGearStatBonus(skill.Value.skillName);
+                            int skillBuffBonus = currentCharacter.GetBuffStatBonus(skill.Value.skillName);
                             int attrGearBonus = hasLinkedAttr ? currentCharacter.GetGearStatBonus(skill.Value.linkedAttribute) : 0;
-                            int effectiveAttrVal = attributeValue + attributeTemp + attributePerm + attrGearBonus;
-                            int totalModifier = skill.Value.skillModifier + skillGearBonus + (hasLinkedAttr ? effectiveAttrVal : 0);
+                            int attrBuffBonus = hasLinkedAttr ? currentCharacter.GetBuffStatBonus(skill.Value.linkedAttribute) : 0;
+                            int effectiveAttrVal = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus;
+                            int totalModifier = skill.Value.skillModifier + skillGearBonus + skillBuffBonus + (hasLinkedAttr ? effectiveAttrVal : 0);
 
                             if (editingStats)
                             {
@@ -709,7 +839,13 @@ namespace Soulstone.Windows
                                     rightItemsWidth += ImGui.CalcTextSize(gearText).X + 16.0f * ImGuiHelpers.GlobalScale;
                                 }
 
-                                string? totalModText = (hasLinkedAttr || skillGearBonus != 0) ? FormatModifier(totalModifier) : null;
+                                if (skillBuffBonus != 0)
+                                {
+                                    string buffText = FormatModifier(skillBuffBonus);
+                                    rightItemsWidth += ImGui.CalcTextSize(buffText).X + 16.0f * ImGuiHelpers.GlobalScale;
+                                }
+
+                                string? totalModText = (hasLinkedAttr || skillGearBonus != 0 || skillBuffBonus != 0) ? FormatModifier(totalModifier) : null;
                                 if (totalModText != null)
                                 {
                                     rightItemsWidth += ImGui.CalcTextSize(totalModText).X + 16.0f * ImGuiHelpers.GlobalScale;
@@ -731,6 +867,15 @@ namespace Soulstone.Windows
                                     var gearBg = skillGearBonus > 0 ? new Vector4(0.12f, 0.22f, 0.38f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
                                     UiUtils.Badge(FormatModifier(skillGearBonus), gearBg, gearCol);
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(skillGearBonus)}");
+                                }
+
+                                if (skillBuffBonus != 0)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    var buffCol = skillBuffBonus > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+                                    var buffBg = skillBuffBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                                    UiUtils.Badge(FormatModifier(skillBuffBonus), buffBg, buffCol);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(skillBuffBonus)}");
                                 }
 
                                 if (totalModText != null)
@@ -879,18 +1024,22 @@ namespace Soulstone.Windows
                                 rawSuccesses = (currentDiceSystem != null ? currentDiceSystem.systemHasEpicAttributes : configuration.showEpicBonus) ? linkedAttr.EpicBonus : 0;
                             }
                             int abilityGearBonus = currentCharacter.GetGearStatBonus(ability.Value.abilityName);
+                            int abilityBuffBonus = currentCharacter.GetBuffStatBonus(ability.Value.abilityName);
                             int attrGearBonus = hasLinkedAttr ? currentCharacter.GetGearStatBonus(ability.Value.linkedAttribute) : 0;
+                            int attrBuffBonus = hasLinkedAttr ? currentCharacter.GetBuffStatBonus(ability.Value.linkedAttribute) : 0;
                             int skillValue = ability.Value.linkedSkill != null ? ability.Value.linkedSkill.skillModifier : 0;
                             int skillGearBonus = 0;
+                            int skillBuffBonus = 0;
                             bool hasLinkedSkill = ability.Value.linkedSkill != null && !string.IsNullOrEmpty(ability.Value.linkedSkill.skillName);
                             if (hasLinkedSkill && ability.Value.linkedSkill != null)
                             {
                                 skillGearBonus = currentCharacter.GetGearStatBonus(ability.Value.linkedSkill.skillName);
+                                skillBuffBonus = currentCharacter.GetBuffStatBonus(ability.Value.linkedSkill.skillName);
                             }
 
-                            int effectiveAttrValue = attributeValue + attributeTemp + attributePerm + attrGearBonus;
-                            int effectiveSkillValue = skillValue + skillGearBonus;
-                            int totalModifier = ability.Value.abilityModifier + abilityGearBonus + (hasLinkedAttr ? effectiveAttrValue : 0) + (hasLinkedSkill ? effectiveSkillValue : 0);
+                            int effectiveAttrValue = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus;
+                            int effectiveSkillValue = skillValue + skillGearBonus + skillBuffBonus;
+                            int totalModifier = ability.Value.abilityModifier + abilityGearBonus + abilityBuffBonus + (hasLinkedAttr ? effectiveAttrValue : 0) + (hasLinkedSkill ? effectiveSkillValue : 0);
 
                             if (editingStats)
                             {
@@ -947,7 +1096,13 @@ namespace Soulstone.Windows
                                     rightItemsWidth += ImGui.CalcTextSize(gearText).X + 16.0f * ImGuiHelpers.GlobalScale;
                                 }
 
-                                string? totalModText = (hasLinkedAttr || hasLinkedSkill || abilityGearBonus != 0) ? FormatModifier(totalModifier) : null;
+                                if (abilityBuffBonus != 0)
+                                {
+                                    string buffText = FormatModifier(abilityBuffBonus);
+                                    rightItemsWidth += ImGui.CalcTextSize(buffText).X + 16.0f * ImGuiHelpers.GlobalScale;
+                                }
+
+                                string? totalModText = (hasLinkedAttr || hasLinkedSkill || abilityGearBonus != 0 || abilityBuffBonus != 0) ? FormatModifier(totalModifier) : null;
                                 if (totalModText != null)
                                 {
                                     rightItemsWidth += ImGui.CalcTextSize(totalModText).X + 16.0f * ImGuiHelpers.GlobalScale;
@@ -969,6 +1124,15 @@ namespace Soulstone.Windows
                                     var gearBg = abilityGearBonus > 0 ? new Vector4(0.12f, 0.22f, 0.38f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
                                     UiUtils.Badge(FormatModifier(abilityGearBonus), gearBg, gearCol);
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(abilityGearBonus)}");
+                                }
+
+                                if (abilityBuffBonus != 0)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    var buffCol = abilityBuffBonus > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+                                    var buffBg = abilityBuffBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                                    UiUtils.Badge(FormatModifier(abilityBuffBonus), buffBg, buffCol);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(abilityBuffBonus)}");
                                 }
 
                                 if (totalModText != null)
@@ -1251,6 +1415,72 @@ namespace Soulstone.Windows
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
                 {
                     showAbilitiesPopup = false;
+                }
+
+                ImGui.EndPopup();
+            }
+
+            // New Buff Modal
+            if (showBuffPopup)
+            {
+                ImGui.OpenPopup("NewBuffModal###CharNewBuffModal");
+            }
+            if (ImGui.BeginPopupModal("NewBuffModal###CharNewBuffModal", ref showBuffPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            {
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Magic.ToIconString());
+                ImGui.PopFont();
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("BuffModalTitle"));
+                ImGui.Separator();
+                ImGui.Spacing();
+
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("BuffNameLabel"));
+                ImGui.SetNextItemWidth(-1);
+                ImGui.InputText("##CharBuffName", ref newCharBuffName, 60);
+
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("BuffDurationLabel"));
+                ImGui.SetNextItemWidth(100.0f * ImGuiHelpers.GlobalScale);
+                if (ImGui.InputInt("##CharBuffDuration", ref newCharBuffDuration, 1))
+                {
+                    if (newCharBuffDuration < 1) newCharBuffDuration = 1;
+                }
+
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("BuffTargetStatLabel"));
+                ImGui.SetNextItemWidth(-1);
+                ImGui.InputTextWithHint("##CharBuffTargetStat", LocalizationManager.Instance.GetLocalizedString("BuffStatNameHint"), ref newCharBuffTargetStat, 60);
+
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("BuffValueLabel"));
+                ImGui.SetNextItemWidth(100.0f * ImGuiHelpers.GlobalScale);
+                if (ImGui.InputInt("##CharBuffValue", ref newCharBuffValue, 1))
+                {
+                    if (newCharBuffValue < 0) newCharBuffIsDebuff = true;
+                }
+
+                ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("BuffIsDebuffLabel"), ref newCharBuffIsDebuff);
+
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
+                ImGui.SetNextItemWidth(-1);
+                ImGui.InputText("##CharBuffDesc", ref newCharBuffDesc, 120);
+
+                ImGui.Spacing();
+                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(100, 0) * ImGuiHelpers.GlobalScale))
+                {
+                    if (!string.IsNullOrWhiteSpace(newCharBuffName))
+                    {
+                        int val = newCharBuffValue;
+                        if (newCharBuffIsDebuff && val > 0) val = -val;
+                        var buff = new Buff(newCharBuffName.Trim(), Math.Max(1, newCharBuffDuration), newCharBuffTargetStat.Trim(), val, newCharBuffDesc.Trim(), newCharBuffIsDebuff);
+                        currentCharacter.AddBuff(buff);
+                        newCharBuffName = "";
+                        newCharBuffTargetStat = "";
+                        showBuffPopup = false;
+                    }
+                }
+                ImGui.SameLine();
+                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
+                {
+                    showBuffPopup = false;
                 }
 
                 ImGui.EndPopup();

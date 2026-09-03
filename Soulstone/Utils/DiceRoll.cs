@@ -205,24 +205,15 @@ namespace Soulstone.Utils
             
             if (roll != null)
             {
-                if (!detailedRoll)
-                {
-                    XivChatEntry rollMessage = new XivChatEntry
-                    {
-                        Message = roll.RollResultString,
-                        Type = XivChatType.Echo
-                    };
-                    Messages.SendMessage(rollMessage);
-                }
-                else
-                {
-                    XivChatEntry rollMessage = new XivChatEntry
-                    {
-                        Message = roll.RollDetailedResultString,
-                        Type = XivChatType.Echo
-                    };
-                    Messages.SendMessage(rollMessage);
-                }
+                string displayMsg = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue;
+                PartySyncManager.Instance.BroadcastDiceRoll(
+                    rollName,
+                    roll.RollResult,
+                    string.Join(", ", roll.IndividualRolls),
+                    false,
+                    false,
+                    displayMsg
+                );
             }
         }
     }

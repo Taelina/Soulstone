@@ -115,20 +115,37 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     UiUtils.Badge("Cyberware Active", new Vector4(0.15f, 0.35f, 0.25f, 0.7f), ImGuiColors.ParsedGreen);
                 }
+
+                if (DiceSystemManager.Instance.IsSessionRulesetActive)
+                {
+                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                    UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupSyncedFromDM"), new Vector4(0.14f, 0.38f, 0.20f, 0.85f), ImGuiColors.ParsedGreen);
+                }
             }
 
             var saveLabel = LocalizationManager.Instance.GetLocalizedString("DiceSystemSaveButton");
             var chooseLabel = LocalizationManager.Instance.GetLocalizedString("DiceSystemChoose");
+            var revertLabel = LocalizationManager.Instance.GetLocalizedString("GroupRevertRuleset");
 
             var saveWidth = ImGui.CalcTextSize(saveLabel).X + 36.0f * ImGuiHelpers.GlobalScale;
             var chooseWidth = ImGui.CalcTextSize(chooseLabel).X + 36.0f * ImGuiHelpers.GlobalScale;
-            var totalButtonsWidth = saveWidth + chooseWidth + 10.0f * ImGuiHelpers.GlobalScale;
+            var revertWidth = DiceSystemManager.Instance.IsSessionRulesetActive ? ImGui.CalcTextSize(revertLabel).X + 36.0f * ImGuiHelpers.GlobalScale : 0f;
+            var totalButtonsWidth = saveWidth + chooseWidth + revertWidth + 16.0f * ImGuiHelpers.GlobalScale;
 
             var rightX = ImGui.GetWindowContentRegionMax().X - totalButtonsWidth;
             if (ImGui.GetCursorPosX() < rightX)
                 ImGui.SameLine(rightX);
             else
                 ImGui.SameLine(0, 16.0f * ImGuiHelpers.GlobalScale);
+
+            if (DiceSystemManager.Instance.IsSessionRulesetActive)
+            {
+                if (UiUtils.IconButton("RevertDiceSysBtn", FontAwesomeIcon.Undo, revertLabel))
+                {
+                    DiceSystemManager.Instance.RevertToLocalRuleset();
+                }
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+            }
 
             if (UiUtils.IconButton("SaveDiceSysBtn", FontAwesomeIcon.Save, saveLabel))
             {

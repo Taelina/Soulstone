@@ -80,6 +80,9 @@ namespace Soulstone.Datamodels
         //Character Generic Resources fields
         public Dictionary<string, CharacterResource> characterResources = new Dictionary<string, CharacterResource>();
 
+        //Character Active Buffs / Debuffs
+        public List<Buff> activeBuffs = new List<Buff>();
+
         //Character Dynamic ability fields
         public Dictionary<string, Attribute> characterAttributes = new Dictionary<string, Attribute>();
         public Dictionary<string, Skill> characterSkills = new Dictionary<string, Skill>();
@@ -132,6 +135,7 @@ namespace Soulstone.Datamodels
         public Dictionary<string, string> EquippedGear { get => equippedGear; set => equippedGear = value; }
         public Dictionary<string, string> EquippedAugmentations { get => equippedAugmentations; set => equippedAugmentations = value; }
         public Dictionary<string, CharacterResource> CharacterResources { get => characterResources; set => characterResources = value; }
+        public List<Buff> ActiveBuffs { get => activeBuffs; set => activeBuffs = value; }
 
         public CharacterSheet()
         {
@@ -146,6 +150,7 @@ namespace Soulstone.Datamodels
             equippedGear = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             equippedAugmentations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             characterResources = new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
+            activeBuffs = new List<Buff>();
             SyncResourcesWithLegacyFields();
         }
 
@@ -216,6 +221,8 @@ namespace Soulstone.Datamodels
             {
                 characterManaPoints = value;
             }
+
+            PartySyncManager.Instance.BroadcastResourceUpdate();
         }
 
         public void SetResourceMax(string name, int value)
@@ -238,6 +245,8 @@ namespace Soulstone.Datamodels
             {
                 characterMaxManaPoints = value;
             }
+
+            PartySyncManager.Instance.BroadcastResourceUpdate();
         }
 
         public CharacterResource GetOrCreateResource(string name, int defaultCurrent = 100, int defaultMax = 100)
@@ -520,6 +529,102 @@ namespace Soulstone.Datamodels
             return bonuses;
         }
 
+        public void AddBuff(Buff buff)
+        {
+            if (buff == null) return;
+            activeBuffs ??= new List<Buff>();
+            activeBuffs.Add(buff);
+            SyncWithInitiativeTracker();
+        }
+
+        public bool RemoveBuff(string buffId)
+        {
+            if (activeBuffs == null) return false;
+            int index = activeBuffs.FindIndex(b => b.Id == buffId);
+            if (index < 0) return false;
+            activeBuffs.RemoveAt(index);
+            SyncWithInitiativeTracker();
+            return true;
+        }
+
+        public void SyncWithInitiativeTracker()
+        {
+            try
+            {
+                var mgr = InitiativeTrackerManager.Instance;
+                if (mgr?.Participants != null && mgr.Participants.Count > 0)
+                {
+                    var participant = mgr.Participants.FirstOrDefault(p =>
+                        p.IsCurrentCharacter || (!string.IsNullOrWhiteSpace(CharacterFullName) && string.Equals(p.Name, CharacterFullName, StringComparison.OrdinalIgnoreCase)));
+                    if (participant != null)
+                    {
+                        participant.IsCurrentCharacter = true;
+                        participant.Buffs = new List<Buff>(activeBuffs ?? new List<Buff>());
+                    }
+                }
+            }
+            catch
+            {
+                // Ignored if tracker is not in use or during isolated tests
+            }
+        }
+
+        public int GetBuffStatBonus(string statName)
+        {
+            if (string.IsNullOrWhiteSpace(statName) || activeBuffs == null) return 0;
+            int totalBonus = 0;
+            foreach (var buff in activeBuffs)
+            {
+                totalBonus += buff.GetStatModifier(statName);
+                if (!string.Equals(statName, "All", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(statName, "Global", StringComparison.OrdinalIgnoreCase))
+                {
+                    totalBonus += buff.GetStatModifier("All") + buff.GetStatModifier("Global");
+                }
+            }
+            return totalBonus;
+        }
+
+        public Dictionary<string, int> GetAllBuffStatBonuses()
+        {
+            var bonuses = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (activeBuffs == null) return bonuses;
+            foreach (var buff in activeBuffs)
+            {
+                if (buff.StatModifiers == null) continue;
+                foreach (var kv in buff.StatModifiers)
+                {
+                    if (bonuses.ContainsKey(kv.Key))
+                    {
+                        bonuses[kv.Key] += kv.Value;
+                    }
+                    else
+                    {
+                        bonuses[kv.Key] = kv.Value;
+                    }
+                }
+            }
+            return bonuses;
+        }
+
+        public List<Buff> TickBuffs(int turns = 1)
+        {
+            var expired = new List<Buff>();
+            if (activeBuffs == null || activeBuffs.Count == 0) return expired;
+
+            for (int i = activeBuffs.Count - 1; i >= 0; i--)
+            {
+                var buff = activeBuffs[i];
+                if (buff.Tick(turns))
+                {
+                    expired.Add(buff);
+                    activeBuffs.RemoveAt(i);
+                }
+            }
+            SyncWithInitiativeTracker();
+            return expired;
+        }
+
         public int GetEffectiveAttributeValue(string attrName)
         {
             int baseVal = 0;
@@ -527,7 +632,7 @@ namespace Soulstone.Datamodels
             {
                 baseVal = attr.TotalValue;
             }
-            return baseVal + GetGearStatBonus(attrName);
+            return baseVal + GetGearStatBonus(attrName) + GetBuffStatBonus(attrName);
         }
 
         public int GetEffectiveSkillModifier(string skillName)
@@ -537,14 +642,15 @@ namespace Soulstone.Datamodels
             {
                 baseMod = skill.SkillModifier;
             }
-            return baseMod + GetGearStatBonus(skillName);
+            return baseMod + GetGearStatBonus(skillName) + GetBuffStatBonus(skillName);
         }
 
         public int GetEffectiveSkillTotal(string skillName, DiceSystem? diceSystem = null)
         {
             if (characterSkills == null || !characterSkills.TryGetValue(skillName, out var skill)) return 0;
             int skillGearBonus = GetGearStatBonus(skillName);
-            int total = skill.skillModifier + skillGearBonus;
+            int skillBuffBonus = GetBuffStatBonus(skillName);
+            int total = skill.skillModifier + skillGearBonus + skillBuffBonus;
             if (diceSystem?.skillLinkedToOneAttribute != false && !string.IsNullOrEmpty(skill.linkedAttribute))
             {
                 total += GetEffectiveAttributeValue(skill.linkedAttribute);
@@ -554,16 +660,17 @@ namespace Soulstone.Datamodels
 
         public int GetInitiativeModifier(DiceSystem? diceSystem)
         {
-            if (diceSystem == null) return 0;
+            int initBuff = GetBuffStatBonus("Initiative");
+            if (diceSystem == null) return initBuff;
             if (diceSystem.InitiativeStatType == InitiativeStatType.Attribute && !string.IsNullOrEmpty(diceSystem.InitiativeStatName))
             {
-                return GetEffectiveAttributeValue(diceSystem.InitiativeStatName);
+                return GetEffectiveAttributeValue(diceSystem.InitiativeStatName) + initBuff;
             }
             if (diceSystem.InitiativeStatType == InitiativeStatType.Skill && !string.IsNullOrEmpty(diceSystem.InitiativeStatName))
             {
-                return GetEffectiveSkillTotal(diceSystem.InitiativeStatName, diceSystem);
+                return GetEffectiveSkillTotal(diceSystem.InitiativeStatName, diceSystem) + initBuff;
             }
-            return 0;
+            return initBuff;
         }
 
         public DiceRoll RollInitiative(DiceSystem? diceSystem, bool advantage = false, bool disadvantage = false, bool detailedRoll = false)
@@ -602,6 +709,7 @@ namespace Soulstone.Datamodels
             if (characterAbilities == null || !characterAbilities.TryGetValue(abilityName, out var ability)) return 0;
             int baseMod = ability.abilityModifier;
             int abilityBonus = GetGearStatBonus(ability.abilityName);
+            int abilityBuffBonus = GetBuffStatBonus(ability.abilityName);
             int attrBonus = 0;
             if (!string.IsNullOrEmpty(ability.linkedAttribute))
             {
@@ -612,7 +720,7 @@ namespace Soulstone.Datamodels
             {
                 skillBonus = GetEffectiveSkillModifier(ability.linkedSkill.skillName);
             }
-            return baseMod + abilityBonus + attrBonus + skillBonus;
+            return baseMod + abilityBonus + abilityBuffBonus + attrBonus + skillBonus;
         }
 
         public int GetEffectiveResourceMax(string resourceName, DiceSystem? diceSystem = null)
@@ -666,7 +774,8 @@ namespace Soulstone.Datamodels
             }
 
             int gearBonus = GetGearStatBonus(resourceName) + GetGearStatBonus($"Max {resourceName}") + GetGearStatBonus($"Max{resourceName}");
-            return baseMax + gearBonus;
+            int buffBonus = GetBuffStatBonus(resourceName) + GetBuffStatBonus($"Max {resourceName}") + GetBuffStatBonus($"Max{resourceName}");
+            return baseMax + gearBonus + buffBonus;
         }
 
         public void RecalculateResourceMax(string resourceName, DiceSystem? diceSystem = null)
@@ -804,6 +913,11 @@ namespace Soulstone.Datamodels
                 if (loadedSheet.characterResources == null)
                 {
                     loadedSheet.characterResources = new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
+                }
+
+                if (loadedSheet.activeBuffs == null)
+                {
+                    loadedSheet.activeBuffs = new List<Buff>();
                 }
 
                 loadedSheet.SyncResourcesWithLegacyFields();

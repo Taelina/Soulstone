@@ -165,12 +165,14 @@ public class MainWindow : Window, IDisposable
             ImGui.TextColored(ImGuiColors.DalamudWhite, CharacterManager.Instance.CharacterSheet.CharacterFullName);
         }
 
-        // Right-aligned settings and initiative buttons
+        // Right-aligned settings, group, and initiative buttons
+        var groupLabel = LocalizationManager.Instance.GetLocalizedString("GroupOpenWindow");
         var initLabel = LocalizationManager.Instance.GetLocalizedString("InitiativeOpenTracker");
         var configLabel = LocalizationManager.Instance.GetLocalizedString("ConfigButton");
+        var groupBtnWidth = ImGui.CalcTextSize(groupLabel).X + 28.0f * ImGuiHelpers.GlobalScale;
         var initBtnWidth = ImGui.CalcTextSize(initLabel).X + 28.0f * ImGuiHelpers.GlobalScale;
         var configBtnWidth = ImGui.CalcTextSize(configLabel).X + 20.0f * ImGuiHelpers.GlobalScale;
-        var totalButtonsWidth = initBtnWidth + configBtnWidth + 8.0f * ImGuiHelpers.GlobalScale;
+        var totalButtonsWidth = groupBtnWidth + initBtnWidth + configBtnWidth + 14.0f * ImGuiHelpers.GlobalScale;
 
         var rightX = ImGui.GetWindowContentRegionMax().X - totalButtonsWidth;
         if (ImGui.GetCursorPosX() < rightX)
@@ -182,6 +184,12 @@ public class MainWindow : Window, IDisposable
             ImGui.SameLine();
         }
 
+        if (UiUtils.IconButton("OpenGroupBtn", FontAwesomeIcon.Users, groupLabel))
+        {
+            plugin.ToggleGroupUi();
+        }
+
+        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
         if (UiUtils.IconButton("OpenInitTrackerBtn", FontAwesomeIcon.Stopwatch, initLabel))
         {
             plugin.ToggleInitiativeTrackerUi();
