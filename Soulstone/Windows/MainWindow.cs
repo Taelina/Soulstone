@@ -1,17 +1,13 @@
 using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Game.Text;
+using Dalamud.Interface;
+using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using Lumina.Excel.Sheets;
-using FFXIVClientStructs.FFXIV.Client.UI;
-using Soulstone;
-using FFXIVClientStructs.FFXIV.Client.System.String;
-using Dalamud.Game.Text.SeStringHandling;
-using Soulstone.Utils;
 using Soulstone.Managers;
+using Soulstone.Utils;
 
 namespace Soulstone.Windows;
 
@@ -21,25 +17,29 @@ public class MainWindow : Window, IDisposable
     private readonly CharacterWindow charwin;
     private readonly DiceWindow dicewin;
     private readonly CharStatsWindow statwin;
+    private readonly GearWindow gearwin;
+    private readonly AugmentationsWindow augwin;
+    private readonly InventoryWindow invwin;
     private readonly DiceSystemWindow dicesyswin;
     private readonly Configuration configuration;
 
-
-    // We give this window a hidden ID using ##.
-    // The user will see "My Amazing Window" as window title,
-    // but for ImGui the ID is "My Amazing Window##With a hidden ID"
     public MainWindow(Plugin plugin)
-        : base("Soulstone##SoulstoneMainWin", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("Soulstone###SoulstoneMainWin", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
+        Size = new Vector2(750, 620);
+        SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(375, 330),
+            MinimumSize = new Vector2(480, 400),
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
         this.plugin = plugin;
         this.charwin = new CharacterWindow(plugin);
         this.dicewin = new DiceWindow(plugin);
         this.statwin = new CharStatsWindow(plugin);
+        this.gearwin = new GearWindow(plugin);
+        this.augwin = new AugmentationsWindow(plugin);
+        this.invwin = new InventoryWindow(plugin);
         this.dicesyswin = new DiceSystemWindow(plugin);
         configuration = plugin.Configuration;
     }
@@ -47,92 +47,161 @@ public class MainWindow : Window, IDisposable
     public void Dispose() { }
 
     public override void Draw()
-    {        
-        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ConfigButton")}##SettingsButton"))
+    {
+        DrawHeader();
+
+        using var tabs = ImRaii.TabBar("SoulstoneTabs", ImGuiTabBarFlags.FittingPolicyScroll);
+        if (tabs.Success)
+        {
+            var rpTitle = $"{LocalizationManager.Instance.GetLocalizedString("RPTab")}###RPSheet";
+            if (ImGui.BeginTabItem(rpTitle))
+            {
+                using (var child = ImRaii.Child("##RPTabContent", new Vector2(0, 0), false))
+                {
+                    if (child.Success)
+                    {
+                        charwin.DrawCharTab();
+                    }
+                }
+                ImGui.EndTabItem();
+            }
+
+            var diceTitle = $"{LocalizationManager.Instance.GetLocalizedString("DiceRollTab")}###DiceSheet";
+            if (ImGui.BeginTabItem(diceTitle))
+            {
+                using (var child = ImRaii.Child("##DiceTabContent", new Vector2(0, 0), false))
+                {
+                    if (child.Success)
+                    {
+                        dicewin.DrawDiceTab();
+                    }
+                }
+                ImGui.EndTabItem();
+            }
+
+            var statTitle = $"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}###StatSheet";
+            if (ImGui.BeginTabItem(statTitle))
+            {
+                using (var child = ImRaii.Child("##StatTabContent", new Vector2(0, 0), false))
+                {
+                    if (child.Success)
+                    {
+                        statwin.DrawCharStats();
+                    }
+                }
+                ImGui.EndTabItem();
+            }
+
+            var gearTitle = $"{LocalizationManager.Instance.GetLocalizedString("GearTab")}###GearSheet";
+            if (ImGui.BeginTabItem(gearTitle))
+            {
+                using (var child = ImRaii.Child("##GearTabContent", new Vector2(0, 0), false))
+                {
+                    if (child.Success)
+                    {
+                        gearwin.DrawGearTab();
+                    }
+                }
+                ImGui.EndTabItem();
+            }
+
+            var currentDiceSys = DiceSystemManager.Instance.CurrentDiceSystem;
+            if (currentDiceSys?.systemHasAugmentations == true)
+            {
+                var augTabTitle = !string.IsNullOrWhiteSpace(currentDiceSys.AugmentationTitle)
+                    ? $"{currentDiceSys.AugmentationTitle}###AugmentationsSheet"
+                    : $"{LocalizationManager.Instance.GetLocalizedString("AugmentationTab")}###AugmentationsSheet";
+                if (ImGui.BeginTabItem(augTabTitle))
+                {
+                    using (var child = ImRaii.Child("##AugTabContent", new Vector2(0, 0), false))
+                    {
+                        if (child.Success)
+                        {
+                            augwin.DrawAugmentationsTab();
+                        }
+                    }
+                    ImGui.EndTabItem();
+                }
+            }
+
+            var invTitle = $"{LocalizationManager.Instance.GetLocalizedString("InventoryTab")}###InventorySheet";
+            if (ImGui.BeginTabItem(invTitle))
+            {
+                using (var child = ImRaii.Child("##InventoryTabContent", new Vector2(0, 0), false))
+                {
+                    if (child.Success)
+                    {
+                        invwin.DrawInventoryTab();
+                    }
+                }
+                ImGui.EndTabItem();
+            }
+
+            var sysTitle = $"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}###DiceSystem";
+            if (ImGui.BeginTabItem(sysTitle))
+            {
+                using (var child = ImRaii.Child("##DiceSystemTabContent", new Vector2(0, 0), false))
+                {
+                    if (child.Success)
+                    {
+                        dicesyswin.DrawDiceSystemTab();
+                    }
+                }
+                ImGui.EndTabItem();
+            }
+        }
+    }
+
+    private void DrawHeader()
+    {
+        // Branded Header Title
+        ImGui.TextColored(ImGuiColors.ParsedGold, "Soulstone");
+
+        if (CharacterManager.Instance.CharacterSheet != null && !string.IsNullOrWhiteSpace(CharacterManager.Instance.CharacterSheet.CharacterFullName))
+        {
+            ImGui.SameLine();
+            ImGui.TextDisabled("|");
+            ImGui.SameLine();
+            ImGui.TextColored(ImGuiColors.DalamudWhite, CharacterManager.Instance.CharacterSheet.CharacterFullName);
+        }
+
+        // Right-aligned settings, group, and initiative buttons
+        var groupLabel = LocalizationManager.Instance.GetLocalizedString("GroupOpenWindow");
+        var initLabel = LocalizationManager.Instance.GetLocalizedString("InitiativeOpenTracker");
+        var configLabel = LocalizationManager.Instance.GetLocalizedString("ConfigButton");
+        var groupBtnWidth = ImGui.CalcTextSize(groupLabel).X + 28.0f * ImGuiHelpers.GlobalScale;
+        var initBtnWidth = ImGui.CalcTextSize(initLabel).X + 28.0f * ImGuiHelpers.GlobalScale;
+        var configBtnWidth = ImGui.CalcTextSize(configLabel).X + 20.0f * ImGuiHelpers.GlobalScale;
+        var totalButtonsWidth = groupBtnWidth + initBtnWidth + configBtnWidth + 14.0f * ImGuiHelpers.GlobalScale;
+
+        var rightX = ImGui.GetWindowContentRegionMax().X - totalButtonsWidth;
+        if (ImGui.GetCursorPosX() < rightX)
+        {
+            ImGui.SameLine(rightX);
+        }
+        else
+        {
+            ImGui.SameLine();
+        }
+
+        if (UiUtils.IconButton("OpenGroupBtn", FontAwesomeIcon.Users, groupLabel))
+        {
+            plugin.ToggleGroupUi();
+        }
+
+        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+        if (UiUtils.IconButton("OpenInitTrackerBtn", FontAwesomeIcon.Stopwatch, initLabel))
+        {
+            plugin.ToggleInitiativeTrackerUi();
+        }
+
+        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+        if (ImGui.Button($"{configLabel}###SettingsBtn"))
         {
             plugin.ToggleConfigUi();
         }
-            
+
+        ImGui.Separator();
         ImGui.Spacing();
-        var tabs = ImRaii.TabBar("SoulstoneTabs");
-        if(tabs.Success)
-        {
-            if(ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("RPTab")}##RPSheet"))
-        {
-                charwin.DrawCharTab();
-                ImGui.EndTabItem();
-            }
-            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceRollTab")}##DiceSheet"))
-            {
-                dicewin.DrawDiceTab();
-                ImGui.EndTabItem();
-            }
-            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}##StatSheet"))
-            {
-                statwin.DrawCharStats();
-                ImGui.EndTabItem();
-            }
-            if (ImGui.BeginTabItem($"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}##DiceSystem"))
-            {
-                dicesyswin.DrawDiceSystemTab();
-                ImGui.EndTabItem();
-            }
-        }
-
-        // Normally a BeginChild() would have to be followed by an unconditional EndChild(),
-        // ImRaii takes care of this after the scope ends.
-        // This works for all ImGui functions that require specific handling, examples are BeginTable() or Indent().
-        /*using (var child = ImRaii.Child("SomeChildWithAScrollbar", Vector2.Zero, true))
-        {
-            // Check if this child is drawing
-            if (child.Success)
-            {
-                ImGui.TextUnformatted("Have a goat:");
-                var goatImage = Plugin.TextureProvider.GetFromFile(goatImagePath).GetWrapOrDefault();
-                if (goatImage != null)
-                {
-                    using (ImRaii.PushIndent(55f))
-                    {
-                        ImGui.Image(goatImage.Handle, goatImage.Size);
-                    }
-                }
-                else
-                {
-                    ImGui.TextUnformatted("Image not found.");
-                }
-
-                ImGuiHelpers.ScaledDummy(20.0f);
-
-                // Example for other services that Dalamud provides.
-                // ClientState provides a wrapper filled with information about the local player object and client.
-
-                var localPlayer = Plugin.ClientState.LocalPlayer;
-                if (localPlayer == null)
-                {
-                    ImGui.TextUnformatted("Our local player is currently not loaded.");
-                    return;
-                }
-
-                if (!localPlayer.ClassJob.IsValid)
-                {
-                    ImGui.TextUnformatted("Our current job is currently not valid.");
-                    return;
-                }
-
-                // If you want to see the Macro representation of this SeString use `ToMacroString()`
-                ImGui.TextUnformatted($"Our current job is ({localPlayer.ClassJob.RowId}) \"{localPlayer.ClassJob.Value.Abbreviation}\"");
-
-                // Example for quarrying Lumina directly, getting the name of our current area.
-                var territoryId = Plugin.ClientState.TerritoryType;
-                if (Plugin.DataManager.GetExcelSheet<TerritoryType>().TryGetRow(territoryId, out var territoryRow))
-                {
-                    ImGui.TextUnformatted($"We are currently in ({territoryId}) \"{territoryRow.PlaceName.Value.Name}\"");
-                }
-                else
-                {
-                    ImGui.TextUnformatted("Invalid territory.");
-                }
-            }
-        }*/
     }
 }

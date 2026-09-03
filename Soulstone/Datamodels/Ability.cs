@@ -9,15 +9,15 @@ namespace Soulstone.Datamodels
     internal class Ability
     {
         public int id;
-        public string abilityName;
-        public string abilityDescription;
-        public Skill linkedSkill;
-        public string linkedAttribute;
+        public string abilityName = string.Empty;
+        public string abilityDescription = string.Empty;
+        public Skill? linkedSkill;
+        public string linkedAttribute = string.Empty;
         public int abilityModifier;
 
         public string AbilityName { get => abilityName; set => abilityName = value; }
         public string AbilityDescription { get => abilityDescription; set => abilityDescription = value; }
-        public Skill LinkedSkill { get => linkedSkill; set => linkedSkill = value; }
+        public Skill? LinkedSkill { get => linkedSkill; set => linkedSkill = value; }
         public string LinkedAttribute { get => linkedAttribute; set => linkedAttribute = value; }
         public int AbilityModifier { get => abilityModifier; set => abilityModifier = value; }
         public int Id { get => id; set => id = value; }

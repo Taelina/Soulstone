@@ -10,9 +10,9 @@ namespace Soulstone.Datamodels
     public class Skill
     {
         public int id;
-        public string skillName;
-        public string skillDescription;
-        public string linkedAttribute;
+        public string skillName = string.Empty;
+        public string skillDescription = string.Empty;
+        public string linkedAttribute = string.Empty;
         public int skillModifier;
         public string SkillName { get => skillName; set => skillName = value; }
         public string SkillDescription { get => skillDescription; set => skillDescription = value; }
