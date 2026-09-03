@@ -1,29 +1,32 @@
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface;
+using Dalamud.Interface.Colors;
+using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using Soulstone.Localizations;
 using Soulstone.Datamodels;
+using Soulstone.Localizations;
+using Soulstone.Managers;
+using Soulstone.Utils;
 using System;
 using System.Numerics;
-using Soulstone.Managers;
 
 namespace Soulstone.Windows;
 
 public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration configuration;
-
     public int selectedLanguageIndex = 0;
 
-    // We give this window a constant ID using ###.
-    // This allows for labels to be dynamic, like "{FPS Counter}fps###XYZ counter window",
-    // and the window ID will always be "###XYZ counter window" for ImGui
-    public ConfigWindow(Plugin plugin) : base("SoulstoneConfig###SoulstoneConfig")
+    public ConfigWindow(Plugin plugin) : base("Soulstone Settings###SoulstoneConfig")
     {
-        Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar |
-                ImGuiWindowFlags.NoScrollWithMouse;
-
-        Size = new Vector2(232, 90);
-        SizeCondition = ImGuiCond.Always;
+        Size = new Vector2(360, 240);
+        SizeCondition = ImGuiCond.FirstUseEver;
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(320, 200),
+            MaximumSize = new Vector2(600, 450)
+        };
 
         configuration = plugin.Configuration;
         selectedLanguageIndex = (int)configuration.Language;
@@ -33,7 +36,8 @@ public class ConfigWindow : Window, IDisposable
 
     public override void PreDraw()
     {
-        // Flags must be added or removed before Draw() is being called, or they won't apply
+        WindowName = $"{LocalizationManager.Instance.GetLocalizedString("ConfigWindowTitle")}###SoulstoneConfig";
+
         if (configuration.IsConfigWindowMovable)
         {
             Flags &= ~ImGuiWindowFlags.NoMove;
@@ -46,20 +50,46 @@ public class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
-        // Can't ref a property, so use a local copy
-        bool detailedRollsVal = configuration.detailedRolls;
-        if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigDetailedRollsCheck")}", ref detailedRollsVal))
-        {
-            configuration.detailedRolls = detailedRollsVal;
-            // Can save immediately on change if you don't want to provide a "Save and Close" button
-            configuration.Save();
-        }
+        DrawRollSettings();
+        ImGui.Spacing();
+        DrawLocalizationSettings();
+    }
 
-        ImGui.SetNextItemWidth(100.0f);
-        if (ImGui.Combo($"{LocalizationManager.Instance.GetLocalizedString("ConfigLanguageCombo")}##Combo", ref selectedLanguageIndex, Enum.GetNames<Language>()))
+    private void DrawRollSettings()
+    {
+        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
+        if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("ConfigRollDisplayHeader")}###RollDisplayHeader", flags))
         {
-            configuration.Language = (Language)selectedLanguageIndex;
-            configuration.Save();
+            bool detailedRollsVal = configuration.detailedRolls;
+            if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigDetailedRollsCheck")}##DetailedRolls", ref detailedRollsVal))
+            {
+                configuration.detailedRolls = detailedRollsVal;
+                configuration.Save();
+            }
+
+            bool showEpicBonusVal = configuration.showEpicBonus;
+            if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigEpicBonusCheck")}##EpicBonus", ref showEpicBonusVal))
+            {
+                configuration.showEpicBonus = showEpicBonusVal;
+                configuration.Save();
+            }
+        }
+    }
+
+    private void DrawLocalizationSettings()
+    {
+        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
+        if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("ConfigLocalizationHeader")}###LocalizationHeader", flags))
+        {
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("ConfigLanguageCombo"));
+            ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
+            ImGui.SetNextItemWidth(150.0f * ImGuiHelpers.GlobalScale);
+            if (ImGui.Combo("##LanguageCombo", ref selectedLanguageIndex, Enum.GetNames<Language>()))
+            {
+                configuration.Language = (Language)selectedLanguageIndex;
+                configuration.Save();
+            }
         }
     }
 }

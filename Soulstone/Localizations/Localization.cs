@@ -17,7 +17,7 @@ namespace Soulstone.Localizations
         public Language Language { get => language; set => language = value; }
         public Dictionary<string, string> LocalizedStrings { get => localizedStrings; set => localizedStrings = value; }
 
-        private Dictionary<string, string> localizedStrings;
+        private Dictionary<string, string> localizedStrings = new();
 
         public Localization() { }
         

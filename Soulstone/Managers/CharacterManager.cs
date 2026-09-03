@@ -45,11 +45,17 @@ namespace Soulstone.Managers
                 {
                 SeString playerName = localPlayer.Name;
                 Plugin.Log.Information($"Loading character data for {playerName.TextValue}");
-                instance.CharacterSheet = instance.LoadCharacterData(playerName.TextValue);
+                CharacterSheet = LoadCharacterData(playerName.TextValue);
             }            
         }
 
-        private CharacterSheet LoadCharacterData(string charName)
+        public void ForceLoadCharData(string charName)
+        {
+            Plugin.Log.Information($"Force loading character data for {charName}");
+            CharacterSheet = CharacterSheet.LoadSheet(charName);
+        }
+
+        private CharacterSheet? LoadCharacterData(string charName)
         {
             if (!charLoaded)
             {
