@@ -183,9 +183,11 @@ Defines the active tabletop rule engine.
   - `ResetCombat()`
 
 ### 4.4 `LocalizationManager`
-- Provides localized strings via `GetLocalizedString(key)`.
+- Provides localized strings via `GetLocalizedString(key)` and parameterized formatting via `GetLocalizedString(key, args...)`.
+- Automatically loads embedded JSON translation files (`Soulstone/Localizations/en.json`, `Soulstone/Localizations/fr.json`).
+- Supports hot-loading external community translation files from `<DataLocation>/Localizations/*.json`.
 - Supports instant language switching between English and French without requiring plugin restart.
-- Thread-safe dictionary lookups with fallback to English if a key is missing.
+- Thread-safe dictionary lookups with automatic fallback to English if a key is missing in French, and fallback to key name if missing entirely.
 
 ---
 
@@ -272,19 +274,23 @@ All tests run sequentially or under `[Collection("NonParallelCollection")]` wher
 ## 8. Extensibility & Developer Guide
 
 ### Adding a New Localization String
-1. Open `Soulstone/Managers/LocalizationManager.cs`.
-2. Add the key and its French translation to `FrenchTranslations` dictionary:
-   ```csharp
-   { "MyNewKey", "Mon texte en français" },
+1. Open `Soulstone/Localizations/fr.json` and add the translation:
+   ```json
+   "MyNewKey": "Mon texte en français"
    ```
-3. Add the key and its English translation to `EnglishTranslations` dictionary:
-   ```csharp
-   { "MyNewKey", "My English text" },
+2. Open `Soulstone/Localizations/en.json` and add the translation:
+   ```json
+   "MyNewKey": "My English text"
    ```
-4. Access the localized string anywhere in UI via:
+3. Access the localized string anywhere in UI via:
    ```csharp
    LocalizationManager.Instance.GetLocalizedString("MyNewKey");
+   // Or with format arguments:
+   LocalizationManager.Instance.GetLocalizedString("MyFormattedKey", arg1, arg2);
    ```
+
+### Overriding / Community Translations
+Drop custom `<language_code>.json` (e.g. `de.json`, `es.json`, `fr.json`) into the plugin's `Localizations/` directory located inside the plugin data folder. `LocalizationManager` automatically merges and overrides localized strings at runtime.
 
 ### Adding a Custom Dynamic Resource Formula
 Formulas use `@` prefixed attribute names:

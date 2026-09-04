@@ -72,7 +72,7 @@ namespace Soulstone.Managers
             if (payload == null || string.IsNullOrWhiteSpace(payload.RulesetJson)) return;
             try
             {
-                var options = new System.Text.Json.JsonSerializerOptions { IncludeFields = true, PropertyNameCaseInsensitive = true };
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var sharedSystem = System.Text.Json.JsonSerializer.Deserialize<DiceSystem>(payload.RulesetJson, options);
                 if (sharedSystem != null)
                 {
