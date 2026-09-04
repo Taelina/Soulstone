@@ -85,5 +85,83 @@ namespace Soulstone.Tests.Managers
             CharacterManager.Instance.CharacterSheet.CharacterClass.Should().Be("All-Rounder");
             CharacterManager.Instance.CharacterSheet.CharacterLevel.Should().Be(90);
         }
+
+        [Fact]
+        public void Init_WhenObjectTableOrLocalPlayerIsNull_DoesNotThrow()
+        {
+            // Act & Assert
+            var action = () => CharacterManager.Instance.Init();
+            action.Should().NotThrow();
+        }
+
+        [Fact]
+        public void Reset_ClearsLoadedSheetAndState()
+        {
+            // Arrange
+            var sheet = new CharacterSheet
+            {
+                CharacterFullName = "Alphinaud Leveilleur"
+            };
+            CharacterManager.Instance.CharacterSheet = sheet;
+
+            // Act
+            CharacterManager.Instance.Reset();
+
+            // Assert
+            CharacterManager.Instance.CharacterSheet.Should().BeNull();
+        }
+
+        [Fact]
+        public void ForceLoadCharData_WhenCharacterChanges_UpdatesSheet()
+        {
+            // Arrange
+            var sheet1 = new CharacterSheet
+            {
+                CharacterFullName = "Alisaie Leveilleur",
+                CharacterClass = "Red Mage"
+            };
+            var sheet2 = new CharacterSheet
+            {
+                CharacterFullName = "Y'shtola Rhul",
+                CharacterClass = "Sorceress"
+            };
+            CharacterSheet.SaveSheet(sheet1);
+            CharacterSheet.SaveSheet(sheet2);
+
+            // Act
+            CharacterManager.Instance.ForceLoadCharData("Alisaie Leveilleur");
+            CharacterManager.Instance.CharacterSheet!.CharacterFullName.Should().Be("Alisaie Leveilleur");
+
+            CharacterManager.Instance.ForceLoadCharData("Y'shtola Rhul");
+
+            // Assert
+            CharacterManager.Instance.CharacterSheet.Should().NotBeNull();
+            CharacterManager.Instance.CharacterSheet!.CharacterFullName.Should().Be("Y'shtola Rhul");
+            CharacterManager.Instance.CharacterSheet.CharacterClass.Should().Be("Sorceress");
+        }
+
+        [Fact]
+        public void LoadSheet_WhenFileIsCorrupted_ReturnsNullAndDoesNotThrow()
+        {
+            // Arrange
+            var sheetsDir = Path.Combine(tempDirectory, "sheets");
+            Directory.CreateDirectory(sheetsDir);
+            var corruptedPath = Path.Combine(sheetsDir, "corrupted_char.json");
+            File.WriteAllText(corruptedPath, "{ invalid json content !!!");
+
+            // Act
+            var loaded = CharacterSheet.LoadSheet(corruptedPath, isFullPath: true);
+
+            // Assert
+            loaded.Should().BeNull();
+        }
+
+        [Fact]
+        public void SaveSheet_WhenSheetIsNull_DoesNotThrow()
+        {
+            // Act & Assert
+            var action = () => CharacterSheet.SaveSheet(null!);
+            action.Should().NotThrow();
+        }
     }
 }

@@ -21,6 +21,12 @@ namespace Soulstone.Datamodels
         public List<Buff> ActiveBuffs { get; set; } = new();
         public string LastRollSummary { get; set; } = string.Empty;
         public DateTime LastSeen { get; set; } = DateTime.UtcNow;
+        public bool HasPrivateStats { get; set; }
+        public int Level { get; set; }
+        public string ClassName { get; set; } = string.Empty;
+        public Dictionary<string, int> Attributes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> Skills { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> Abilities { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
         public void ApplyPresence(PresencePayload payload, string? localRulesetName = null)
         {
@@ -93,6 +99,19 @@ namespace Soulstone.Datamodels
             {
                 ActiveBuffs = new List<Buff>(payload.ActiveBuffs);
             }
+        }
+
+        public void ApplyPrivateStats(PrivateStatsPayload payload)
+        {
+            if (payload == null) return;
+            HasSoulstone = true;
+            HasPrivateStats = true;
+            LastSeen = DateTime.UtcNow;
+            Level = payload.Level;
+            ClassName = payload.ClassName ?? string.Empty;
+            Attributes = payload.Attributes != null ? new Dictionary<string, int>(payload.Attributes, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+            Skills = payload.Skills != null ? new Dictionary<string, int>(payload.Skills, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
+            Abilities = payload.Abilities != null ? new Dictionary<string, int>(payload.Abilities, StringComparer.OrdinalIgnoreCase) : new(StringComparer.OrdinalIgnoreCase);
         }
     }
 }

@@ -50,7 +50,7 @@ namespace Soulstone.Managers
                 SortParticipants(IsAscendingOrder);
             }
 
-            if (!isHandlingRemoteUpdate && PartySyncManager.Instance.IsLocalPlayerPartyLeader())
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
                 PartySyncManager.Instance.BroadcastParticipantUpsert(participant);
             }
@@ -133,7 +133,7 @@ namespace Soulstone.Managers
                 ActiveParticipantIndex = Math.Max(0, Participants.Count - 1);
             }
 
-            if (!isHandlingRemoteUpdate && PartySyncManager.Instance.IsLocalPlayerPartyLeader())
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
                 PartySyncManager.Instance.BroadcastParticipantRemove(id);
             }
@@ -218,7 +218,7 @@ namespace Soulstone.Managers
                 AnnounceTurn(active.Name, CurrentRound);
             }
 
-            if (!isHandlingRemoteUpdate && PartySyncManager.Instance.IsLocalPlayerPartyLeader())
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
                 string echoMsg = active != null ? $"[Initiative] Round {CurrentRound}, Turn {CurrentTurnNumber}: {active.Name}'s turn!" : "";
                 PartySyncManager.Instance.BroadcastInitiativeTurn(CurrentRound, CurrentTurnNumber, active?.Id, echoMsg);
@@ -251,7 +251,7 @@ namespace Soulstone.Managers
                 CurrentTurnNumber--;
             }
 
-            if (!isHandlingRemoteUpdate && PartySyncManager.Instance.IsLocalPlayerPartyLeader())
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
                 var active = ActiveParticipant;
                 PartySyncManager.Instance.BroadcastInitiativeTurn(CurrentRound, CurrentTurnNumber, active?.Id);
@@ -274,7 +274,7 @@ namespace Soulstone.Managers
             CurrentTurnNumber = 1;
             ActiveParticipantIndex = 0;
 
-            if (!isHandlingRemoteUpdate && PartySyncManager.Instance.IsLocalPlayerPartyLeader())
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
                 PartySyncManager.Instance.BroadcastInitiativeReset("[Initiative] Combat turns reset to Round 1");
             }
@@ -286,7 +286,7 @@ namespace Soulstone.Managers
             ClearParticipants();
             IsAscendingOrder = false;
 
-            if (!isHandlingRemoteUpdate && PartySyncManager.Instance.IsLocalPlayerPartyLeader())
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
                 PartySyncManager.Instance.BroadcastInitiativeReset("[Initiative] Combat encounter cleared");
             }
@@ -315,7 +315,7 @@ namespace Soulstone.Managers
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Information($"Initiative toast notification error: {ex.Message}");
+                Plugin.Log?.Warning(ex, $"Initiative toast notification error: {ex.Message}");
             }
         }
 
@@ -353,7 +353,7 @@ namespace Soulstone.Managers
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Information($"Buff toast notification error: {ex.Message}");
+                Plugin.Log?.Warning(ex, $"Buff toast notification error: {ex.Message}");
             }
         }
 
@@ -463,6 +463,10 @@ namespace Soulstone.Managers
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to apply remote turn advance in InitiativeTrackerManager");
+            }
             finally
             {
                 isHandlingRemoteUpdate = false;
@@ -487,6 +491,10 @@ namespace Soulstone.Managers
                 SyncParticipantWithCharacterSheet(participant);
                 SortParticipants(IsAscendingOrder);
             }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Failed to apply remote participant upsert for '{participant?.Name}'");
+            }
             finally
             {
                 isHandlingRemoteUpdate = false;
@@ -509,6 +517,10 @@ namespace Soulstone.Managers
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Failed to apply remote participant remove for '{participantId}'");
+            }
             finally
             {
                 isHandlingRemoteUpdate = false;
@@ -523,6 +535,10 @@ namespace Soulstone.Managers
                 CurrentRound = 1;
                 CurrentTurnNumber = 1;
                 ActiveParticipantIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to apply remote initiative reset");
             }
             finally
             {
@@ -555,6 +571,10 @@ namespace Soulstone.Managers
                         ActiveParticipantIndex = index;
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to apply remote full initiative sync");
             }
             finally
             {

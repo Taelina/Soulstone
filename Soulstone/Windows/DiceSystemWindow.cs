@@ -157,11 +157,18 @@ namespace Soulstone.Windows
             {
                 plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("ChooseDiceSysPickerTitle"), ".json", (path) =>
                 {
-                    Plugin.Log.Information($"Selected file: {path}");
-                    DiceSystem? loadedSystem = DiceSystem.LoadDiceSystem(path, true);
-                    if (loadedSystem != null)
+                    try
                     {
-                        DiceSystemManager.Instance.CurrentDiceSystem = loadedSystem;
+                        Plugin.Log?.Information($"Selected file: {path}");
+                        DiceSystem? loadedSystem = DiceSystem.LoadDiceSystem(path, true);
+                        if (loadedSystem != null)
+                        {
+                            DiceSystemManager.Instance.CurrentDiceSystem = loadedSystem;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Log?.Error(ex, $"Failed to load dice system from '{path}' in file picker callback");
                     }
                 });
             }

@@ -1,5 +1,6 @@
 using Soulstone.Datamodels;
 using Soulstone.Managers;
+using Soulstone.Sync;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -11,42 +12,87 @@ namespace Soulstone.Tests.Managers
     public class PartySyncManagerTests
     {
         [Fact]
-        public void PartySyncPacket_EncodeAndDecode_WorksCorrectly()
+        public void RelayInvite_EncodeAndDecode_PreservesConnectionAndCryptoData()
         {
+            var keys = RelayCrypto.CreateHostKeyPair();
+            var invite = new RelayInvite
+            {
+                ServerUrl = "https://relay.soulstone.example",
+                SessionId = "session-id",
+                MemberToken = "member-token",
+                RoomKey = RelayCrypto.CreateRoomKey(),
+                HostPublicKey = keys.PublicKey,
+                HostName = "Dungeon Master",
+                HostWorld = "Balmung"
+            };
+
+            string code = RelayCrypto.EncodeInvite(invite);
+
+            Assert.True(RelayCrypto.TryDecodeInvite(code, out var decoded));
+            Assert.NotNull(decoded);
+            Assert.Equal(invite.ServerUrl, decoded!.ServerUrl);
+            Assert.Equal(invite.SessionId, decoded.SessionId);
+            Assert.Equal(invite.MemberToken, decoded.MemberToken);
+            Assert.Equal(invite.RoomKey, decoded.RoomKey);
+            Assert.Equal(invite.HostPublicKey, decoded.HostPublicKey);
+            Assert.Equal(invite.HostName, decoded.HostName);
+        }
+
+        [Fact]
+        public void RelayGroupMessage_EncryptDecryptAndTamperDetection_Work()
+        {
+            string roomKey = RelayCrypto.CreateRoomKey();
             var packet = new PartySyncPacket
             {
-                ProtocolVersion = 1,
                 EventType = SyncEventType.Presence,
                 SenderName = "Alphinaud Leveilleur",
                 SenderWorld = "Balmung",
-                PayloadJson = "{\"test\":123}"
+                PayloadJson = "{\"hp\":100}"
             };
 
-            string encoded = PartySyncPacket.EncodePacket(packet);
-            Assert.StartsWith("[SS:v1:", encoded);
-            Assert.EndsWith("]", encoded);
+            RelayEnvelope envelope = RelayCrypto.EncryptGroupMessage(packet, roomKey);
 
-            string fullMessage = $"Hey everyone! {encoded}";
-            bool success = PartySyncPacket.TryDecodePacket(fullMessage, out var decoded, out var cleanText);
-
-            Assert.True(success);
-            Assert.NotNull(decoded);
-            Assert.Equal(1, decoded!.ProtocolVersion);
-            Assert.Equal(SyncEventType.Presence, decoded.EventType);
-            Assert.Equal("Alphinaud Leveilleur", decoded.SenderName);
-            Assert.Equal("Balmung", decoded.SenderWorld);
-            Assert.Equal("{\"test\":123}", decoded.PayloadJson);
-            Assert.Equal("Hey everyone!", cleanText);
+            Assert.True(RelayCrypto.TryDecryptMessage(envelope, roomKey, null, out var decoded));
+            Assert.Equal(packet.PayloadJson, decoded!.PayloadJson);
+            envelope.Ciphertext = Convert.ToBase64String(new byte[] { 1, 2, 3 });
+            Assert.False(RelayCrypto.TryDecryptMessage(envelope, roomKey, null, out _));
         }
 
+        [Fact]
+        public void RelayPrivateStats_RequireHostPrivateKey()
+        {
+            var keys = RelayCrypto.CreateHostKeyPair();
+            var packet = new PartySyncPacket
+            {
+                EventType = SyncEventType.PrivateStats,
+                SenderName = "Alisaie Leveilleur",
+                PayloadJson = "{\"Strength\":12}"
+            };
+
+            RelayEnvelope envelope = RelayCrypto.EncryptPrivateMessage(packet, keys.PublicKey);
+
+            Assert.Equal("host", envelope.Destination);
+            Assert.False(RelayCrypto.TryDecryptMessage(envelope, RelayCrypto.CreateRoomKey(), null, out _));
+            Assert.True(RelayCrypto.TryDecryptMessage(envelope, RelayCrypto.CreateRoomKey(), keys.PrivateKey, out var decoded));
+            Assert.Equal(packet.PayloadJson, decoded!.PayloadJson);
+        }
 
         [Fact]
-        public void PartySyncPacket_MalformedMessage_ReturnsFalseWithoutThrowing()
+        public void RelayHostSignature_DetectsModifiedDmCommand()
         {
-            Assert.False(PartySyncPacket.TryDecodePacket(null!, out var packet1, out _));
-            Assert.False(PartySyncPacket.TryDecodePacket("", out var packet2, out _));
-            Assert.False(PartySyncPacket.TryDecodePacket("Just a normal party message", out var packet3, out _));
-            Assert.False(PartySyncPacket.TryDecodePacket("[SS:v1:not-valid-base64-json!]", out var packet4, out _));
+            var keys = RelayCrypto.CreateHostKeyPair();
+            var envelope = RelayCrypto.EncryptGroupMessage(new PartySyncPacket
+            {
+                EventType = SyncEventType.RollRequest,
+                SenderName = "Dungeon Master",
+                PayloadJson = "{}"
+            }, RelayCrypto.CreateRoomKey());
+
+            RelayCrypto.SignEnvelope(envelope, keys.PrivateKey);
+
+            Assert.True(RelayCrypto.VerifyHostSignature(envelope, keys.PublicKey));
+            envelope.SenderName = "Impostor";
+            Assert.False(RelayCrypto.VerifyHostSignature(envelope, keys.PublicKey));
         }
 
         [Fact]
@@ -217,6 +263,92 @@ namespace Soulstone.Tests.Managers
             Assert.NotNull(receivedPayload);
             Assert.Equal("Ancient Magic D20", receivedPayload!.SystemName);
             Assert.Equal("Y'shtola Rhul", receivedPayload.SenderName);
+        }
+
+        [Fact]
+        public void HandleIncomingPacket_PrivateStats_PopulatesMemberStatsForDM()
+        {
+            var syncMgr = PartySyncManager.Instance;
+            syncMgr.ConnectedPartyMembers.Clear();
+
+            var cfg = new Soulstone.Configuration
+            {
+                SyncHostToken = "host-secret-token",
+                SyncHostName = "Dungeon Master"
+            };
+            syncMgr.Init(cfg);
+
+            var statsPayload = new PrivateStatsPayload
+            {
+                CharacterName = "Estinien Varlineau",
+                TargetName = "Dungeon Master",
+                Level = 90,
+                ClassName = "Dragoon",
+                Attributes = new Dictionary<string, int> { { "Strength", 24 }, { "Dexterity", 18 } },
+                Skills = new Dictionary<string, int> { { "Jump", 15 } },
+                Abilities = new Dictionary<string, int> { { "Stargazer", 5 } }
+            };
+
+            var packet = new PartySyncPacket
+            {
+                ProtocolVersion = 1,
+                EventType = SyncEventType.PrivateStats,
+                SenderName = "Estinien Varlineau",
+                SenderWorld = "Balmung",
+                PayloadJson = JsonSerializer.Serialize(statsPayload)
+            };
+
+            PrivateStatsPayload? receivedStats = null;
+            syncMgr.OnPrivateStatsUpdated += stats => receivedStats = stats;
+
+            syncMgr.HandleIncomingPacket(packet, "Estinien Varlineau");
+
+            Assert.NotNull(receivedStats);
+            Assert.Equal("Estinien Varlineau", receivedStats!.CharacterName);
+            Assert.True(syncMgr.ConnectedPartyMembers.TryGetValue("Estinien Varlineau", out var member));
+            Assert.NotNull(member);
+            Assert.True(member!.HasPrivateStats);
+            Assert.Equal(90, member.Level);
+            Assert.Equal("Dragoon", member.ClassName);
+            Assert.Equal(24, member.Attributes["Strength"]);
+            Assert.Equal(15, member.Skills["Jump"]);
+            Assert.Equal(5, member.Abilities["Stargazer"]);
+        }
+
+        [Fact]
+        public void HandleIncomingPacket_RollRequest_QueuesInPendingRollRequests()
+        {
+            var syncMgr = PartySyncManager.Instance;
+            syncMgr.PendingRollRequests.Clear();
+
+            var request = new RollRequestPayload
+            {
+                RequestId = "req-12345",
+                RequestedBy = "Dungeon Master",
+                TargetName = syncMgr.GetLocalPlayerName(),
+                RollName = "Perception Check",
+                Formula = "1d20+3"
+            };
+
+            var packet = new PartySyncPacket
+            {
+                ProtocolVersion = 1,
+                EventType = SyncEventType.RollRequest,
+                SenderName = "Dungeon Master",
+                PayloadJson = JsonSerializer.Serialize(request)
+            };
+
+            syncMgr.HandleIncomingPacket(packet, "Dungeon Master");
+
+            Assert.True(syncMgr.PendingRollRequests.TryGetValue("req-12345", out var queued));
+            Assert.NotNull(queued);
+            Assert.Equal("Perception Check", queued!.RollName);
+            Assert.Equal("1d20+3", queued.Formula);
+
+            // Execute request
+            bool executed = syncMgr.ExecuteRollRequest("req-12345");
+            Assert.True(executed);
+            Assert.False(syncMgr.PendingRollRequests.ContainsKey("req-12345"));
         }
     }
 }
