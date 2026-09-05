@@ -433,10 +433,9 @@ Healthy
    ```
 4. **As the DM / Host:**
    - Click **Create Sync Session**.
-   - Copy the generated **Invite Code** or **Session Link** and send it to your party members over Discord / private message.
+   - Copy the generated **Invite Link** and send it to your party members over Discord / private message. It combines this relay URL and a random 16-character validation code in one value, for example `https://sync.yourdomain.com/join/AbCdEf1234567890`.
 5. **As a Party Member:**
-   - In **Settings** -> **Party Synchronization**, enter the **Sync Server URL**.
-   - Paste the **Invite Code** and click **Join Session**.
+   - Paste the complete **Invite Link** and click **Join Session**; no separate server URL is needed.
    - The plugin will connect over `wss://` and synchronize resource bars, rolls, and initiative turns automatically.
 
 ---

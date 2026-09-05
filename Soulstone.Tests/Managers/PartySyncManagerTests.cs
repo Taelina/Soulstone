@@ -39,6 +39,57 @@ namespace Soulstone.Tests.Managers
         }
 
         [Fact]
+        public void ShortInviteLink_EncryptsAndRecoversInviteWithoutExposingSecrets()
+        {
+            var keys = RelayCrypto.CreateHostKeyPair();
+            var invite = new RelayInvite
+            {
+                ServerUrl = "https://relay.soulstone.example",
+                SessionId = "session-id",
+                MemberToken = "member-token",
+                RoomKey = RelayCrypto.CreateRoomKey(),
+                HostPublicKey = keys.PublicKey,
+                HostName = "Dungeon Master",
+                HostWorld = "Balmung"
+            };
+
+            string code = RelayCrypto.CreateShortInviteCode();
+            string link = RelayCrypto.CreateShortInviteLink(invite.ServerUrl, code);
+            string payload = RelayCrypto.EncryptInvite(invite, code);
+
+            Assert.True(code.Length <= 20);
+            Assert.Equal($"https://relay.soulstone.example/join/{code}", link);
+            Assert.DoesNotContain(invite.MemberToken, payload);
+            Assert.DoesNotContain(invite.RoomKey, payload);
+            Assert.True(RelayCrypto.TryParseShortInviteLink(link, out var serverUrl, out var parsedCode));
+            Assert.Equal(invite.ServerUrl, serverUrl);
+            Assert.Equal(code, parsedCode);
+            Assert.True(RelayCrypto.TryDecryptInvite(payload, parsedCode, out var decoded));
+            Assert.Equal(invite.SessionId, decoded!.SessionId);
+            Assert.Equal(invite.MemberToken, decoded.MemberToken);
+            Assert.Equal(invite.RoomKey, decoded.RoomKey);
+        }
+
+        [Fact]
+        public void ShortInvite_WithWrongCodeOrModifiedPayload_IsRejected()
+        {
+            var invite = new RelayInvite
+            {
+                ServerUrl = "https://relay.soulstone.example",
+                SessionId = "session-id",
+                MemberToken = "member-token",
+                RoomKey = RelayCrypto.CreateRoomKey(),
+                HostPublicKey = RelayCrypto.CreateHostKeyPair().PublicKey,
+                HostName = "Dungeon Master"
+            };
+            string code = RelayCrypto.CreateShortInviteCode();
+            string payload = RelayCrypto.EncryptInvite(invite, code);
+
+            Assert.False(RelayCrypto.TryDecryptInvite(payload, RelayCrypto.CreateShortInviteCode(), out _));
+            Assert.False(RelayCrypto.TryDecryptInvite(payload + "A", code, out _));
+        }
+
+        [Fact]
         public void RelayGroupMessage_EncryptDecryptAndTamperDetection_Work()
         {
             string roomKey = RelayCrypto.CreateRoomKey();
@@ -93,6 +144,43 @@ namespace Soulstone.Tests.Managers
             Assert.True(RelayCrypto.VerifyHostSignature(envelope, keys.PublicKey));
             envelope.SenderName = "Impostor";
             Assert.False(RelayCrypto.VerifyHostSignature(envelope, keys.PublicKey));
+        }
+
+        [Fact]
+        public void HandleIncomingPacket_InitiativeSync_RaisesFullSyncEvent()
+        {
+            var syncMgr = PartySyncManager.Instance;
+            var participant = new InitiativeParticipant("Lyse", 20, 3);
+            var payload = new InitiativeSyncPayload
+            {
+                Round = 2,
+                TurnNumber = 4,
+                ActiveParticipantId = participant.Id,
+                Participants = new List<InitiativeParticipant> { participant }
+            };
+            var packet = new PartySyncPacket
+            {
+                EventType = SyncEventType.InitiativeSync,
+                PayloadJson = JsonSerializer.Serialize(payload)
+            };
+            InitiativeSyncPayload? receivedPayload = null;
+            void HandleSync(InitiativeSyncPayload received) => receivedPayload = received;
+            syncMgr.OnInitiativeSyncReceived += HandleSync;
+
+            try
+            {
+                syncMgr.HandleIncomingPacket(packet, "Dungeon Master");
+            }
+            finally
+            {
+                syncMgr.OnInitiativeSyncReceived -= HandleSync;
+            }
+
+            Assert.NotNull(receivedPayload);
+            Assert.Equal(2, receivedPayload!.Round);
+            Assert.Equal(4, receivedPayload.TurnNumber);
+            Assert.Equal(participant.Id, receivedPayload.ActiveParticipantId);
+            Assert.Single(receivedPayload.Participants);
         }
 
         [Fact]

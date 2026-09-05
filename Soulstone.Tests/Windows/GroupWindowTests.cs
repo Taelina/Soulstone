@@ -1,9 +1,15 @@
 using Soulstone.Datamodels;
 using Soulstone.Localizations;
 using Soulstone.Managers;
+using Soulstone.Windows;
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using FluentAssertions;
 using Xunit;
 
 namespace Soulstone.Tests.Windows
@@ -60,6 +66,57 @@ namespace Soulstone.Tests.Windows
 
             member.ApplyPresence(presence, "Black Mage D20");
             Assert.False(member.IsRulesetInSync);
+        }
+
+        [Fact]
+        public void ConnectionControls_WithIdenticalFrenchText_HaveDistinctImGuiIds()
+        {
+            var french = LocalizationManager.Instance.LocalizedLanguages[Language.Français].LocalizedStrings;
+            string hostTabText = french["GroupHostTab"];
+            string createSessionText = french["GroupCreateSession"];
+
+            hostTabText.Should().Be(createSessionText);
+            GroupWindow.WithStableId(hostTabText, "HostSessionTab")
+                .Should().NotBe(GroupWindow.WithStableId(createSessionText, "CreateSessionButton"));
+        }
+
+        [Fact]
+        public async Task CreateSessionAsync_WithUninitializedManager_SendsSessionRequest()
+        {
+            PartySyncManager.Instance.Dispose();
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+
+            try
+            {
+                int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                var configuration = new Soulstone.Configuration
+                {
+                    SyncServerUrl = $"http://127.0.0.1:{port}",
+                    SyncAutoConnect = false
+                };
+                var plugin = (Plugin)RuntimeHelpers.GetUninitializedObject(typeof(Plugin));
+                typeof(Plugin).GetProperty(nameof(Plugin.Configuration))!.SetValue(plugin, configuration);
+                using var window = new GroupWindow(plugin);
+
+                MethodInfo createSession = typeof(GroupWindow).GetMethod("CreateSessionAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                var createTask = (Task)createSession.Invoke(window, null)!;
+                using TcpClient client = await listener.AcceptTcpClientAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                using var reader = new System.IO.StreamReader(client.GetStream());
+
+                string? requestLine = await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                requestLine.Should().Be("POST /api/sessions HTTP/1.1");
+
+                byte[] response = System.Text.Encoding.ASCII.GetBytes(
+                    "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                await client.GetStream().WriteAsync(response);
+                await createTask.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            finally
+            {
+                listener.Stop();
+                PartySyncManager.Instance.Dispose();
+            }
         }
 
         [Fact]

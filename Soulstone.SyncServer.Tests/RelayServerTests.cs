@@ -42,6 +42,21 @@ public class RelayServerTests
     }
 
     [Fact]
+    public void OpaqueInvite_CanOnlyBeRegisteredByHostAndResolvedByIdentifier()
+    {
+        var registry = CreateRegistry();
+        var session = registry.Create();
+
+        Assert.Equal(InviteRegistrationResult.Unauthorized,
+            registry.TryRegisterInvite(session.SessionId, session.MemberToken, "invite-id", "opaque-payload"));
+        Assert.Equal(InviteRegistrationResult.Success,
+            registry.TryRegisterInvite(session.SessionId, session.HostToken, "invite-id", "opaque-payload"));
+        Assert.True(registry.TryResolveInvite("invite-id", out string? payload));
+        Assert.Equal("opaque-payload", payload);
+        Assert.False(registry.TryResolveInvite("unknown", out _));
+    }
+
+    [Fact]
     public void RoomRejectsMoreThanSixteenClients()
     {
         var registry = CreateRegistry();

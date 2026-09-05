@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.WebSockets;
 using System.Text;
@@ -32,6 +33,36 @@ namespace Soulstone.Sync
             response.EnsureSuccessStatusCode();
             var session = await response.Content.ReadFromJsonAsync<RelaySessionResponse>(cancellationToken: cancellationToken).ConfigureAwait(false);
             return session ?? throw new InvalidDataException("The relay returned an empty session response.");
+        }
+
+        public async Task RegisterInviteAsync(
+            string serverUrl,
+            string sessionId,
+            string hostToken,
+            string inviteId,
+            string payload,
+            CancellationToken cancellationToken = default)
+        {
+            Uri baseUri = ValidateServerUrl(serverUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Put,
+                new Uri(baseUri, $"/api/sessions/{Uri.EscapeDataString(sessionId)}/invite"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", hostToken);
+            request.Content = JsonContent.Create(new RelayInviteRegistration { InviteId = inviteId, Payload = payload });
+            using var response = await HttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+        }
+
+        public async Task<string> ResolveInviteAsync(
+            string serverUrl,
+            string inviteId,
+            CancellationToken cancellationToken = default)
+        {
+            Uri baseUri = ValidateServerUrl(serverUrl);
+            using var response = await HttpClient.GetAsync(
+                new Uri(baseUri, $"/api/invites/{Uri.EscapeDataString(inviteId)}"), cancellationToken).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+            var resolution = await response.Content.ReadFromJsonAsync<RelayInviteResolution>(cancellationToken: cancellationToken).ConfigureAwait(false);
+            return resolution?.Payload ?? throw new InvalidDataException("The relay returned an empty invite response.");
         }
 
         public async Task ConnectAsync(string serverUrl, string sessionId, string token, CancellationToken cancellationToken = default)

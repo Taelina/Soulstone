@@ -64,6 +64,8 @@ namespace Soulstone.Windows
 
         public void Dispose() { }
 
+        internal static string WithStableId(string label, string id) => $"{label}##{id}";
+
         public override void Draw()
         {
             DrawConnectionHeader();
@@ -234,7 +236,7 @@ namespace Soulstone.Windows
             using (ImRaii.PushColor(ImGuiCol.Button, connectionTab == 0 ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
             {
-                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("GroupJoinTab")))
+                if (ImGui.Button(WithStableId(LocalizationManager.Instance.GetLocalizedString("GroupJoinTab"), "JoinSessionTab")))
                 {
                     connectionTab = 0;
                 }
@@ -243,7 +245,7 @@ namespace Soulstone.Windows
             using (ImRaii.PushColor(ImGuiCol.Button, connectionTab == 1 ? new Vector4(0.50f, 0.38f, 0.15f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
             {
-                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("GroupHostTab")))
+                if (ImGui.Button(WithStableId(LocalizationManager.Instance.GetLocalizedString("GroupHostTab"), "HostSessionTab")))
                 {
                     connectionTab = 1;
                 }
@@ -260,7 +262,7 @@ namespace Soulstone.Windows
 
                 using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.18f, 0.45f, 0.70f, 0.9f)))
                 {
-                    if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("GroupJoinSession")))
+                    if (ImGui.Button(WithStableId(LocalizationManager.Instance.GetLocalizedString("GroupJoinSession"), "JoinSessionButton")))
                     {
                         _ = JoinSessionAsync();
                     }
@@ -275,7 +277,7 @@ namespace Soulstone.Windows
 
                 using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.40f, 0.32f, 0.15f, 0.9f)))
                 {
-                    if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("GroupCreateSession")))
+                    if (ImGui.Button(WithStableId(LocalizationManager.Instance.GetLocalizedString("GroupCreateSession"), "CreateSessionButton")))
                     {
                         _ = CreateSessionAsync();
                     }
@@ -291,9 +293,18 @@ namespace Soulstone.Windows
 
         private async Task CreateSessionAsync()
         {
-            connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupConnecting");
-            bool success = await PartySyncManager.Instance.CreateSessionAsync(serverUrl);
-            connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionCreated" : "GroupConnectionFailed");
+            try
+            {
+                connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupConnecting");
+                PartySyncManager.Instance.Init(plugin.Configuration);
+                bool success = await PartySyncManager.Instance.CreateSessionAsync(serverUrl);
+                connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionCreated" : "GroupConnectionFailed");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to handle the create session action");
+                connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupConnectionFailed");
+            }
         }
 
         private async Task JoinSessionAsync()

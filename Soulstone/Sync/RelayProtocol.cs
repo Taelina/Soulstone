@@ -24,6 +24,17 @@ namespace Soulstone.Sync
         public string HostWorld { get; set; } = string.Empty;
     }
 
+    public sealed class RelayInviteRegistration
+    {
+        public string InviteId { get; set; } = string.Empty;
+        public string Payload { get; set; } = string.Empty;
+    }
+
+    public sealed class RelayInviteResolution
+    {
+        public string Payload { get; set; } = string.Empty;
+    }
+
     public sealed class RelayEnvelope
     {
         public int Version { get; set; } = 1;
