@@ -34,6 +34,27 @@ public class RelayIntegrationTests : IClassFixture<WebApplicationFactory<Program
     }
 
     [Fact]
+    public async Task HostCanRegisterAndMemberCanResolveOpaqueInvite()
+    {
+        using var client = factory.CreateClient();
+        using var createResponse = await client.PostAsync("/api/sessions", null);
+        var session = (await createResponse.Content.ReadFromJsonAsync<CreatedSession>())!;
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"/api/sessions/{session.SessionId}/invite")
+        {
+            Content = JsonContent.Create(new InviteRegistrationRequest("invite-id", "opaque-payload"))
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", session.HostToken);
+
+        using var registerResponse = await client.SendAsync(request);
+        using var resolveResponse = await client.GetAsync("/api/invites/invite-id");
+        var resolved = await resolveResponse.Content.ReadFromJsonAsync<InviteResolutionResponse>();
+
+        registerResponse.EnsureSuccessStatusCode();
+        resolveResponse.EnsureSuccessStatusCode();
+        Assert.Equal("opaque-payload", resolved!.Payload);
+    }
+
+    [Fact]
     public async Task GroupBroadcastsToPeersButHostDestinationOnlyReachesHost()
     {
         using var http = factory.CreateClient();

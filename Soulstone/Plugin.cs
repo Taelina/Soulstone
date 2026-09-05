@@ -218,13 +218,13 @@ public sealed class Plugin : IDalamudPlugin
         if (pluginInitialized) return;
         try
         {
-            pluginInitialized = true;
             Log?.Information("Initializing managers on main thread...");
             CharacterManager.Instance.Init();
             DiceSystemManager.Instance.Init();
             PartySyncManager.Instance.Init(Configuration);
             LocalizationManager.Instance.InitLoc(this);
             fileBrowserWindow?.SetCurrentDirectory(dataLocation);
+            pluginInitialized = true;
         }
         catch (Exception ex)
         {

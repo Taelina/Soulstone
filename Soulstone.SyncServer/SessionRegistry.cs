@@ -23,6 +23,17 @@ public enum JoinResult
     Full,
 }
 
+public enum InviteRegistrationResult
+{
+    Success,
+    NotFound,
+    Unauthorized,
+    Conflict,
+}
+
+public sealed record InviteRegistrationRequest(string InviteId, string Payload);
+public sealed record InviteResolutionResponse(string Payload);
+
 public sealed class SessionRegistry(TimeProvider timeProvider, ILogger<SessionRegistry> logger)
 {
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(12);
@@ -30,6 +41,7 @@ public sealed class SessionRegistry(TimeProvider timeProvider, ILogger<SessionRe
 
     private readonly object syncRoot = new();
     private readonly Dictionary<string, RelayRoom> rooms = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, StoredInvite> invites = new(StringComparer.Ordinal);
 
     public CreatedSession Create()
     {
@@ -70,6 +82,39 @@ public sealed class SessionRegistry(TimeProvider timeProvider, ILogger<SessionRe
         }
     }
 
+    public InviteRegistrationResult TryRegisterInvite(string sessionId, string hostToken, string inviteId, string payload)
+    {
+        lock (syncRoot)
+        {
+            if (!rooms.TryGetValue(sessionId, out var room) || room.ShouldRemove(timeProvider.GetUtcNow()))
+                return InviteRegistrationResult.NotFound;
+            if (!room.IsHostToken(hostToken))
+                return InviteRegistrationResult.Unauthorized;
+            if (invites.ContainsKey(inviteId))
+                return InviteRegistrationResult.Conflict;
+
+            invites.Add(inviteId, new StoredInvite(sessionId, payload));
+            return InviteRegistrationResult.Success;
+        }
+    }
+
+    public bool TryResolveInvite(string inviteId, out string? payload)
+    {
+        lock (syncRoot)
+        {
+            if (!invites.TryGetValue(inviteId, out var invite) ||
+                !rooms.TryGetValue(invite.SessionId, out var room) ||
+                room.ShouldRemove(timeProvider.GetUtcNow()))
+            {
+                payload = null;
+                return false;
+            }
+
+            payload = invite.Payload;
+            return true;
+        }
+    }
+
     public async Task RemoveExpiredAsync(CancellationToken cancellationToken)
     {
         List<KeyValuePair<string, RelayRoom>> removedRooms = [];
@@ -85,6 +130,15 @@ public sealed class SessionRegistry(TimeProvider timeProvider, ILogger<SessionRe
 
             foreach (var pair in removedRooms)
                 rooms.Remove(pair.Key);
+            if (removedRooms.Count > 0)
+            {
+                var removedSessionIds = removedRooms.Select(pair => pair.Key).ToHashSet(StringComparer.Ordinal);
+                foreach (string inviteId in invites
+                             .Where(pair => removedSessionIds.Contains(pair.Value.SessionId))
+                             .Select(pair => pair.Key)
+                             .ToArray())
+                    invites.Remove(inviteId);
+            }
         }
 
         foreach (var pair in removedRooms)
@@ -102,6 +156,8 @@ public sealed class SessionRegistry(TimeProvider timeProvider, ILogger<SessionRe
     }
 
     private static string SafeSessionId(string sessionId) => sessionId.Length <= 8 ? sessionId : sessionId[..8];
+
+    private sealed record StoredInvite(string SessionId, string Payload);
 }
 
 public sealed class RelayRoom
@@ -169,6 +225,14 @@ public sealed class RelayRoom
             return expired || now >= expiresAtUtc ||
                    (clients.Count == 0 && emptySinceUtc is { } emptySince &&
                     now - emptySince >= SessionRegistry.EmptySessionLifetime);
+        }
+    }
+
+    public bool IsHostToken(string token)
+    {
+        lock (syncRoot)
+        {
+            return !expired && timeProvider.GetUtcNow() < expiresAtUtc && Authenticate(token) == SessionRole.Host;
         }
     }
 

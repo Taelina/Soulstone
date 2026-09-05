@@ -44,9 +44,9 @@ namespace Soulstone.Managers
 
         public void Init(Configuration config)
         {
+            configuration = config;
             if (isInitialized) return;
             isInitialized = true;
-            configuration = config;
             relayClient.MessageReceived += OnRelayMessage;
             relayClient.StatusChanged += OnRelayStatusChanged;
 
@@ -59,42 +59,64 @@ namespace Soulstone.Managers
 
         public void Dispose()
         {
-            if (!isInitialized) return;
+            if (!isInitialized)
+            {
+                configuration = null;
+                return;
+            }
             isInitialized = false;
 
             relayClient.MessageReceived -= OnRelayMessage;
             relayClient.StatusChanged -= OnRelayStatusChanged;
             relayClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            configuration = null;
             ConnectedPartyMembers.Clear();
             PendingRollRequests.Clear();
         }
 
         public async Task<bool> CreateSessionAsync(string serverUrl)
         {
-            if (configuration == null) return false;
             try
             {
+                if (configuration == null)
+                    throw new InvalidOperationException("Party synchronization has not been initialized.");
+
                 RelaySessionResponse session = await relayClient.CreateSessionAsync(serverUrl).ConfigureAwait(false);
                 var keys = RelayCrypto.CreateHostKeyPair();
-                configuration.SyncServerUrl = serverUrl.TrimEnd('/');
+                string shortCode = RelayCrypto.CreateShortInviteCode();
+                string shortInviteLink = RelayCrypto.CreateShortInviteLink(serverUrl, shortCode);
+                if (!RelayCrypto.TryParseShortInviteLink(shortInviteLink, out string normalizedServerUrl, out _))
+                    throw new InvalidOperationException("Failed to create the short invite link.");
+                string roomKey = RelayCrypto.CreateRoomKey();
+                string hostName = GetLocalPlayerName();
+                string hostWorld = GetLocalPlayerWorld();
+                var invite = new RelayInvite
+                {
+                    ServerUrl = normalizedServerUrl,
+                    SessionId = session.SessionId,
+                    MemberToken = session.MemberToken,
+                    RoomKey = roomKey,
+                    HostPublicKey = keys.PublicKey,
+                    HostName = hostName,
+                    HostWorld = hostWorld
+                };
+                await relayClient.RegisterInviteAsync(
+                    normalizedServerUrl,
+                    session.SessionId,
+                    session.HostToken,
+                    RelayCrypto.CreateInviteId(shortCode),
+                    RelayCrypto.EncryptInvite(invite, shortCode)).ConfigureAwait(false);
+
+                configuration.SyncServerUrl = normalizedServerUrl;
                 configuration.SyncSessionId = session.SessionId;
                 configuration.SyncHostToken = session.HostToken;
                 configuration.SyncMemberToken = session.MemberToken;
-                configuration.SyncRoomKey = RelayCrypto.CreateRoomKey();
+                configuration.SyncRoomKey = roomKey;
                 configuration.SyncHostPublicKey = keys.PublicKey;
                 configuration.SyncHostPrivateKey = keys.PrivateKey;
-                configuration.SyncHostName = GetLocalPlayerName();
-                configuration.SyncHostWorld = GetLocalPlayerWorld();
-                configuration.SyncInviteCode = RelayCrypto.EncodeInvite(new RelayInvite
-                {
-                    ServerUrl = configuration.SyncServerUrl,
-                    SessionId = session.SessionId,
-                    MemberToken = session.MemberToken,
-                    RoomKey = configuration.SyncRoomKey,
-                    HostPublicKey = keys.PublicKey,
-                    HostName = configuration.SyncHostName,
-                    HostWorld = configuration.SyncHostWorld
-                });
+                configuration.SyncHostName = hostName;
+                configuration.SyncHostWorld = hostWorld;
+                configuration.SyncInviteCode = shortInviteLink;
                 configuration.Save();
                 await ConnectFromConfigurationAsync().ConfigureAwait(false);
                 return true;
@@ -108,21 +130,39 @@ namespace Soulstone.Managers
 
         public async Task<bool> JoinSessionAsync(string inviteCode)
         {
-            if (configuration == null || !RelayCrypto.TryDecodeInvite(inviteCode.Trim(), out var invite) || invite == null) return false;
-            configuration.SyncServerUrl = invite.ServerUrl;
-            configuration.SyncSessionId = invite.SessionId;
-            configuration.SyncHostToken = string.Empty;
-            configuration.SyncMemberToken = invite.MemberToken;
-            configuration.SyncRoomKey = invite.RoomKey;
-            configuration.SyncHostPublicKey = invite.HostPublicKey;
-            configuration.SyncHostPrivateKey = string.Empty;
-            configuration.SyncHostName = invite.HostName;
-            configuration.SyncHostWorld = invite.HostWorld;
-            configuration.SyncInviteCode = string.Empty;
-            configuration.Save();
-
             try
             {
+                if (configuration == null)
+                    throw new InvalidOperationException("Party synchronization has not been initialized.");
+
+                string trimmedInvite = inviteCode.Trim();
+                RelayInvite? invite;
+                if (!RelayCrypto.TryDecodeInvite(trimmedInvite, out invite))
+                {
+                    if (!RelayCrypto.TryParseShortInviteLink(trimmedInvite, out string serverUrl, out string shortCode))
+                        return false;
+                    string payload = await relayClient.ResolveInviteAsync(
+                        serverUrl,
+                        RelayCrypto.CreateInviteId(shortCode)).ConfigureAwait(false);
+                    if (!RelayCrypto.TryDecryptInvite(payload, shortCode, out invite) || invite == null ||
+                        !string.Equals(invite.ServerUrl.TrimEnd('/'), serverUrl, StringComparison.OrdinalIgnoreCase))
+                        return false;
+                }
+
+                if (invite == null || !IsSenderInCurrentParty(invite.HostName))
+                    return false;
+
+                configuration.SyncServerUrl = invite.ServerUrl;
+                configuration.SyncSessionId = invite.SessionId;
+                configuration.SyncHostToken = string.Empty;
+                configuration.SyncMemberToken = invite.MemberToken;
+                configuration.SyncRoomKey = invite.RoomKey;
+                configuration.SyncHostPublicKey = invite.HostPublicKey;
+                configuration.SyncHostPrivateKey = string.Empty;
+                configuration.SyncHostName = invite.HostName;
+                configuration.SyncHostWorld = invite.HostWorld;
+                configuration.SyncInviteCode = string.Empty;
+                configuration.Save();
                 await ConnectFromConfigurationAsync().ConfigureAwait(false);
                 return true;
             }
@@ -303,6 +343,21 @@ namespace Soulstone.Managers
                     catch (Exception ex)
                     {
                         Plugin.Log?.Debug(ex, "Error deserializing InitiativeParticipant");
+                    }
+                    break;
+
+                case SyncEventType.InitiativeSync:
+                    try
+                    {
+                        var initiative = JsonSerializer.Deserialize<InitiativeSyncPayload>(packet.PayloadJson);
+                        if (initiative != null)
+                        {
+                            OnInitiativeSyncReceived?.Invoke(initiative);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Log?.Debug(ex, "Error deserializing InitiativeSyncPayload");
                     }
                     break;
 
@@ -873,7 +928,7 @@ namespace Soulstone.Managers
                 Participants = participants != null ? new List<InitiativeParticipant>(participants) : new List<InitiativeParticipant>()
             };
 
-            SendPacket(SyncEventType.InitiativeAddOrUpdate, payload);
+            SendPacket(SyncEventType.InitiativeSync, payload);
         }
 
         public void BroadcastInitiativeTurn(int round, int turnNumber, string? activeId, string echoText = "")

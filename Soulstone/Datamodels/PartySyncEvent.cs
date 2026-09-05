@@ -17,7 +17,8 @@ namespace Soulstone.Datamodels
         SyncRequest = 8,
         InitiativeRemove = 9,
         RollRequest = 10,
-        PrivateStats = 11
+        PrivateStats = 11,
+        InitiativeSync = 12
     }
 
     public class PartySyncPacket

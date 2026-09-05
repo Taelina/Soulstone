@@ -56,7 +56,7 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 
 ### 🔐 Encrypted Group Synchronization
 - **Out-of-Game Transport**: Soulstone synchronization uses its standalone WebSocket relay.
-- **Private Group Sessions**: The DM creates a session and shares its invite code outside the game; incoming identities are checked against the local FFXIV party roster.
+- **Private Group Sessions**: The DM creates a session and shares one short invite link outside the game. Its 16-character validation code unlocks an opaque, in-memory invite on that relay; incoming identities are checked against the local FFXIV party roster.
 - **DM Coordination**: The DM can request rolls, roll for players, distribute rulesets, and control shared initiative state.
 - **Scoped Data Sharing**: Resource bars and roll results are shared with the session, while full character stats are encrypted specifically for the DM.
 - **Self-Hosted Relay**: `Soulstone.SyncServer` runs unattended as a .NET application, single-file executable, service, or container. See [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).

@@ -195,11 +195,12 @@ Defines the active tabletop rule engine.
 - Group messages use AES-256-GCM authenticated encryption. DM commands are signed with the session host's RSA key so members reject forged ruleset, initiative, and roll-request events.
 - Private stat snapshots use a random per-message AES key wrapped with the DM's RSA public key and are routed only to host connections. Other members cannot decrypt them.
 - Resource bars, buffs, presence, and rolls are group-scoped. Full attributes, skills, abilities, class, and level are DM-scoped.
-- The group UI supports session creation, out-of-game invite codes, reconnection, roll requests, delegated rolls, and DM-only stat inspection.
+- The group UI supports session creation, short out-of-game invite links, reconnection, roll requests, delegated rolls, and DM-only stat inspection. A link combines the relay URL and a random 16-character validation code; legacy `SS1` invites remain accepted.
 
 ### 4.6 `Soulstone.SyncServer`
 - Independent ASP.NET Core 8 project with no database and no application NuGet dependencies.
 - Creates cryptographically random host/member credentials, holds rooms in memory for at most 12 hours, and removes empty rooms after 5 minutes.
+- Stores short-invite payloads only in memory as opaque AES-256-GCM ciphertext. The validation code and decrypted member credentials, room key, and host public key are never sent to or persisted by the relay.
 - Enforces 16 clients per room, 64 KiB messages, 20 messages per 10 seconds per connection, and throttled session creation.
 - Routes `group` envelopes to other room members and `host` envelopes only to the DM connection.
 - Emits timestamped lifecycle, rejection, and transport logs without logging credentials or encrypted payloads.

@@ -1,5 +1,6 @@
 using Soulstone.Datamodels;
 using System;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -9,6 +10,8 @@ namespace Soulstone.Sync
     public static class RelayCrypto
     {
         private const string InvitePrefix = "SS1-";
+        private const int ShortInviteCodeLength = 16;
+        private static readonly byte[] ShortInviteAssociatedData = Encoding.UTF8.GetBytes("Soulstone.ShortInvite.v1");
 
         public static string CreateRoomKey() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
@@ -38,6 +41,87 @@ namespace Soulstone.Sync
                     !string.IsNullOrWhiteSpace(invite.SessionId) && !string.IsNullOrWhiteSpace(invite.MemberToken) &&
                     Convert.FromBase64String(invite.RoomKey).Length == 32 && !string.IsNullOrWhiteSpace(invite.HostPublicKey) &&
                     !string.IsNullOrWhiteSpace(invite.HostName);
+            }
+            catch
+            {
+                invite = null;
+                return false;
+            }
+        }
+
+        public static string CreateShortInviteCode() => Base64UrlEncode(RandomNumberGenerator.GetBytes(12));
+
+        public static string CreateShortInviteLink(string serverUrl, string code)
+        {
+            if (!IsValidShortInviteCode(code))
+                throw new ArgumentException("The short invite code is invalid.", nameof(code));
+            if (!Uri.TryCreate(serverUrl?.TrimEnd('/') + "/", UriKind.Absolute, out var serverUri) ||
+                (serverUri.Scheme != Uri.UriSchemeHttp && serverUri.Scheme != Uri.UriSchemeHttps))
+                throw new ArgumentException("The relay URL is invalid.", nameof(serverUrl));
+
+            return new Uri(serverUri, $"join/{code}").AbsoluteUri.TrimEnd('/');
+        }
+
+        public static bool TryParseShortInviteLink(string? link, out string serverUrl, out string code)
+        {
+            serverUrl = string.Empty;
+            code = string.Empty;
+            if (!Uri.TryCreate(link?.Trim(), UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+                !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment))
+                return false;
+
+            string[] segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length != 2 || !string.Equals(segments[0], "join", StringComparison.Ordinal) ||
+                !IsValidShortInviteCode(segments[1]))
+                return false;
+
+            code = segments[1];
+            serverUrl = new UriBuilder(uri) { Path = string.Empty, Query = string.Empty, Fragment = string.Empty }
+                .Uri.AbsoluteUri.TrimEnd('/');
+            return true;
+        }
+
+        public static string CreateInviteId(string code)
+        {
+            if (!IsValidShortInviteCode(code))
+                throw new ArgumentException("The short invite code is invalid.", nameof(code));
+            return Base64UrlEncode(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
+        }
+
+        public static string EncryptInvite(RelayInvite invite, string code)
+        {
+            if (!IsValidShortInviteCode(code))
+                throw new ArgumentException("The short invite code is invalid.", nameof(code));
+
+            byte[] plaintext = JsonSerializer.SerializeToUtf8Bytes(invite);
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] nonce = RandomNumberGenerator.GetBytes(12);
+            byte[] tag = new byte[16];
+            using var aes = new AesGcm(DeriveShortInviteKey(code), 16);
+            aes.Encrypt(nonce, plaintext, ciphertext, tag, ShortInviteAssociatedData);
+
+            byte[] payload = new byte[nonce.Length + tag.Length + ciphertext.Length];
+            nonce.CopyTo(payload, 0);
+            tag.CopyTo(payload, nonce.Length);
+            ciphertext.CopyTo(payload, nonce.Length + tag.Length);
+            return Base64UrlEncode(payload);
+        }
+
+        public static bool TryDecryptInvite(string? payload, string code, out RelayInvite? invite)
+        {
+            invite = null;
+            if (string.IsNullOrWhiteSpace(payload) || !IsValidShortInviteCode(code)) return false;
+
+            try
+            {
+                byte[] encrypted = Base64UrlDecode(payload);
+                if (encrypted.Length <= 28) return false;
+                byte[] plaintext = new byte[encrypted.Length - 28];
+                using var aes = new AesGcm(DeriveShortInviteKey(code), 16);
+                aes.Decrypt(encrypted.AsSpan(0, 12), encrypted.AsSpan(28), encrypted.AsSpan(12, 16), plaintext, ShortInviteAssociatedData);
+                invite = JsonSerializer.Deserialize<RelayInvite>(plaintext);
+                return IsValidInvite(invite);
             }
             catch
             {
@@ -141,6 +225,19 @@ namespace Soulstone.Sync
 
         private static byte[] GetSignatureData(RelayEnvelope envelope) => Encoding.UTF8.GetBytes(
             $"{Convert.ToBase64String(GetAssociatedData(envelope))}\n{envelope.Nonce}\n{envelope.Ciphertext}\n{envelope.Tag}");
+
+        private static bool IsValidShortInviteCode(string? code) =>
+            code is { Length: ShortInviteCodeLength } && code.All(character =>
+                char.IsAsciiLetterOrDigit(character) || character is '-' or '_');
+
+        private static byte[] DeriveShortInviteKey(string code) =>
+            SHA256.HashData(Encoding.UTF8.GetBytes($"Soulstone.ShortInvite.Key.v1\n{code}"));
+
+        private static bool IsValidInvite(RelayInvite? invite) => invite is { Version: 1 } &&
+            Uri.TryCreate(invite.ServerUrl, UriKind.Absolute, out _) &&
+            !string.IsNullOrWhiteSpace(invite.SessionId) && !string.IsNullOrWhiteSpace(invite.MemberToken) &&
+            Convert.FromBase64String(invite.RoomKey).Length == 32 && !string.IsNullOrWhiteSpace(invite.HostPublicKey) &&
+            !string.IsNullOrWhiteSpace(invite.HostName);
 
         private static string Base64UrlEncode(byte[] bytes) => Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
