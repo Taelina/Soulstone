@@ -13,9 +13,9 @@
     IsHide: false,
     IsTestingExclusive: false,
     IconUrl: 'https://www.aht.li/3945121/Soulstone.png',
-    DownloadLinkInstall: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.7/latest.zip',
-    DownloadLinkTesting: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.7/latest.zip',
-    DownloadLinkUpdate: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.7/latest.zip',
+    DownloadLinkInstall: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.8/latest.zip',
+    DownloadLinkTesting: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.8/latest.zip',
+    DownloadLinkUpdate: 'https://github.com/Taelina/Soulstone/releases/download/V0.0.8/latest.zip',
     LastUpdate: '1788543458',
   },
 ]
