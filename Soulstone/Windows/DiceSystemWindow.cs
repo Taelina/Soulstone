@@ -94,62 +94,66 @@ namespace Soulstone.Windows
 
         private void DrawTopBar(DiceSystem currentSystem)
         {
-            using (var group = ImRaii.Group())
+            ImGui.PushFont(UiBuilder.IconFont);
+            ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20.ToIconString());
+            ImGui.PopFont();
+            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+
+            ImGui.TextColored(ImGuiColors.DalamudWhite, currentSystem.systemName);
+            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+
+            UiUtils.Badge(Enum.GetName<SystemType>(currentSystem.systemType) ?? "Standard", new Vector4(0.2f, 0.4f, 0.6f, 0.7f), ImGuiColors.ParsedBlue);
+            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+
+            string diceLabel = Enum.GetName<DiceType>(currentSystem.diceType) ?? "d20";
+            UiUtils.Badge(diceLabel, new Vector4(0.35f, 0.25f, 0.5f, 0.7f), ImGuiColors.DalamudViolet);
+
+            if (currentSystem.systemHasAugmentations)
             {
-                ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20.ToIconString());
-                ImGui.PopFont();
-                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-
-                ImGui.TextColored(ImGuiColors.DalamudWhite, currentSystem.systemName);
-                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-
-                UiUtils.Badge(Enum.GetName<SystemType>(currentSystem.systemType) ?? "Standard", new Vector4(0.2f, 0.4f, 0.6f, 0.7f), ImGuiColors.ParsedBlue);
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                UiUtils.Badge("Cyberware Active", new Vector4(0.15f, 0.35f, 0.25f, 0.7f), ImGuiColors.ParsedGreen);
+            }
 
-                string diceLabel = Enum.GetName<DiceType>(currentSystem.diceType) ?? "d20";
-                UiUtils.Badge(diceLabel, new Vector4(0.35f, 0.25f, 0.5f, 0.7f), ImGuiColors.DalamudViolet);
-
-                if (currentSystem.systemHasAugmentations)
-                {
-                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    UiUtils.Badge("Cyberware Active", new Vector4(0.15f, 0.35f, 0.25f, 0.7f), ImGuiColors.ParsedGreen);
-                }
-
-                if (DiceSystemManager.Instance.IsSessionRulesetActive)
-                {
-                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupSyncedFromDM"), new Vector4(0.14f, 0.38f, 0.20f, 0.85f), ImGuiColors.ParsedGreen);
-                }
+            if (DiceSystemManager.Instance.IsSessionRulesetActive)
+            {
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupSyncedFromDM"), new Vector4(0.14f, 0.38f, 0.20f, 0.85f), ImGuiColors.ParsedGreen);
             }
 
             var saveLabel = LocalizationManager.Instance.GetLocalizedString("DiceSystemSaveButton");
             var chooseLabel = LocalizationManager.Instance.GetLocalizedString("DiceSystemChoose");
             var revertLabel = LocalizationManager.Instance.GetLocalizedString("GroupRevertRuleset");
-            var templateLabel = LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplate");
+            var templateTooltip = LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateTooltip");
 
-            var saveWidth = ImGui.CalcTextSize(saveLabel).X + 36.0f * ImGuiHelpers.GlobalScale;
-            var chooseWidth = ImGui.CalcTextSize(chooseLabel).X + 36.0f * ImGuiHelpers.GlobalScale;
-            var templateWidth = ImGui.CalcTextSize(templateLabel).X + 36.0f * ImGuiHelpers.GlobalScale;
-            var revertWidth = DiceSystemManager.Instance.IsSessionRulesetActive ? ImGui.CalcTextSize(revertLabel).X + 36.0f * ImGuiHelpers.GlobalScale : 0f;
-            var totalButtonsWidth = saveWidth + chooseWidth + templateWidth + revertWidth + 24.0f * ImGuiHelpers.GlobalScale;
+            float btnWidth = 28.0f * ImGuiHelpers.GlobalScale;
+            float spacing = 6.0f * ImGuiHelpers.GlobalScale;
+            int buttonCount = (DiceSystemManager.Instance.IsSessionRulesetActive ? 1 : 0) + 3;
+            float totalButtonsWidth = buttonCount * btnWidth + (buttonCount - 1) * spacing;
 
-            var rightX = ImGui.GetWindowContentRegionMax().X - totalButtonsWidth;
-            if (ImGui.GetCursorPosX() < rightX)
-                ImGui.SameLine(rightX);
+            float avail = ImGui.GetContentRegionAvail().X;
+            if (avail >= totalButtonsWidth)
+            {
+                ImGui.SameLine(ImGui.GetCursorPosX() + avail - totalButtonsWidth);
+            }
             else
-                ImGui.SameLine(0, 16.0f * ImGuiHelpers.GlobalScale);
+            {
+                float nextAvail = ImGui.GetContentRegionAvail().X;
+                if (nextAvail > totalButtonsWidth)
+                {
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + nextAvail - totalButtonsWidth);
+                }
+            }
 
             if (DiceSystemManager.Instance.IsSessionRulesetActive)
             {
-                if (UiUtils.IconButton("RevertDiceSysBtn", FontAwesomeIcon.Undo, revertLabel))
+                if (UiUtils.IconButton("RevertDiceSysBtn", FontAwesomeIcon.Undo, revertLabel, new Vector2(btnWidth, 0)))
                 {
                     DiceSystemManager.Instance.RevertToLocalRuleset();
                 }
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                ImGui.SameLine(0, spacing);
             }
 
-            if (UiUtils.IconButton("MakeSheetTemplateTopBtn", FontAwesomeIcon.FileSignature, templateLabel))
+            if (UiUtils.IconButton("MakeSheetTemplateTopBtn", FontAwesomeIcon.FileSignature, templateTooltip, new Vector2(btnWidth, 0)))
             {
                 var sheet = CharacterManager.Instance.CharacterSheet;
                 if (sheet != null)
@@ -175,19 +179,15 @@ namespace Soulstone.Windows
                     catch { }
                 }
             }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateTooltip"));
-            }
 
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.IconButton("SaveDiceSysBtn", FontAwesomeIcon.Save, saveLabel))
+            ImGui.SameLine(0, spacing);
+            if (UiUtils.IconButton("SaveDiceSysBtn", FontAwesomeIcon.Save, saveLabel, new Vector2(btnWidth, 0)))
             {
                 DiceSystem.SaveDiceSystem(currentSystem);
             }
 
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.IconButton("ChooseDiceSysBtn", FontAwesomeIcon.FolderOpen, chooseLabel))
+            ImGui.SameLine(0, spacing);
+            if (UiUtils.IconButton("ChooseDiceSysBtn", FontAwesomeIcon.FolderOpen, chooseLabel, new Vector2(btnWidth, 0)))
             {
                 plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("ChooseDiceSysPickerTitle"), ".json", (path) =>
                 {
