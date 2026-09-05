@@ -15,7 +15,7 @@ builder.Logging.AddSimpleConsole(options =>
 });
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 if (string.IsNullOrWhiteSpace(builder.Configuration["urls"]))
-    builder.WebHost.UseUrls("http://127.0.0.1:5077");
+    builder.WebHost.UseUrls("http://0.0.0.0:5077");
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<SessionRegistry>();
@@ -36,7 +36,7 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-string configuredUrls = builder.Configuration["urls"] ?? "http://127.0.0.1:5077";
+string configuredUrls = builder.Configuration["urls"] ?? "http://0.0.0.0:5077";
 if (!app.Environment.IsDevelopment() && configuredUrls.Contains("https://", StringComparison.OrdinalIgnoreCase))
 {
     app.UseHsts();
