@@ -40,31 +40,52 @@ namespace Soulstone.Managers
         {
             if (hostRuleset == null) return;
 
-            if (!isSessionRulesetActive && currentDiceSystem != null)
+            try
             {
-                localBackupDiceSystem = currentDiceSystem;
-            }
+                if (!isSessionRulesetActive && currentDiceSystem != null)
+                {
+                    localBackupDiceSystem = currentDiceSystem;
+                }
 
-            currentDiceSystem = hostRuleset;
-            isSessionRulesetActive = true;
-            Plugin.Log?.Information($"Adopted host ruleset: {hostRuleset.systemName}");
+                currentDiceSystem = hostRuleset;
+                isSessionRulesetActive = true;
+                Plugin.Log?.Information($"Adopted host ruleset: {hostRuleset.systemName}");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Failed to adopt host ruleset '{hostRuleset.systemName}'");
+            }
         }
 
         public void RevertToLocalRuleset()
         {
-            if (localBackupDiceSystem != null)
+            try
             {
-                currentDiceSystem = localBackupDiceSystem;
-                localBackupDiceSystem = null;
+                if (localBackupDiceSystem != null)
+                {
+                    currentDiceSystem = localBackupDiceSystem;
+                    localBackupDiceSystem = null;
+                }
+                isSessionRulesetActive = false;
+                Plugin.Log?.Information("Reverted to local ruleset.");
             }
-            isSessionRulesetActive = false;
-            Plugin.Log?.Information("Reverted to local ruleset.");
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to revert to local ruleset");
+            }
         }
 
         public void Init()
         {
-            currentDiceSystem = DiceSystem.LoadDiceSystem("Standard_Dice_System");
-            PartySyncManager.Instance.OnRulesetOffered += OnRulesetOfferedFromParty;
+            try
+            {
+                currentDiceSystem = DiceSystem.LoadDiceSystem("Standard_Dice_System");
+                PartySyncManager.Instance.OnRulesetOffered += OnRulesetOfferedFromParty;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to initialize DiceSystemManager in Init()");
+            }
         }
 
         public void OnRulesetOfferedFromParty(RulesetBroadcastPayload payload)
@@ -72,7 +93,7 @@ namespace Soulstone.Managers
             if (payload == null || string.IsNullOrWhiteSpace(payload.RulesetJson)) return;
             try
             {
-                var options = new System.Text.Json.JsonSerializerOptions { IncludeFields = true, PropertyNameCaseInsensitive = true };
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var sharedSystem = System.Text.Json.JsonSerializer.Deserialize<DiceSystem>(payload.RulesetJson, options);
                 if (sharedSystem != null)
                 {

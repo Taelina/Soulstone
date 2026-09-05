@@ -51,5 +51,29 @@ namespace Soulstone.Tests.Utils
             var act = () => Messages.SendMessage(chatEntry);
             act.Should().NotThrow();
         }
+
+        [Fact]
+        public void SendMessage_WithEmptyMessage_DoesNotThrow()
+        {
+            var chatEntry = new XivChatEntry
+            {
+                Message = string.Empty,
+                Type = XivChatType.Party
+            };
+            var act = () => Messages.SendMessage(chatEntry);
+            act.Should().NotThrow();
+        }
+
+        [Fact]
+        public void SendMessage_WithOversizedMessage_DoesNotThrow()
+        {
+            var chatEntry = new XivChatEntry
+            {
+                Message = new string('a', 600),
+                Type = XivChatType.Party
+            };
+            var act = () => Messages.SendMessage(chatEntry);
+            act.Should().NotThrow();
+        }
     }
 }

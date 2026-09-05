@@ -26,8 +26,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IToastGui ToastGui { get; set; } = null!;
     [PluginService] internal static INotificationManager NotificationManager { get; set; } = null!;
     [PluginService] internal static IPartyList PartyList { get; set; } = null!;
-
     [PluginService] internal static IObjectTable ObjectTable { get; set; } = null!;
+    [PluginService] internal static IFramework Framework { get; set; } = null!;
 
     private const string CommandName = "/soulstone";
 
@@ -58,6 +58,9 @@ public sealed class Plugin : IDalamudPlugin
         GroupWindow = new GroupWindow(this);
         fileBrowserWindow = new ImGuiFileBrowserWindow();
         fileBrowserWindow.SetConfiguration(Configuration);
+        dataLocation = PluginInterface.GetPluginLocDirectory();
+        LocalizationManager.Instance.InitLoc(this);
+        fileBrowserWindow.SetCurrentDirectory(dataLocation);
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
@@ -79,69 +82,153 @@ public sealed class Plugin : IDalamudPlugin
 
         // Adds another button doing the same but for the main ui of the plugin
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUi;
+
+        Framework.Update += OnFrameworkUpdate;
+        ClientState.Login += OnLogin;
+        ClientState.Logout += OnLogout;
     }
 
     public void Dispose()
     {
-        // Unregister all actions to not leak anythign during disposal of plugin
-        PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
-        PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
-        PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
+        try
+        {
+            Framework.Update -= OnFrameworkUpdate;
+            ClientState.Login -= OnLogin;
+            ClientState.Logout -= OnLogout;
 
-        WindowSystem.RemoveAllWindows();
+            // Unregister all actions to not leak anything during disposal of plugin
+            PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+            PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
+            PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
 
-        ConfigWindow.Dispose();
-        MainWindow.Dispose();
-        InitiativeTrackerWindow.Dispose();
-        GroupWindow.Dispose();
-        PartySyncManager.Instance.Dispose();
+            WindowSystem.RemoveAllWindows();
 
-        CommandManager.RemoveHandler(CommandName);
+            ConfigWindow.Dispose();
+            MainWindow.Dispose();
+            InitiativeTrackerWindow.Dispose();
+            GroupWindow.Dispose();
+            PartySyncManager.Instance.Dispose();
+
+            CommandManager.RemoveHandler(CommandName);
+        }
+        catch (Exception ex)
+        {
+            Log?.Error(ex, "Failed to dispose plugin resources cleanly");
+        }
+    }
+
+    private void OnFrameworkUpdate(IFramework framework)
+    {
+        try
+        {
+            if (!pluginInitialized && ClientState.IsLoggedIn && ObjectTable.LocalPlayer != null)
+            {
+                InitManagers();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log?.Error(ex, "Error during OnFrameworkUpdate");
+        }
+    }
+
+    private void OnLogin()
+    {
+        try
+        {
+            InitManagers();
+            CharacterManager.Instance.Init();
+            PartySyncManager.Instance.RefreshPartyList();
+        }
+        catch (Exception ex)
+        {
+            Log?.Error(ex, "Error during OnLogin");
+        }
+    }
+
+    private void OnLogout(int type = 0, int code = 0)
+    {
+        try
+        {
+            pluginInitialized = false;
+            CharacterManager.Instance.Reset();
+        }
+        catch (Exception ex)
+        {
+            Log?.Error(ex, "Error during OnLogout");
+        }
     }
 
     private void OnCommand(string command, string args)
     {
-        dataLocation = PluginInterface.GetPluginLocDirectory();
-        InitManagers();
+        try
+        {
+            dataLocation = PluginInterface.GetPluginLocDirectory();
+            InitManagers();
 
-        string trimmedArgs = (args ?? string.Empty).Trim().ToLower();
-        if (trimmedArgs == "init" || trimmedArgs == "initiative")
-        {
-            ToggleInitiativeTrackerUi();
+            string trimmedArgs = (args ?? string.Empty).Trim().ToLower();
+            if (trimmedArgs == "init" || trimmedArgs == "initiative")
+            {
+                ToggleInitiativeTrackerUi();
+            }
+            else if (trimmedArgs == "group" || trimmedArgs == "party")
+            {
+                ToggleGroupUi();
+            }
+            else
+            {
+                // In response to the slash command, toggle the display status of our main ui
+                MainWindow.Toggle();
+                Log?.Information($"Data location: {dataLocation}");
+            }
         }
-        else if (trimmedArgs == "group" || trimmedArgs == "party")
+        catch (Exception ex)
         {
-            ToggleGroupUi();
-        }
-        else
-        {
-            // In response to the slash command, toggle the display status of our main ui
-            MainWindow.Toggle();
-            Log.Information($"Data location: {dataLocation}");
+            Log?.Error(ex, $"Failed to handle command '{command} {args}'");
         }
     }
 
-    public void ToggleConfigUi() => ConfigWindow.Toggle();
-    public void ToggleInitiativeTrackerUi() => InitiativeTrackerWindow.Toggle();
-    public void ToggleGroupUi() => GroupWindow.Toggle();
+    public void ToggleConfigUi()
+    {
+        InitManagers();
+        ConfigWindow.Toggle();
+    }
+
+    public void ToggleInitiativeTrackerUi()
+    {
+        InitManagers();
+        InitiativeTrackerWindow.Toggle();
+    }
+
+    public void ToggleGroupUi()
+    {
+        InitManagers();
+        GroupWindow.Toggle();
+    }
+
     public void ToggleMainUi()
     {
-        MainWindow.Toggle();
         dataLocation = PluginInterface.GetPluginLocDirectory();
         InitManagers();
+        MainWindow.Toggle();
     }
 
     public void InitManagers()
     {
-        CharacterManager.Instance.Init();
-        DiceSystemManager.Instance.Init();
-        PartySyncManager.Instance.Init();
-        if (!pluginInitialized)
+        if (pluginInitialized) return;
+        try
         {
             pluginInitialized = true;
-            Log.Information("Initializing managers...");
+            Log?.Information("Initializing managers on main thread...");
+            CharacterManager.Instance.Init();
+            DiceSystemManager.Instance.Init();
+            PartySyncManager.Instance.Init(Configuration);
             LocalizationManager.Instance.InitLoc(this);
-            fileBrowserWindow.SetCurrentDirectory(dataLocation);
+            fileBrowserWindow?.SetCurrentDirectory(dataLocation);
+        }
+        catch (Exception ex)
+        {
+            Log?.Error(ex, "Failed to initialize managers in InitManagers()");
         }
     }
 

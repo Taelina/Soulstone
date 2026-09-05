@@ -75,5 +75,29 @@ namespace Soulstone.Tests.Managers
             DiceSystemManager.Instance.CurrentDiceSystem.Should().NotBeNull();
             DiceSystemManager.Instance.CurrentDiceSystem.SystemName.Should().Be("Standard Dice System");
         }
+
+        [Fact]
+        public void LoadDiceSystem_WhenFileIsCorrupted_ReturnsNullAndDoesNotThrow()
+        {
+            // Arrange
+            var diceSysDir = Path.Combine(tempDirectory, "diceSystem");
+            Directory.CreateDirectory(diceSysDir);
+            var corruptedPath = Path.Combine(diceSysDir, "corrupted_sys.json");
+            File.WriteAllText(corruptedPath, "{ invalid json content !!!");
+
+            // Act
+            var loaded = DiceSystem.LoadDiceSystem(corruptedPath, isFullPath: true);
+
+            // Assert
+            loaded.Should().BeNull();
+        }
+
+        [Fact]
+        public void SaveDiceSystem_WhenSystemIsNull_DoesNotThrow()
+        {
+            // Act & Assert
+            var action = () => DiceSystem.SaveDiceSystem(null!);
+            action.Should().NotThrow();
+        }
     }
 }

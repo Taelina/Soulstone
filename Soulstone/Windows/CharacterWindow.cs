@@ -221,11 +221,18 @@ namespace Soulstone.Windows
             {
                 plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("ChooseCharSheetPickerTitle"), ".json", (path) =>
                 {
-                    Plugin.Log.Information($"Selected file: {path}");
-                    CharacterSheet? loadedSheet = CharacterSheet.LoadSheet(path, true);
-                    if (loadedSheet != null)
+                    try
                     {
-                        CharacterManager.Instance.CharacterSheet = loadedSheet;
+                        Plugin.Log?.Information($"Selected file: {path}");
+                        CharacterSheet? loadedSheet = CharacterSheet.LoadSheet(path, true);
+                        if (loadedSheet != null)
+                        {
+                            CharacterManager.Instance.CharacterSheet = loadedSheet;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Log?.Error(ex, $"Failed to load character sheet from '{path}' in file picker callback");
                     }
                 });
             }

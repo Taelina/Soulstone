@@ -54,6 +54,13 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 - **One-Click Initiative Rolling**: Roll initiative using character attributes/skills with automatic list re-sorting.
 - **Fast Participant Addition**: Quickly add existing characters or create ad-hoc monsters/NPCs on the fly.
 
+### 🔐 Encrypted Group Synchronization
+- **Out-of-Game Transport**: Soulstone synchronization uses its standalone WebSocket relay.
+- **Private Group Sessions**: The DM creates a session and shares its invite code outside the game; incoming identities are checked against the local FFXIV party roster.
+- **DM Coordination**: The DM can request rolls, roll for players, distribute rulesets, and control shared initiative state.
+- **Scoped Data Sharing**: Resource bars and roll results are shared with the session, while full character stats are encrypted specifically for the DM.
+- **Self-Hosted Relay**: `Soulstone.SyncServer` runs unattended as a .NET application, single-file executable, service, or container. See [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
+
 ### 🎒 Inventory & Item Management
 - **Full Inventory System**: Track items, equipment, consumables, quest items, and valuables.
 - **Rich Item Metadata**: Name, description, category, rarity tiers (Common, Uncommon, Rare, Epic, Legendary, Artifact), quantity, weight, and gold/currency value.
@@ -128,6 +135,7 @@ You can also access Soulstone windows, configuration, and tools through the **Da
 Soulstone is developed in C# targeting **.NET 10.0 (Windows)** and built on top of **Dalamud**.
 
 - **Architecture Documentation**: For detailed technical documentation on classes, design patterns, datamodels, and subsystems, see [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md).
+- **Synchronization Server & Deployment**: Step-by-step setup, Linux/Windows service configuration, router port forwarding, and TLS/HTTPS guides are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
 - **Unit Test Suite**: Fully covered by unit tests using **xUnit** and **FluentAssertions** in `Soulstone.Tests`.
 
 To build the project locally:

@@ -7,9 +7,15 @@ using Xunit;
 
 namespace Soulstone.Tests.Datamodels
 {
-    [Collection("NonParallelCollection")]
+    [Collection("NonParallel")]
     public class RulesetCalibrationTests
     {
+        public RulesetCalibrationTests()
+        {
+            TestHelper.EnsureMockServices();
+            DiceSystemManager.Instance.RevertToLocalRuleset();
+        }
+
         [Fact]
         public void AdoptSessionRuleset_BacksUpLocalAndActivatesSession()
         {

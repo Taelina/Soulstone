@@ -1,13 +1,12 @@
-using Dalamud.Game.Chat;
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
 using Soulstone.Datamodels;
+using Soulstone.Sync;
 using Soulstone.Utils;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Soulstone.Managers
 {
@@ -16,6 +15,7 @@ namespace Soulstone.Managers
         public static PartySyncManager Instance { get; } = new();
 
         public ConcurrentDictionary<string, PartyMemberSyncData> ConnectedPartyMembers { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public ConcurrentDictionary<string, RollRequestPayload> PendingRollRequests { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public event Action? OnPartyRosterUpdated;
         public event Action<PartyMemberSyncData>? OnPartyMemberUpdated;
@@ -28,28 +28,33 @@ namespace Soulstone.Managers
         public event Action<ResourceUpdatePayload>? OnResourceUpdated;
         public event Action<RulesetBroadcastPayload>? OnRulesetOffered;
         public event Action<BuffUpdatePayload>? OnBuffUpdated;
+        public event Action<RollRequestPayload>? OnRollRequested;
+        public event Action<PrivateStatsPayload>? OnPrivateStatsUpdated;
+        public event Action? OnConnectionChanged;
 
         private bool isInitialized = false;
         private DateTime lastPresenceBroadcast = DateTime.MinValue;
+        private readonly RelaySyncClient relayClient = new();
+        private Configuration? configuration;
 
-        public void Init()
+        public string ConnectionStatus => relayClient.Status;
+        public bool IsConnected => relayClient.IsConnected;
+        public bool IsSessionHost => configuration != null && !string.IsNullOrWhiteSpace(configuration.SyncHostToken);
+        public string InviteCode => configuration?.SyncInviteCode ?? string.Empty;
+
+        public void Init(Configuration config)
         {
             if (isInitialized) return;
             isInitialized = true;
-
-            try
-            {
-                if (Plugin.ChatGui != null)
-                {
-                    Plugin.ChatGui.ChatMessage += OnChatMessage;
-                }
-            }
-            catch (Exception ex)
-            {
-                Plugin.Log?.Error(ex, "Failed to hook ChatMessage in PartySyncManager");
-            }
+            configuration = config;
+            relayClient.MessageReceived += OnRelayMessage;
+            relayClient.StatusChanged += OnRelayStatusChanged;
 
             RefreshPartyList();
+            if (config.SyncAutoConnect && !string.IsNullOrWhiteSpace(config.SyncSessionId))
+            {
+                _ = ReconnectAsync();
+            }
         }
 
         public void Dispose()
@@ -57,39 +62,163 @@ namespace Soulstone.Managers
             if (!isInitialized) return;
             isInitialized = false;
 
-            try
-            {
-                if (Plugin.ChatGui != null)
-                {
-                    Plugin.ChatGui.ChatMessage -= OnChatMessage;
-                }
-            }
-            catch { }
-
+            relayClient.MessageReceived -= OnRelayMessage;
+            relayClient.StatusChanged -= OnRelayStatusChanged;
+            relayClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
             ConnectedPartyMembers.Clear();
+            PendingRollRequests.Clear();
         }
 
-        public void OnChatMessage(IHandleableChatMessage chatMessage)
+        public async Task<bool> CreateSessionAsync(string serverUrl)
         {
-            if (chatMessage == null) return;
+            if (configuration == null) return false;
+            try
+            {
+                RelaySessionResponse session = await relayClient.CreateSessionAsync(serverUrl).ConfigureAwait(false);
+                var keys = RelayCrypto.CreateHostKeyPair();
+                configuration.SyncServerUrl = serverUrl.TrimEnd('/');
+                configuration.SyncSessionId = session.SessionId;
+                configuration.SyncHostToken = session.HostToken;
+                configuration.SyncMemberToken = session.MemberToken;
+                configuration.SyncRoomKey = RelayCrypto.CreateRoomKey();
+                configuration.SyncHostPublicKey = keys.PublicKey;
+                configuration.SyncHostPrivateKey = keys.PrivateKey;
+                configuration.SyncHostName = GetLocalPlayerName();
+                configuration.SyncHostWorld = GetLocalPlayerWorld();
+                configuration.SyncInviteCode = RelayCrypto.EncodeInvite(new RelayInvite
+                {
+                    ServerUrl = configuration.SyncServerUrl,
+                    SessionId = session.SessionId,
+                    MemberToken = session.MemberToken,
+                    RoomKey = configuration.SyncRoomKey,
+                    HostPublicKey = keys.PublicKey,
+                    HostName = configuration.SyncHostName,
+                    HostWorld = configuration.SyncHostWorld
+                });
+                configuration.Save();
+                await ConnectFromConfigurationAsync().ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to create Soulstone relay session");
+                return false;
+            }
+        }
 
-            if (chatMessage.LogKind != XivChatType.Party && chatMessage.LogKind != XivChatType.Echo)
-                return;
+        public async Task<bool> JoinSessionAsync(string inviteCode)
+        {
+            if (configuration == null || !RelayCrypto.TryDecodeInvite(inviteCode.Trim(), out var invite) || invite == null) return false;
+            configuration.SyncServerUrl = invite.ServerUrl;
+            configuration.SyncSessionId = invite.SessionId;
+            configuration.SyncHostToken = string.Empty;
+            configuration.SyncMemberToken = invite.MemberToken;
+            configuration.SyncRoomKey = invite.RoomKey;
+            configuration.SyncHostPublicKey = invite.HostPublicKey;
+            configuration.SyncHostPrivateKey = string.Empty;
+            configuration.SyncHostName = invite.HostName;
+            configuration.SyncHostWorld = invite.HostWorld;
+            configuration.SyncInviteCode = string.Empty;
+            configuration.Save();
 
-            string rawText = chatMessage.Message?.TextValue ?? string.Empty;
-            if (!PartySyncPacket.TryDecodePacket(rawText, out var packet, out var cleanText) || packet == null)
-                return;
+            try
+            {
+                await ConnectFromConfigurationAsync().ConfigureAwait(false);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to join Soulstone relay session");
+                return false;
+            }
+        }
 
-            HandleIncomingPacket(packet, chatMessage.Sender?.TextValue ?? string.Empty);
+        public async Task DisconnectAsync(bool forgetSession = false)
+        {
+            await relayClient.DisconnectAsync().ConfigureAwait(false);
+            if (forgetSession && configuration != null)
+            {
+                configuration.SyncSessionId = string.Empty;
+                configuration.SyncHostToken = string.Empty;
+                configuration.SyncMemberToken = string.Empty;
+                configuration.SyncRoomKey = string.Empty;
+                configuration.SyncHostPublicKey = string.Empty;
+                configuration.SyncHostPrivateKey = string.Empty;
+                configuration.SyncHostName = string.Empty;
+                configuration.SyncHostWorld = string.Empty;
+                configuration.SyncInviteCode = string.Empty;
+                configuration.Save();
+                ConnectedPartyMembers.Clear();
+                PendingRollRequests.Clear();
+            }
+            OnConnectionChanged?.Invoke();
+            OnPartyRosterUpdated?.Invoke();
+        }
+
+        public async Task<bool> ReconnectAsync()
+        {
+            try
+            {
+                await ConnectFromConfigurationAsync().ConfigureAwait(false);
+                return relayClient.IsConnected;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Warning(ex, "Failed to reconnect to the Soulstone relay");
+                return false;
+            }
+        }
+
+        private async Task ConnectFromConfigurationAsync()
+        {
+            if (configuration == null) return;
+            string token = !string.IsNullOrWhiteSpace(configuration.SyncHostToken)
+                ? configuration.SyncHostToken
+                : configuration.SyncMemberToken;
+            await relayClient.ConnectAsync(configuration.SyncServerUrl, configuration.SyncSessionId, token).ConfigureAwait(false);
+            BroadcastPresence();
+            BroadcastPrivateStats();
+            OnConnectionChanged?.Invoke();
+        }
+
+        private void OnRelayStatusChanged(string status)
+        {
+            OnConnectionChanged?.Invoke();
+        }
+
+        private void OnRelayMessage(string json)
+        {
+            if (configuration == null) return;
+            try
+            {
+                var envelope = JsonSerializer.Deserialize<RelayEnvelope>(json);
+                if (envelope == null || envelope.Version != 1 || !IsSenderInCurrentParty(envelope.SenderName)) return;
+                if (RequiresHostSignature(envelope.EventType) &&
+                    !RelayCrypto.VerifyHostSignature(envelope, configuration.SyncHostPublicKey)) return;
+                if (!RelayCrypto.TryDecryptMessage(envelope, configuration.SyncRoomKey, configuration.SyncHostPrivateKey, out var packet) || packet == null) return;
+                if (!string.Equals(packet.SenderName, envelope.SenderName, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(packet.SenderWorld, envelope.SenderWorld, StringComparison.OrdinalIgnoreCase)) return;
+                if (packet.EventType == SyncEventType.DiceRoll)
+                {
+                    var roll = JsonSerializer.Deserialize<DiceRollPayload>(packet.PayloadJson);
+                    if (roll != null && !string.Equals(roll.CharacterName, envelope.SenderName, StringComparison.OrdinalIgnoreCase) &&
+                        !RelayCrypto.VerifyHostSignature(envelope, configuration.SyncHostPublicKey)) return;
+                }
+                HandleIncomingPacket(packet, envelope.SenderName);
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Debug(ex, "Ignored invalid Soulstone relay message");
+            }
         }
 
         public void HandleIncomingPacket(PartySyncPacket packet, string senderDisplayName = "")
         {
-            if (packet == null) return;
+            if (packet == null || packet.ProtocolVersion != 1) return;
 
-            string senderName = !string.IsNullOrWhiteSpace(packet.SenderName)
-                ? packet.SenderName
-                : (!string.IsNullOrWhiteSpace(senderDisplayName) ? senderDisplayName : "Unknown");
+            string senderName = !string.IsNullOrWhiteSpace(senderDisplayName)
+                ? senderDisplayName
+                : (!string.IsNullOrWhiteSpace(packet.SenderName) ? packet.SenderName : "Unknown");
 
             // Ignore echo of our own packets if needed, or process them to stay in sync
             string localName = GetLocalPlayerName();
@@ -103,6 +232,8 @@ namespace Soulstone.Managers
                         var presence = JsonSerializer.Deserialize<PresencePayload>(packet.PayloadJson);
                         if (presence != null)
                         {
+                            presence.CharacterName = senderName;
+                            presence.WorldName = packet.SenderWorld;
                             string localRuleset = DiceSystemManager.Instance.CurrentDiceSystem?.systemName ?? string.Empty;
                             var memberData = ConnectedPartyMembers.GetOrAdd(senderName, name => new PartyMemberSyncData
                             {
@@ -110,10 +241,16 @@ namespace Soulstone.Managers
                                 WorldName = packet.SenderWorld
                             });
 
+                            bool firstContact = !memberData.HasSoulstone;
                             memberData.ApplyPresence(presence, localRuleset);
                             UpdateLeaderStatus(memberData);
                             OnPartyMemberUpdated?.Invoke(memberData);
                             OnPartyRosterUpdated?.Invoke();
+                            if (firstContact && !isFromSelf)
+                            {
+                                BroadcastPresence();
+                                BroadcastPrivateStats();
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -126,6 +263,7 @@ namespace Soulstone.Managers
                     if (!isFromSelf)
                     {
                         BroadcastPresence();
+                        BroadcastPrivateStats();
                     }
                     break;
 
@@ -135,7 +273,10 @@ namespace Soulstone.Managers
                         var roll = JsonSerializer.Deserialize<DiceRollPayload>(packet.PayloadJson);
                         if (roll != null)
                         {
-                            if (ConnectedPartyMembers.TryGetValue(senderName, out var member))
+                            if (string.IsNullOrWhiteSpace(roll.RolledBy)) roll.RolledBy = senderName;
+                            if (!string.Equals(roll.RolledBy, senderName, StringComparison.OrdinalIgnoreCase) &&
+                                !RequiresHostSignature(packet.EventType)) return;
+                            if (ConnectedPartyMembers.TryGetValue(roll.CharacterName, out var member))
                             {
                                 member.LastRollSummary = $"{roll.RollName}: {roll.Total} ({roll.Details})";
                                 member.LastSeen = DateTime.UtcNow;
@@ -205,6 +346,7 @@ namespace Soulstone.Managers
                         var res = JsonSerializer.Deserialize<ResourceUpdatePayload>(packet.PayloadJson);
                         if (res != null)
                         {
+                            res.CharacterName = senderName;
                             if (ConnectedPartyMembers.TryGetValue(senderName, out var member))
                             {
                                 member.ApplyResourceUpdate(res);
@@ -240,6 +382,7 @@ namespace Soulstone.Managers
                         var buffs = JsonSerializer.Deserialize<BuffUpdatePayload>(packet.PayloadJson);
                         if (buffs != null)
                         {
+                            buffs.CharacterName = senderName;
                             if (ConnectedPartyMembers.TryGetValue(senderName, out var member))
                             {
                                 member.ApplyBuffUpdate(buffs);
@@ -251,6 +394,44 @@ namespace Soulstone.Managers
                     catch (Exception ex)
                     {
                         Plugin.Log?.Debug(ex, "Error deserializing BuffUpdatePayload");
+                    }
+                    break;
+
+                case SyncEventType.RollRequest:
+                    try
+                    {
+                        var request = JsonSerializer.Deserialize<RollRequestPayload>(packet.PayloadJson);
+                        if (request != null && IsAddressedToLocalPlayer(request.TargetName))
+                        {
+                            request.RequestedBy = senderName;
+                            PendingRollRequests[request.RequestId] = request;
+                            OnRollRequested?.Invoke(request);
+                            OnPartyRosterUpdated?.Invoke();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Log?.Debug(ex, "Error deserializing RollRequestPayload");
+                    }
+                    break;
+
+                case SyncEventType.PrivateStats:
+                    try
+                    {
+                        var stats = JsonSerializer.Deserialize<PrivateStatsPayload>(packet.PayloadJson);
+                        if (stats != null && IsSessionHost && (string.IsNullOrWhiteSpace(stats.TargetName) || IsAddressedToLocalPlayer(stats.TargetName)))
+                        {
+                            stats.CharacterName = senderName;
+                            var member = ConnectedPartyMembers.GetOrAdd(senderName, name => new PartyMemberSyncData { CharacterName = name });
+                            member.ApplyPrivateStats(stats);
+                            OnPrivateStatsUpdated?.Invoke(stats);
+                            OnPartyMemberUpdated?.Invoke(member);
+                            OnPartyRosterUpdated?.Invoke();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Log?.Debug(ex, "Error deserializing PrivateStatsPayload");
                     }
                     break;
             }
@@ -303,7 +484,7 @@ namespace Soulstone.Managers
                             memberData.MaxMana = (int)pm.MaxMP;
                         }
 
-                        memberData.IsPartyLeader = string.Equals(name, leaderName, StringComparison.OrdinalIgnoreCase);
+                        UpdateLeaderStatus(memberData);
                     }
                 }
             }
@@ -324,12 +505,16 @@ namespace Soulstone.Managers
                 });
 
                 localData.HasSoulstone = true;
-                localData.IsPartyLeader = string.Equals(localPlayerName, leaderName, StringComparison.OrdinalIgnoreCase);
+                UpdateLeaderStatus(localData);
                 PopulateLocalPlayerVitals(localData);
             }
 
-            // Clean up members no longer in party (except local player)
-            var toRemove = ConnectedPartyMembers.Keys.Where(k => !activeNames.Contains(k)).ToList();
+            // Clean up members: only remove members who are NOT in party list AND do NOT have an active Soulstone sync session presence
+            var toRemove = ConnectedPartyMembers.Where(kvp =>
+                !activeNames.Contains(kvp.Key) &&
+                (!kvp.Value.HasSoulstone || (DateTime.UtcNow - kvp.Value.LastSeen).TotalMinutes > 60)
+            ).Select(kvp => kvp.Key).ToList();
+
             foreach (var key in toRemove)
             {
                 ConnectedPartyMembers.TryRemove(key, out _);
@@ -340,12 +525,22 @@ namespace Soulstone.Managers
 
         private void UpdateLeaderStatus(PartyMemberSyncData member)
         {
-            string leaderName = GetPartyLeaderName();
-            member.IsPartyLeader = string.Equals(member.CharacterName, leaderName, StringComparison.OrdinalIgnoreCase);
+            string hostName = configuration?.SyncHostName ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(hostName))
+            {
+                member.IsPartyLeader = string.Equals(member.CharacterName, hostName, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                string leaderName = GetPartyLeaderName();
+                member.IsPartyLeader = string.Equals(member.CharacterName, leaderName, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         public bool IsLocalPlayerPartyLeader()
         {
+            if (IsSessionHost) return true;
+            if (IsConnected) return false;
             try
             {
                 if (Plugin.PartyList == null || Plugin.PartyList.Length <= 1)
@@ -369,6 +564,11 @@ namespace Soulstone.Managers
 
         public string GetPartyLeaderName()
         {
+            if (!string.IsNullOrWhiteSpace(configuration?.SyncHostName))
+            {
+                return configuration.SyncHostName;
+            }
+
             try
             {
                 if (Plugin.PartyList != null && Plugin.PartyList.Length > 0)
@@ -423,6 +623,40 @@ namespace Soulstone.Managers
             return string.Empty;
         }
 
+        private bool IsSenderInCurrentParty(string senderName)
+        {
+            if (string.IsNullOrWhiteSpace(senderName)) return false;
+            if (IsConnected) return true;
+            if (string.Equals(senderName, GetLocalPlayerName(), StringComparison.OrdinalIgnoreCase)) return true;
+            try
+            {
+                if (Plugin.PartyList == null || Plugin.PartyList.Length <= 1) return true;
+                return Plugin.PartyList.Any(member => member != null &&
+                    string.Equals(member.Name.TextValue, senderName, StringComparison.OrdinalIgnoreCase));
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
+        private bool IsAddressedToLocalPlayer(string targetName)
+        {
+            return string.Equals(targetName, GetLocalPlayerName(), StringComparison.OrdinalIgnoreCase) ||
+                   (!string.IsNullOrWhiteSpace(configuration?.SyncHostName) &&
+                    string.Equals(targetName, configuration.SyncHostName, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static bool RequiresHostSignature(SyncEventType eventType)
+        {
+            return eventType is SyncEventType.RulesetBroadcast
+                or SyncEventType.InitiativeAddOrUpdate
+                or SyncEventType.InitiativeTurnAdvance
+                or SyncEventType.InitiativeReset
+                or SyncEventType.InitiativeRemove
+                or SyncEventType.RollRequest;
+        }
+
         public void PopulateLocalPlayerVitals(PartyMemberSyncData data)
         {
             var sheet = CharacterManager.Instance.CharacterSheet;
@@ -458,6 +692,14 @@ namespace Soulstone.Managers
 
         public void SendPacket(SyncEventType eventType, object payload, string humanReadableEcho = "")
         {
+            if (!string.IsNullOrWhiteSpace(humanReadableEcho)) Messages.PrintEcho(humanReadableEcho);
+            if (!relayClient.IsConnected || configuration == null) return;
+            _ = SendPacketCoreAsync(eventType, payload);
+        }
+
+        private async Task SendPacketCoreAsync(SyncEventType eventType, object payload)
+        {
+            if (configuration == null) return;
             try
             {
                 var packet = new PartySyncPacket
@@ -469,23 +711,18 @@ namespace Soulstone.Managers
                     PayloadJson = JsonSerializer.Serialize(payload)
                 };
 
-                string tag = PartySyncPacket.EncodePacket(packet);
-                string fullText = string.IsNullOrWhiteSpace(humanReadableEcho)
-                    ? tag
-                    : $"{humanReadableEcho} {tag}";
-
-                bool inParty = Plugin.PartyList != null && Plugin.PartyList.Length > 1;
-                XivChatType targetType = inParty ? XivChatType.Party : XivChatType.Echo;
-
-                Messages.SendMessage(new XivChatEntry
+                RelayEnvelope envelope = eventType == SyncEventType.PrivateStats
+                    ? RelayCrypto.EncryptPrivateMessage(packet, configuration.SyncHostPublicKey)
+                    : RelayCrypto.EncryptGroupMessage(packet, configuration.SyncRoomKey);
+                if (IsSessionHost)
                 {
-                    Message = fullText,
-                    Type = targetType
-                });
+                    RelayCrypto.SignEnvelope(envelope, configuration.SyncHostPrivateKey);
+                }
+                await relayClient.SendAsync(envelope).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Debug(ex, $"Failed to send party packet for event {eventType}");
+                Plugin.Log?.Warning(ex, $"Failed to send relay message for event {eventType}");
             }
         }
 
@@ -529,11 +766,14 @@ namespace Soulstone.Managers
             OnPartyMemberUpdated?.Invoke(localData);
         }
 
-        public void BroadcastDiceRoll(string rollName, int total, string details, bool isCritSuccess = false, bool isCritFailure = false, string echoText = "")
+        public void BroadcastDiceRoll(string rollName, int total, string details, bool isCritSuccess = false, bool isCritFailure = false, string echoText = "", string? characterName = null)
         {
+            string roller = GetLocalPlayerName();
+            string actor = string.IsNullOrWhiteSpace(characterName) ? roller : characterName;
             var payload = new DiceRollPayload
             {
-                CharacterName = GetLocalPlayerName(),
+                CharacterName = actor,
+                RolledBy = roller,
                 RollName = rollName,
                 Total = total,
                 Details = details,
@@ -543,10 +783,88 @@ namespace Soulstone.Managers
             };
 
             SendPacket(SyncEventType.DiceRoll, payload, echoText);
+
+            var member = ConnectedPartyMembers.GetOrAdd(actor, name => new PartyMemberSyncData { CharacterName = name });
+            member.LastRollSummary = $"{rollName}: {total} ({details})";
+            member.LastSeen = DateTime.UtcNow;
+            OnPartyMemberUpdated?.Invoke(member);
+        }
+
+        public bool RequestRoll(string targetName, string formula, string rollName, bool advantage = false, bool disadvantage = false)
+        {
+            if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName) || string.IsNullOrWhiteSpace(formula)) return false;
+            var request = new RollRequestPayload
+            {
+                RequestedBy = GetLocalPlayerName(),
+                TargetName = targetName,
+                RollName = string.IsNullOrWhiteSpace(rollName) ? formula : rollName.Trim(),
+                Formula = formula.Replace(" ", string.Empty),
+                Advantage = advantage,
+                Disadvantage = disadvantage
+            };
+            SendPacket(SyncEventType.RollRequest, request, $"[Soulstone] Roll requested from {targetName}: {request.RollName} ({request.Formula})");
+            return true;
+        }
+
+        public bool RollForMember(string targetName, string formula, string rollName, bool advantage = false, bool disadvantage = false)
+        {
+            if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName)) return false;
+            var roll = DiceRoll.ParseDiceRollString(formula.Replace(" ", string.Empty), advantage, disadvantage);
+            if (roll == null) return false;
+            string label = string.IsNullOrWhiteSpace(rollName) ? formula : rollName.Trim();
+            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: $"[Soulstone] Rolled for {targetName}: {roll.RollResultString.TextValue}", characterName: targetName);
+            return true;
+        }
+
+        public bool ExecuteRollRequest(string requestId)
+        {
+            if (!PendingRollRequests.TryRemove(requestId, out var request)) return false;
+            var roll = DiceRoll.ParseDiceRollString(request.Formula, request.Advantage, request.Disadvantage);
+            if (roll == null) return false;
+            BroadcastDiceRoll(request.RollName, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: $"[Soulstone] {request.RollName}: {roll.RollResultString.TextValue}");
+            OnPartyRosterUpdated?.Invoke();
+            return true;
+        }
+
+        public void DismissRollRequest(string requestId)
+        {
+            PendingRollRequests.TryRemove(requestId, out _);
+            OnPartyRosterUpdated?.Invoke();
+        }
+
+        public void BroadcastPrivateStats()
+        {
+            if (!relayClient.IsConnected || IsSessionHost) return;
+            var sheet = CharacterManager.Instance.CharacterSheet;
+            if (sheet == null) return;
+            var stats = new PrivateStatsPayload
+            {
+                CharacterName = GetLocalPlayerName(),
+                TargetName = configuration?.SyncHostName ?? GetPartyLeaderName(),
+                Level = sheet.CharacterLevel,
+                ClassName = sheet.CharacterClass
+            };
+            if (sheet.CharacterAttributes != null)
+            {
+                foreach (var attribute in sheet.CharacterAttributes)
+                    stats.Attributes[attribute.Key] = sheet.GetEffectiveAttributeValue(attribute.Key);
+            }
+            if (sheet.CharacterSkills != null)
+            {
+                foreach (var skill in sheet.CharacterSkills)
+                    stats.Skills[skill.Key] = sheet.GetEffectiveSkillTotal(skill.Key, DiceSystemManager.Instance.CurrentDiceSystem);
+            }
+            if (sheet.CharacterAbilities != null)
+            {
+                foreach (var ability in sheet.CharacterAbilities)
+                    stats.Abilities[ability.Key] = sheet.GetEffectiveAbilityModifier(ability.Key);
+            }
+            SendPacket(SyncEventType.PrivateStats, stats);
         }
 
         public void BroadcastInitiativeSync(int round, int turnNumber, string? activeId, List<InitiativeParticipant> participants)
         {
+            if (!IsSessionHost) return;
             var payload = new InitiativeSyncPayload
             {
                 Round = round,
@@ -560,6 +878,7 @@ namespace Soulstone.Managers
 
         public void BroadcastInitiativeTurn(int round, int turnNumber, string? activeId, string echoText = "")
         {
+            if (!IsSessionHost) return;
             var payload = new InitiativeTurnPayload
             {
                 Round = round,
@@ -572,18 +891,19 @@ namespace Soulstone.Managers
 
         public void BroadcastInitiativeReset(string echoText = "")
         {
+            if (!IsSessionHost) return;
             SendPacket(SyncEventType.InitiativeReset, new object(), echoText);
         }
 
         public void BroadcastParticipantUpsert(InitiativeParticipant participant, string echoText = "")
         {
-            if (participant == null) return;
+            if (participant == null || !IsSessionHost) return;
             SendPacket(SyncEventType.InitiativeAddOrUpdate, participant, echoText);
         }
 
         public void BroadcastParticipantRemove(string participantId, string echoText = "")
         {
-            if (string.IsNullOrWhiteSpace(participantId)) return;
+            if (string.IsNullOrWhiteSpace(participantId) || !IsSessionHost) return;
             SendPacket(SyncEventType.InitiativeRemove, participantId, echoText);
         }
 
@@ -623,7 +943,7 @@ namespace Soulstone.Managers
 
         public void BroadcastRuleset(DiceSystem system)
         {
-            if (system == null) return;
+            if (system == null || !IsSessionHost) return;
 
             try
             {
@@ -668,6 +988,7 @@ namespace Soulstone.Managers
         {
             RefreshPartyList();
             SendPacket(SyncEventType.SyncRequest, new object());
+            BroadcastPrivateStats();
         }
     }
 }

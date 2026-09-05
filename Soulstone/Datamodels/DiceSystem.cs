@@ -161,28 +161,46 @@ namespace Soulstone.Datamodels
         public static DiceSystem? LoadDiceSystem(string systemName, bool isFullPath = false)
         {
             string path = isFullPath ? systemName : $"{Plugin.dataLocation}/diceSystem/{systemName}.json";
-            if (File.Exists(path))
+            try
             {
-                Plugin.Log.Information($"Loading existing dice system from {path}");
-                return JsonSerializer.Deserialize<DiceSystem>(File.ReadAllText(path));
+                if (File.Exists(path))
+                {
+                    Plugin.Log?.Information($"Loading existing dice system from {path}");
+                    return JsonSerializer.Deserialize<DiceSystem>(File.ReadAllText(path));
+                }
+                else
+                {
+                    Plugin.Log?.Information("No existing dice system found, creating a new one.");
+                    DiceSystem newSystem = new DiceSystem();
+                    SaveDiceSystem(newSystem);
+                    return newSystem;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Plugin.Log.Information("No existing dice system found, creating a new one.");
-                DiceSystem newSystem = new DiceSystem();
-                SaveDiceSystem(newSystem);
-                return newSystem;
+                Plugin.Log?.Error(ex, $"Failed to load dice system '{systemName}' from path '{path}'");
+                return null;
             }
         }
 
         public static void SaveDiceSystem(DiceSystem system)
         {
-            if (!Directory.Exists($"{Plugin.dataLocation}/diceSystem"))
+            if (system == null) return;
+            try
             {
-                Directory.CreateDirectory($"{Plugin.dataLocation}/diceSystem");
+                if (!Directory.Exists($"{Plugin.dataLocation}/diceSystem"))
+                {
+                    Directory.CreateDirectory($"{Plugin.dataLocation}/diceSystem");
+                }
+                string systemName = (system.SystemName ?? "dice_system").Replace(" ", "_").ToLower();
+                var path = $"{Plugin.dataLocation}/diceSystem/{systemName}.json";
+                Plugin.Log?.Information($"Saving dice system '{system.SystemName}' to {path}");
+                File.WriteAllText(path, JsonSerializer.Serialize(system, new JsonSerializerOptions { WriteIndented = true }));
             }
-            string systemName = system.SystemName.Replace(" ", "_").ToLower();
-            File.WriteAllText($"{Plugin.dataLocation}/diceSystem/{systemName}.json", JsonSerializer.Serialize(system, new JsonSerializerOptions { WriteIndented = true }));
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Failed to save dice system '{system.SystemName}'");
+            }
         }
     }
 }

@@ -265,29 +265,40 @@ namespace Soulstone.Windows
         {
             if (string.IsNullOrWhiteSpace(rollInputText)) return;
 
-            Plugin.Log.Info($"Rolling dice with input: {rollInputText}");
-            DiceRoll? DR = DiceRoll.ParseDiceRollString(rollInputText);
-            if (DR != null)
+            try
             {
-                var resultSeString = !detailedRoll ? DR.RollResultString : DR.RollDetailedResultString;
-                XivChatEntry rollMessage = new XivChatEntry
+                Plugin.Log?.Information($"Rolling dice with input: {rollInputText}");
+                DiceRoll? DR = DiceRoll.ParseDiceRollString(rollInputText, advantage, disadvantage);
+                if (DR != null)
                 {
-                    Message = resultSeString,
-                    Type = XivChatType.Echo
-                };
-                Messages.SendMessage(rollMessage);
+                    var resultSeString = !detailedRoll ? DR.RollResultString : DR.RollDetailedResultString;
+                    XivChatEntry rollMessage = new XivChatEntry
+                    {
+                        Message = resultSeString,
+                        Type = XivChatType.Echo
+                    };
+                    Messages.SendMessage(rollMessage);
+                    PartySyncManager.Instance.BroadcastDiceRoll(
+                        rollInputText,
+                        DR.RollResult,
+                        string.Join(", ", DR.IndividualRolls));
 
-                rollHistory.Add(new RollHistoryEntry
-                {
-                    Timestamp = DateTime.Now,
-                    Formula = rollInputText,
-                    ResultText = resultSeString.TextValue
-                });
+                    rollHistory.Add(new RollHistoryEntry
+                    {
+                        Timestamp = DateTime.Now,
+                        Formula = rollInputText,
+                        ResultText = resultSeString.TextValue
+                    });
 
-                if (rollHistory.Count > MaxHistoryCount)
-                {
-                    rollHistory.RemoveAt(0);
+                    if (rollHistory.Count > MaxHistoryCount)
+                    {
+                        rollHistory.RemoveAt(0);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Failed to execute roll for '{rollInputText}' in DiceWindow");
             }
         }
     }

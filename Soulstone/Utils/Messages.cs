@@ -25,7 +25,7 @@ namespace Soulstone.Utils
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Information($"[Echo] {formatedMessage.Message}: {ex.Message}");
+                Plugin.Log?.Warning(ex, $"[Echo] Failed to print echo for message: {formatedMessage.Message}");
             }
         }
 
@@ -73,32 +73,48 @@ namespace Soulstone.Utils
                     });
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Non-game or test environment
+                Plugin.Log?.Debug(ex, "sendMessageUnsafe failed (expected in unit test / headless environment)");
             }
         }
 
         public static unsafe void SendMessage(XivChatEntry formatedMessage)
         {
-            if (formatedMessage.Type == XivChatType.Echo)
+            try
             {
-                PrintEcho(formatedMessage);
-                return;
+                if (formatedMessage.Type == XivChatType.Echo)
+                {
+                    PrintEcho(formatedMessage);
+                    return;
+                }
+
+                string message = formatedMessage.Message.ToString();
+                byte[] bytes = Encoding.UTF8.GetBytes(message);
+                if (bytes.Length == 0)
+                {
+                    Plugin.Log?.Warning("Cannot send message: message is empty");
+                    return;
+                }
+
+                if (bytes.Length > 500)
+                {
+                    Plugin.Log?.Warning("Cannot send message: message is longer than 500 bytes");
+                    return;
+                }
+
+                if (message.Length != SanitiseText(message).Length)
+                {
+                    Plugin.Log?.Warning("Cannot send message: message contains invalid characters");
+                    return;
+                }
+
+                sendMessageUnsafe(bytes, formatedMessage.Type);
             }
-
-            string message = formatedMessage.Message.ToString();
-            byte[] bytes = Encoding.UTF8.GetBytes(message);
-            if (bytes.Length == 0)
-                throw new ArgumentException("message is empty", nameof(message));
-
-            if (bytes.Length > 500)
-                throw new ArgumentException("message is longer than 500 bytes", nameof(message));
-
-            if (message.Length != SanitiseText(message).Length)
-                throw new ArgumentException("message contained invalid characters", nameof(message));
-
-            sendMessageUnsafe(bytes, formatedMessage.Type);
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to send chat message in Messages.SendMessage");
+            }
         }
 
         private static unsafe string SanitiseText(string text)

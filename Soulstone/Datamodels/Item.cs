@@ -259,13 +259,29 @@ namespace Soulstone.Datamodels
 
         public string ToJson()
         {
-            return JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+            try
+            {
+                return JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Error serializing item '{Name}' to JSON");
+                return "{}";
+            }
         }
 
         public static Item? FromJson(string json)
         {
             if (string.IsNullOrWhiteSpace(json)) return null;
-            return JsonSerializer.Deserialize<Item>(json);
+            try
+            {
+                return JsonSerializer.Deserialize<Item>(json);
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Error deserializing item from JSON");
+                return null;
+            }
         }
 
         public static List<Item> ImportFromJson(string json)
@@ -323,7 +339,7 @@ namespace Soulstone.Datamodels
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Error($"Error parsing item json: {ex.Message}");
+                Plugin.Log?.Error(ex, $"Error parsing item json: {ex.Message}");
             }
 
             foreach (var item in list)
@@ -368,6 +384,7 @@ namespace Soulstone.Datamodels
             }
             catch (Exception ex)
             {
+                Plugin.Log?.Error(ex, $"Exception in TryImportFromJson: {ex.Message}");
                 error = ex.Message;
                 return false;
             }

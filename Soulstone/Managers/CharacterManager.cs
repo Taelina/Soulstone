@@ -40,35 +40,71 @@ namespace Soulstone.Managers
 
         public void Init()
         {
-            var localPlayer = Plugin.ObjectTable.LocalPlayer;
-            if(localPlayer != null)
+            try
+            {
+                if (Plugin.ObjectTable == null) return;
+                var localPlayer = Plugin.ObjectTable.LocalPlayer;
+                if (localPlayer != null)
                 {
-                SeString playerName = localPlayer.Name;
-                Plugin.Log.Information($"Loading character data for {playerName.TextValue}");
-                CharacterSheet = LoadCharacterData(playerName.TextValue);
-            }            
+                    SeString playerName = localPlayer.Name;
+                    Plugin.Log?.Information($"Loading character data for {playerName.TextValue}");
+                    CharacterSheet = LoadCharacterData(playerName.TextValue);
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to initialize character data in CharacterManager.Init()");
+            }
+        }
+
+        public void Reset()
+        {
+            charLoaded = false;
+            characterSheet = null;
         }
 
         public void ForceLoadCharData(string charName)
         {
-            Plugin.Log.Information($"Force loading character data for {charName}");
-            CharacterSheet = CharacterSheet.LoadSheet(charName);
+            try
+            {
+                Plugin.Log?.Information($"Force loading character data for {charName}");
+                CharacterSheet = CharacterSheet.LoadSheet(charName);
+                if (CharacterSheet != null)
+                {
+                    charLoaded = true;
+                }
+                else
+                {
+                    Plugin.Log?.Warning($"Failed to force load character sheet for '{charName}'.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Exception in ForceLoadCharData for '{charName}'");
+            }
         }
 
         private CharacterSheet? LoadCharacterData(string charName)
         {
-            if (!charLoaded)
+            try
             {
-                CharacterSheet = CharacterSheet.LoadSheet(charName);
+                if (!charLoaded || CharacterSheet == null || !string.Equals(CharacterSheet.CharacterFullName, charName, StringComparison.OrdinalIgnoreCase))
+                {
+                    CharacterSheet = CharacterSheet.LoadSheet(charName);
+                }
+                if (CharacterSheet != null)
+                {
+                    charLoaded = true;
+                    return CharacterSheet;
+                }
+                else
+                {
+                    Plugin.Log?.Warning($"Failed to load character sheet for '{charName}'.");
+                }
             }
-            if (CharacterSheet != null)
+            catch (Exception ex)
             {
-                charLoaded = true;
-                return CharacterSheet;
-            }
-            else
-            {
-                Plugin.Log.Warning("Failed to load character sheet.");
+                Plugin.Log?.Error(ex, $"Exception in LoadCharacterData for '{charName}'");
             }
             return null;
         }

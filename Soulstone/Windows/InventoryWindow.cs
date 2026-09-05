@@ -1095,6 +1095,7 @@ namespace Soulstone.Windows
                         }
                         catch (Exception ex)
                         {
+                            Plugin.Log?.Error(ex, $"Failed to import items from file '{filePath}'");
                             importStatusIsError = true;
                             importStatusMessage = string.Format(LocalizationManager.Instance.GetLocalizedString("InventoryImportError"), ex.Message);
                         }
@@ -1112,22 +1113,32 @@ namespace Soulstone.Windows
 
                 if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryImportConfirmBtn")}###ConfirmImportBtn", new Vector2(180.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
                 {
-                    if (Item.TryImportFromJson(importRawText, out var importedItems, out var err))
+                    try
                     {
-                        int count = 0;
-                        foreach (var it in importedItems)
+                        if (Item.TryImportFromJson(importRawText, out var importedItems, out var err))
                         {
-                            sheet.AddItem(it);
-                            count++;
+                            int count = 0;
+                            foreach (var it in importedItems)
+                            {
+                                sheet.AddItem(it);
+                                count++;
+                            }
+                            importStatusIsError = false;
+                            importStatusMessage = string.Format(LocalizationManager.Instance.GetLocalizedString("InventoryImportSuccess"), count);
+                            importRawText = string.Empty;
                         }
-                        importStatusIsError = false;
-                        importStatusMessage = string.Format(LocalizationManager.Instance.GetLocalizedString("InventoryImportSuccess"), count);
-                        importRawText = string.Empty;
+                        else
+                        {
+                            Plugin.Log?.Warning($"Failed to import items from raw text: {err}");
+                            importStatusIsError = true;
+                            importStatusMessage = string.Format(LocalizationManager.Instance.GetLocalizedString("InventoryImportError"), err);
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
+                        Plugin.Log?.Error(ex, "Failed to import items from raw text input");
                         importStatusIsError = true;
-                        importStatusMessage = string.Format(LocalizationManager.Instance.GetLocalizedString("InventoryImportError"), err);
+                        importStatusMessage = string.Format(LocalizationManager.Instance.GetLocalizedString("InventoryImportError"), ex.Message);
                     }
                 }
 

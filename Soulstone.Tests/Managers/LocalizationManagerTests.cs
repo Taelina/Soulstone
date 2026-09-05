@@ -1,4 +1,8 @@
-﻿using System.Runtime.CompilerServices;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
 using FluentAssertions;
 using Xunit;
 using Soulstone.Localizations;
@@ -41,7 +45,7 @@ namespace Soulstone.Tests.Managers
         }
 
         [Fact]
-        public void InitLoc_ShouldLoadBothFrenchAndEnglish()
+        public void InitLoc_ShouldLoadBothFrenchAndEnglishFromEmbeddedResources()
         {
             // Assert
             LocalizationManager.Instance.LocalizedLanguages.Should().ContainKey(Language.Français);
@@ -52,6 +56,8 @@ namespace Soulstone.Tests.Managers
 
             french.LocalizedStrings.Should().NotBeEmpty();
             english.LocalizedStrings.Should().NotBeEmpty();
+            french.LocalizedStrings.Count.Should().BeGreaterThan(100);
+            english.LocalizedStrings.Count.Should().BeGreaterThan(100);
         }
 
         [Fact]
@@ -144,6 +150,22 @@ namespace Soulstone.Tests.Managers
         }
 
         [Fact]
+        public void GetLocalizedString_WithFormattingArgs_FormatsProperly()
+        {
+            // Arrange
+            configuration.Language = Language.English;
+
+            // Act
+            string resultEn = LocalizationManager.Instance.GetLocalizedString("InitiativeRound", 3);
+            configuration.Language = Language.Français;
+            string resultFr = LocalizationManager.Instance.GetLocalizedString("InitiativeRound", 3);
+
+            // Assert
+            resultEn.Should().Be("Round: 3");
+            resultFr.Should().Be("Tour de table : 3");
+        }
+
+        [Fact]
         public void GetLocalizedString_WhenKeyDoesNotExist_ReturnsKeyNameAsFallback()
         {
             // Arrange
@@ -154,6 +176,79 @@ namespace Soulstone.Tests.Managers
 
             // Assert
             result.Should().Be("NonExistentKey");
+        }
+
+        [Fact]
+        public void GetLocalizedString_WhenKeyMissingInFrench_FallsBackToEnglish()
+        {
+            // Arrange
+            configuration.Language = Language.Français;
+            var frenchLoc = LocalizationManager.Instance.LocalizedLanguages[Language.Français];
+            var englishLoc = LocalizationManager.Instance.LocalizedLanguages[Language.English];
+
+            englishLoc.LocalizedStrings["EnglishOnlyKey"] = "English Fallback Value";
+            frenchLoc.LocalizedStrings.Remove("EnglishOnlyKey");
+
+            // Act
+            string result = LocalizationManager.Instance.GetLocalizedString("EnglishOnlyKey");
+
+            // Assert
+            result.Should().Be("English Fallback Value");
+        }
+
+        [Fact]
+        public void LoadFromDirectory_ShouldMergeAndOverrideTranslations()
+        {
+            // Arrange
+            string tempDir = Path.Combine(Path.GetTempPath(), "SoulstoneLocTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+
+            try
+            {
+                var customEn = new Dictionary<string, string>
+                {
+                    { "CustomOverrideKey", "Custom English Value" },
+                    { "AddButton", "Custom Plus" }
+                };
+                File.WriteAllText(Path.Combine(tempDir, "en.json"), JsonSerializer.Serialize(customEn));
+
+                // Act
+                LocalizationManager.Instance.LoadFromDirectory(tempDir);
+                configuration.Language = Language.English;
+
+                // Assert
+                LocalizationManager.Instance.GetLocalizedString("CustomOverrideKey").Should().Be("Custom English Value");
+                LocalizationManager.Instance.GetLocalizedString("AddButton").Should().Be("Custom Plus");
+            }
+            finally
+            {
+                if (Directory.Exists(tempDir))
+                {
+                    Directory.Delete(tempDir, true);
+                }
+                LocalizationManager.Instance.Reload();
+            }
+        }
+
+        [Theory]
+        [InlineData(Language.Français, "fr")]
+        [InlineData(Language.English, "en")]
+        public void LanguageExtensions_GetCode_ReturnsCorrectCode(Language lang, string expectedCode)
+        {
+            lang.GetCode().Should().Be(expectedCode);
+        }
+
+        [Theory]
+        [InlineData("fr", Language.Français)]
+        [InlineData("FR", Language.Français)]
+        [InlineData("french", Language.Français)]
+        [InlineData("en", Language.English)]
+        [InlineData("EN", Language.English)]
+        [InlineData("english", Language.English)]
+        [InlineData("unknown", Language.English)]
+        public void LanguageExtensions_FromCode_ParsesCorrectly(string code, Language expectedLang)
+        {
+            LanguageExtensions.FromCode(code).Should().Be(expectedLang);
         }
     }
 }

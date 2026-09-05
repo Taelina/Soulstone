@@ -21,9 +21,28 @@ public class Configuration : IPluginConfiguration
 
     public Language Language { get; set; } = Language.Français;
 
+    public string SyncServerUrl { get; set; } = "http://127.0.0.1:5077";
+    public string SyncSessionId { get; set; } = string.Empty;
+    public string SyncHostToken { get; set; } = string.Empty;
+    public string SyncMemberToken { get; set; } = string.Empty;
+    public string SyncRoomKey { get; set; } = string.Empty;
+    public string SyncHostPublicKey { get; set; } = string.Empty;
+    public string SyncHostPrivateKey { get; set; } = string.Empty;
+    public string SyncHostName { get; set; } = string.Empty;
+    public string SyncHostWorld { get; set; } = string.Empty;
+    public string SyncInviteCode { get; set; } = string.Empty;
+    public bool SyncAutoConnect { get; set; } = true;
+
     // The below exist just to make saving less cumbersome
     public void Save()
     {
-        Plugin.PluginInterface.SavePluginConfig(this);
+        try
+        {
+            Plugin.PluginInterface?.SavePluginConfig(this);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log?.Error(ex, "Failed to save configuration via PluginInterface.SavePluginConfig");
+        }
     }
 }

@@ -183,9 +183,27 @@ Defines the active tabletop rule engine.
   - `ResetCombat()`
 
 ### 4.4 `LocalizationManager`
-- Provides localized strings via `GetLocalizedString(key)`.
+- Provides localized strings via `GetLocalizedString(key)` and parameterized formatting via `GetLocalizedString(key, args...)`.
+- Automatically loads embedded JSON translation files (`Soulstone/Localizations/en.json`, `Soulstone/Localizations/fr.json`).
+- Supports hot-loading external community translation files from `<DataLocation>/Localizations/*.json`.
 - Supports instant language switching between English and French without requiring plugin restart.
-- Thread-safe dictionary lookups with fallback to English if a key is missing.
+- Thread-safe dictionary lookups with automatic fallback to English if a key is missing in French, and fallback to key name if missing entirely.
+
+### 4.5 `PartySyncManager` & Relay Transport
+- Connects separate Soulstone instances through the standalone `Soulstone.SyncServer` WebSocket relay.
+- Synchronization payloads are never sent through FFXIV chat. The relay forwards opaque encrypted envelopes and does not persist session data.
+- Group messages use AES-256-GCM authenticated encryption. DM commands are signed with the session host's RSA key so members reject forged ruleset, initiative, and roll-request events.
+- Private stat snapshots use a random per-message AES key wrapped with the DM's RSA public key and are routed only to host connections. Other members cannot decrypt them.
+- Resource bars, buffs, presence, and rolls are group-scoped. Full attributes, skills, abilities, class, and level are DM-scoped.
+- The group UI supports session creation, out-of-game invite codes, reconnection, roll requests, delegated rolls, and DM-only stat inspection.
+
+### 4.6 `Soulstone.SyncServer`
+- Independent ASP.NET Core 8 project with no database and no application NuGet dependencies.
+- Creates cryptographically random host/member credentials, holds rooms in memory for at most 12 hours, and removes empty rooms after 5 minutes.
+- Enforces 16 clients per room, 64 KiB messages, 20 messages per 10 seconds per connection, and throttled session creation.
+- Routes `group` envelopes to other room members and `host` envelopes only to the DM connection.
+- Emits timestamped lifecycle, rejection, and transport logs without logging credentials or encrypted payloads.
+- Runs non-interactively on `http://127.0.0.1:5077` by default. Internet deployments must expose it through HTTPS/WSS; see [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) and [`Soulstone.SyncServer/README.md`](../Soulstone.SyncServer/README.md).
 
 ---
 
@@ -202,6 +220,7 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 | `GearWindow` | Interactive equipment paper doll loadout, equip slot selectors, and passive modifier summary. |
 | `AugmentationsWindow` | Cyberware body slot layout, installed cybernetics inspector, and essence/humanity tracker. |
 | `InitiativeTrackerWindow` | Combat tracker with initiative sorting, turn cycling, quick damage/heal buttons, and condition badges. |
+| `GroupWindow` | Encrypted relay session setup, party resource roster, DM roll controls, and private stat inspection. |
 | `DiceWindow` | Freeform dice expression calculator, advantage toggles, and chat output broadcast. |
 | `DiceSystemWindow` | Rule engine editor for system type, thresholds, dice types, and dynamic resource definitions. |
 | `ConfigWindow` | Settings window for language selection, chat channels, detailed roll output, and UI options. |
@@ -260,6 +279,9 @@ The `Soulstone.Tests` project provides automated unit testing using **xUnit** an
   - `DiceSystemManagerTests`: Ruleset persistence and resource synchronization.
   - `InitiativeTrackerManagerTests`: Turn order sorting, round cycling, participant state.
   - `LocalizationManagerTests`: English and French key parity, missing key fallbacks.
+  - `PartySyncManagerTests`: Invite validation, authenticated encryption, DM signatures, stat privacy, and synchronized state updates.
+- **`Soulstone.SyncServer.Tests`**:
+  - Relay protocol validation, authentication, room limits, rate limits, unattended health/session endpoints, group routing, and host-only routing.
 - **`Utils/`**:
   - `DiceRollTests`: Standard, Dice Pool, and Percentile roll arithmetic and string formatting.
   - `MessagesTests`: Chat payload generation.
@@ -272,19 +294,23 @@ All tests run sequentially or under `[Collection("NonParallelCollection")]` wher
 ## 8. Extensibility & Developer Guide
 
 ### Adding a New Localization String
-1. Open `Soulstone/Managers/LocalizationManager.cs`.
-2. Add the key and its French translation to `FrenchTranslations` dictionary:
-   ```csharp
-   { "MyNewKey", "Mon texte en français" },
+1. Open `Soulstone/Localizations/fr.json` and add the translation:
+   ```json
+   "MyNewKey": "Mon texte en français"
    ```
-3. Add the key and its English translation to `EnglishTranslations` dictionary:
-   ```csharp
-   { "MyNewKey", "My English text" },
+2. Open `Soulstone/Localizations/en.json` and add the translation:
+   ```json
+   "MyNewKey": "My English text"
    ```
-4. Access the localized string anywhere in UI via:
+3. Access the localized string anywhere in UI via:
    ```csharp
    LocalizationManager.Instance.GetLocalizedString("MyNewKey");
+   // Or with format arguments:
+   LocalizationManager.Instance.GetLocalizedString("MyFormattedKey", arg1, arg2);
    ```
+
+### Overriding / Community Translations
+Drop custom `<language_code>.json` (e.g. `de.json`, `es.json`, `fr.json`) into the plugin's `Localizations/` directory located inside the plugin data folder. `LocalizationManager` automatically merges and overrides localized strings at runtime.
 
 ### Adding a Custom Dynamic Resource Formula
 Formulas use `@` prefixed attribute names:

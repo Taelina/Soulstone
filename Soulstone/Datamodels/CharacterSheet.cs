@@ -842,103 +842,134 @@ namespace Soulstone.Datamodels
         {
             string path = isFullPath ? characterName : $"{Plugin.dataLocation}/sheets/{characterName.Replace(" ", "_").ToLower()}.json";
             CharacterSheet? loadedSheet = null;
-            if (!File.Exists(path))
+            try
             {
-                Plugin.Log.Information("No existing character sheet found, creating a new one.");
-                CharacterSheet newsheet = new CharacterSheet();
-                newsheet.CharacterFullName = characterName;
-                SaveSheet(newsheet);
+                if (!File.Exists(path))
+                {
+                    Plugin.Log?.Information("No existing character sheet found, creating a new one.");
+                    CharacterSheet newsheet = new CharacterSheet();
+                    newsheet.CharacterFullName = characterName;
+                    SaveSheet(newsheet);
+                }
+
+                Plugin.Log?.Information($"Loading existing character sheet from {path}");
+                string loadedfile = File.ReadAllText(path);
+
+                if (!string.IsNullOrEmpty(loadedfile))
+                {
+                    loadedSheet = JsonSerializer.Deserialize<CharacterSheet>(loadedfile);
+                }
+
+                if (loadedSheet != null)
+                {
+                    if (loadedSheet.characterFamily == null)
+                    {
+                        loadedSheet.characterFamily = new Dictionary<string, string>();
+                    }
+
+                    if (loadedSheet.characterFriends == null)
+                    {
+                        loadedSheet.characterFriends = new Dictionary<string, string>();
+                    }
+
+                    if (loadedSheet.characterEnnemies == null)
+                    {
+                        loadedSheet.characterEnnemies = new Dictionary<string, string>();
+                    }
+
+                    if (loadedSheet.characterAttributes == null)
+                    {
+                        loadedSheet.characterAttributes = new Dictionary<string, Attribute>();
+                    }
+
+                    if (loadedSheet.characterSkills == null)
+                    {
+                        loadedSheet.characterSkills = new Dictionary<string, Skill>();
+                    }
+
+                    if (loadedSheet.characterAbilities == null)
+                    {
+                        loadedSheet.characterAbilities = new Dictionary<string, Ability>();
+                    }
+
+                    if (loadedSheet.characterInventory == null)
+                    {
+                        loadedSheet.characterInventory = new List<Item>();
+                    }
+
+                    if (loadedSheet.customItemTypes == null)
+                    {
+                        loadedSheet.customItemTypes = new List<string>();
+                    }
+
+                    if (loadedSheet.equippedGear == null)
+                    {
+                        loadedSheet.equippedGear = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    }
+
+                    if (loadedSheet.equippedAugmentations == null)
+                    {
+                        loadedSheet.equippedAugmentations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    }
+
+                    if (loadedSheet.characterResources == null)
+                    {
+                        loadedSheet.characterResources = new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
+                    }
+
+                    if (loadedSheet.activeBuffs == null)
+                    {
+                        loadedSheet.activeBuffs = new List<Buff>();
+                    }
+
+                    loadedSheet.SyncResourcesWithLegacyFields();
+
+                    return loadedSheet;
+                }
+                else
+                {
+                    Plugin.Log?.Warning("Failed to load character sheet.");
+                    return null;
+                }
             }
-
-            Plugin.Log.Information($"Loading existing character sheet from {path}");
-            string loadedfile = File.ReadAllText(path);
-
-            if(!string.IsNullOrEmpty(loadedfile))
+            catch (Exception ex)
             {
-                loadedSheet = JsonSerializer.Deserialize<CharacterSheet>(loadedfile);
-            }
-
-            if (loadedSheet != null)
-            {
-                if(loadedSheet.characterFamily == null)
-                {
-                    loadedSheet.characterFamily = new Dictionary<string, string>();
-                }
-
-                if (loadedSheet.characterFriends == null)
-                {
-                    loadedSheet.characterFriends = new Dictionary<string, string>();
-                }
-
-                if(loadedSheet.characterEnnemies == null)
-                {
-                    loadedSheet.characterEnnemies = new Dictionary<string, string>();
-                }
-
-                if (loadedSheet.characterAttributes == null)
-                {
-                    loadedSheet.characterAttributes = new Dictionary<string, Attribute>();
-                }
-
-                if (loadedSheet.characterSkills == null)
-                {
-                    loadedSheet.characterSkills = new Dictionary<string, Skill>();
-                }
-
-                if (loadedSheet.characterAbilities == null)
-                {
-                    loadedSheet.characterAbilities = new Dictionary<string, Ability>();
-                }
-
-                if (loadedSheet.characterInventory == null)
-                {
-                    loadedSheet.characterInventory = new List<Item>();
-                }
-
-                if (loadedSheet.customItemTypes == null)
-                {
-                    loadedSheet.customItemTypes = new List<string>();
-                }
-
-                if (loadedSheet.equippedGear == null)
-                {
-                    loadedSheet.equippedGear = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                }
-
-                if (loadedSheet.equippedAugmentations == null)
-                {
-                    loadedSheet.equippedAugmentations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                }
-
-                if (loadedSheet.characterResources == null)
-                {
-                    loadedSheet.characterResources = new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
-                }
-
-                if (loadedSheet.activeBuffs == null)
-                {
-                    loadedSheet.activeBuffs = new List<Buff>();
-                }
-
-                loadedSheet.SyncResourcesWithLegacyFields();
-
-                return loadedSheet;
-            }
-            else
-            {
-                Plugin.Log.Information("Failed to load character sheet.");
+                Plugin.Log?.Error(ex, $"Failed to load character sheet for '{characterName}' from path '{path}'");
                 return null;
             }
         }
 
         public static void SaveSheet(CharacterSheet sheet)
         {
-            if(!Directory.Exists($"{Plugin.dataLocation}/sheets"))
+            if (sheet == null) return;
+            try
             {
-                Directory.CreateDirectory($"{Plugin.dataLocation}/sheets");
+                if (!Directory.Exists($"{Plugin.dataLocation}/sheets"))
+                {
+                    Directory.CreateDirectory($"{Plugin.dataLocation}/sheets");
+                }
+                var characterName = (sheet.CharacterFullName ?? "character").Replace(" ", "_").ToLower();
+                var path = $"{Plugin.dataLocation}/sheets/{characterName}.json";
+                Plugin.Log?.Information($"Saving character sheet for {sheet.CharacterFullName} to {path}");
+                File.WriteAllText(path, JsonSerializer.Serialize(sheet, new JsonSerializerOptions { WriteIndented = true }));
+
+                try
+                {
+                    if (PartySyncManager.Instance.IsConnected)
+                    {
+                        PartySyncManager.Instance.BroadcastResourceUpdate();
+                        PartySyncManager.Instance.BroadcastPrivateStats();
+                    }
+                }
+                catch (Exception syncEx)
+                {
+                    Plugin.Log?.Debug(syncEx, "Failed to broadcast sync update on character sheet save");
+                }
             }
-            var characterName = sheet.CharacterFullName.Replace(" ", "_").ToLower();
-            File.WriteAllText($"{Plugin.dataLocation}/sheets/{characterName}.json", JsonSerializer.Serialize(sheet, new JsonSerializerOptions { WriteIndented = true}));
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Failed to save character sheet for '{sheet.CharacterFullName}'");
+            }
         }
     }
 }

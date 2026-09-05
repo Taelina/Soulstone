@@ -1,9 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
-using System.Text;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Soulstone.Datamodels
@@ -19,14 +15,13 @@ namespace Soulstone.Datamodels
         RulesetBroadcast = 6,
         BuffUpdate = 7,
         SyncRequest = 8,
-        InitiativeRemove = 9
+        InitiativeRemove = 9,
+        RollRequest = 10,
+        PrivateStats = 11
     }
 
     public class PartySyncPacket
     {
-        public const string PacketPrefix = "[SS:v1:";
-        public const string PacketSuffix = "]";
-
         [JsonPropertyName("v")]
         public int ProtocolVersion { get; set; } = 1;
 
@@ -41,54 +36,6 @@ namespace Soulstone.Datamodels
 
         [JsonPropertyName("p")]
         public string PayloadJson { get; set; } = string.Empty;
-
-        public static string EncodePacket(PartySyncPacket packet)
-        {
-            try
-            {
-                string json = JsonSerializer.Serialize(packet);
-                byte[] bytes = Encoding.UTF8.GetBytes(json);
-                string base64 = Convert.ToBase64String(bytes);
-                return $"{PacketPrefix}{base64}{PacketSuffix}";
-            }
-            catch
-            {
-                return string.Empty;
-            }
-        }
-
-        public static bool TryDecodePacket(string message, out PartySyncPacket? packet, out string cleanText)
-        {
-            packet = null;
-            cleanText = message ?? string.Empty;
-
-            if (string.IsNullOrWhiteSpace(message)) return false;
-
-            int prefixIndex = message.IndexOf(PacketPrefix, StringComparison.Ordinal);
-            if (prefixIndex < 0) return false;
-
-            int suffixIndex = message.IndexOf(PacketSuffix, prefixIndex + PacketPrefix.Length, StringComparison.Ordinal);
-            if (suffixIndex < 0) return false;
-
-            string base64Content = message.Substring(prefixIndex + PacketPrefix.Length, suffixIndex - (prefixIndex + PacketPrefix.Length));
-
-            // Remove the packet tag from the message for clean display
-            string before = message.Substring(0, prefixIndex);
-            string after = message.Substring(suffixIndex + PacketSuffix.Length);
-            cleanText = (before + after).Trim();
-
-            try
-            {
-                byte[] bytes = Convert.FromBase64String(base64Content);
-                string json = Encoding.UTF8.GetString(bytes);
-                packet = JsonSerializer.Deserialize<PartySyncPacket>(json);
-                return packet != null;
-            }
-            catch
-            {
-                return false;
-            }
-        }
     }
 
     public class PresencePayload
@@ -109,6 +56,7 @@ namespace Soulstone.Datamodels
     public class DiceRollPayload
     {
         public string CharacterName { get; set; } = string.Empty;
+        public string RolledBy { get; set; } = string.Empty;
         public string RollName { get; set; } = string.Empty;
         public int Total { get; set; }
         public string Details { get; set; } = string.Empty;
@@ -154,5 +102,27 @@ namespace Soulstone.Datamodels
     {
         public string CharacterName { get; set; } = string.Empty;
         public List<Buff> ActiveBuffs { get; set; } = new();
+    }
+
+    public class RollRequestPayload
+    {
+        public string RequestId { get; set; } = Guid.NewGuid().ToString("N");
+        public string RequestedBy { get; set; } = string.Empty;
+        public string TargetName { get; set; } = string.Empty;
+        public string RollName { get; set; } = string.Empty;
+        public string Formula { get; set; } = "1d20";
+        public bool Advantage { get; set; }
+        public bool Disadvantage { get; set; }
+    }
+
+    public class PrivateStatsPayload
+    {
+        public string CharacterName { get; set; } = string.Empty;
+        public string TargetName { get; set; } = string.Empty;
+        public int Level { get; set; }
+        public string ClassName { get; set; } = string.Empty;
+        public Dictionary<string, int> Attributes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> Skills { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> Abilities { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 }
