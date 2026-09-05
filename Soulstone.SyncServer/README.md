@@ -8,7 +8,7 @@ This is a standalone, non-interactive ASP.NET Core relay. It stores rooms only i
 dotnet run --project .\Soulstone.SyncServer\Soulstone.SyncServer.csproj
 ```
 
-The unattended default is `http://0.0.0.0:5077`. Set `ASPNETCORE_URLS` to choose another listener. Public deployments must terminate TLS and expose this service as HTTPS/WSS; the Soulstone client rejects plain remote HTTP.
+The unattended default is `http://0.0.0.0:5077`. Set `ASPNETCORE_URLS` to choose another listener. Both HTTP and HTTPS/TLS deployments are supported.
 
 ## Publish a standalone executable
 

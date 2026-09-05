@@ -195,9 +195,6 @@ namespace Soulstone.Sync
                 (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
                 throw new ArgumentException("Enter a valid HTTP(S) Soulstone relay URL.");
 
-            bool local = uri.IsLoopback || string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase);
-            if (!local && uri.Scheme != Uri.UriSchemeHttps)
-                throw new ArgumentException("Remote Soulstone relays must use HTTPS/WSS.");
             return uri;
         }
 

@@ -36,13 +36,6 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-string configuredUrls = builder.Configuration["urls"] ?? "http://0.0.0.0:5077";
-if (!app.Environment.IsDevelopment() && configuredUrls.Contains("https://", StringComparison.OrdinalIgnoreCase))
-{
-    app.UseHsts();
-    app.UseHttpsRedirection();
-}
-
 app.UseWebSockets(new WebSocketOptions
 {
     KeepAliveInterval = TimeSpan.FromMinutes(2),

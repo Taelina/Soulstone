@@ -438,5 +438,32 @@ namespace Soulstone.Tests.Managers
             Assert.True(executed);
             Assert.False(syncMgr.PendingRollRequests.ContainsKey("req-12345"));
         }
+
+        [Fact]
+        public void ShortInviteLink_SupportsRemotePlainHttpUrlsWithoutSsl()
+        {
+            var keys = RelayCrypto.CreateHostKeyPair();
+            var invite = new RelayInvite
+            {
+                ServerUrl = "http://192.168.1.50:5077",
+                SessionId = "session-id",
+                MemberToken = "member-token",
+                RoomKey = RelayCrypto.CreateRoomKey(),
+                HostPublicKey = keys.PublicKey,
+                HostName = "Dungeon Master",
+                HostWorld = "Balmung"
+            };
+
+            string code = RelayCrypto.CreateShortInviteCode();
+            string link = RelayCrypto.CreateShortInviteLink(invite.ServerUrl, code);
+            string payload = RelayCrypto.EncryptInvite(invite, code);
+
+            Assert.StartsWith("http://192.168.1.50:5077/join/", link);
+            Assert.True(RelayCrypto.TryParseShortInviteLink(link, out var serverUrl, out var parsedCode));
+            Assert.Equal("http://192.168.1.50:5077", serverUrl);
+            Assert.Equal(code, parsedCode);
+            Assert.True(RelayCrypto.TryDecryptInvite(payload, parsedCode, out var decoded));
+            Assert.Equal(invite.ServerUrl, decoded!.ServerUrl);
+        }
     }
 }
