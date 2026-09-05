@@ -61,6 +61,10 @@ namespace Soulstone.Datamodels
         public List<ResourceDefinition> systemResources = new();
         public List<string> customEquipmentSlots = new();
 
+        public Dictionary<string, Attribute> systemAttributes = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, Skill> systemSkills = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, Ability> systemAbilities = new(StringComparer.OrdinalIgnoreCase);
+
         public InitiativeStatType initiativeStatType = InitiativeStatType.None;
         public string initiativeStatName = string.Empty;
 
@@ -95,8 +99,83 @@ namespace Soulstone.Datamodels
         public List<string> CustomAugmentationSlots { get => customAugmentationSlots; set => customAugmentationSlots = value; }
         public List<ResourceDefinition> SystemResources { get => systemResources; set => systemResources = value; }
         public List<string> CustomEquipmentSlots { get => customEquipmentSlots; set => customEquipmentSlots = value; }
+        public Dictionary<string, Attribute> SystemAttributes { get => systemAttributes; set => systemAttributes = value; }
+        public Dictionary<string, Skill> SystemSkills { get => systemSkills; set => systemSkills = value; }
+        public Dictionary<string, Ability> SystemAbilities { get => systemAbilities; set => systemAbilities = value; }
         public InitiativeStatType InitiativeStatType { get => initiativeStatType; set => initiativeStatType = value; }
         public string InitiativeStatName { get => initiativeStatName; set => initiativeStatName = value; }
+
+        public void CaptureTemplateFromSheet(CharacterSheet sheet)
+        {
+            if (sheet == null) return;
+
+            if (sheet.characterAttributes != null && sheet.characterAttributes.Count > 0)
+            {
+                systemAttributes = new Dictionary<string, Attribute>(sheet.characterAttributes, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (sheet.characterSkills != null && sheet.characterSkills.Count > 0)
+            {
+                systemSkills = new Dictionary<string, Skill>(sheet.characterSkills, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (sheet.characterAbilities != null && sheet.characterAbilities.Count > 0)
+            {
+                systemAbilities = new Dictionary<string, Ability>(sheet.characterAbilities, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (sheet.characterResources != null && sheet.characterResources.Count > 0)
+            {
+                systemResources ??= new List<ResourceDefinition>();
+                foreach (var kv in sheet.characterResources)
+                {
+                    var res = kv.Value;
+                    var existing = systemResources.FirstOrDefault(r => string.Equals(r.Name, res.Name, StringComparison.OrdinalIgnoreCase));
+                    if (existing != null)
+                    {
+                        existing.DefaultMax = res.MaxValue;
+                        existing.DefaultCurrent = res.CurrentValue;
+                        existing.Formula = res.Formula;
+                    }
+                    else
+                    {
+                        systemResources.Add(new ResourceDefinition(res.Name, res.MaxValue, res.CurrentValue, formula: res.Formula));
+                    }
+                }
+            }
+
+            if (sheet.equippedGear != null && sheet.equippedGear.Count > 0)
+            {
+                customEquipmentSlots ??= new List<string>();
+                foreach (var slot in sheet.equippedGear.Keys)
+                {
+                    if (!customEquipmentSlots.Contains(slot))
+                    {
+                        customEquipmentSlots.Add(slot);
+                    }
+                }
+            }
+
+            if (sheet.equippedAugmentations != null && sheet.equippedAugmentations.Count > 0)
+            {
+                customAugmentationSlots ??= new List<string>();
+                foreach (var slot in sheet.equippedAugmentations.Keys)
+                {
+                    if (!customAugmentationSlots.Contains(slot))
+                    {
+                        customAugmentationSlots.Add(slot);
+                    }
+                }
+            }
+
+            if (sheet.customInventoryCapacity > 0)
+            {
+                inventoryMaxSlots = sheet.customInventoryCapacity;
+                systemHasInventoryLimit = true;
+            }
+
+            sheet.linkedDiceSystem = this.systemName;
+        }
 
         public List<ResourceDefinition> GetEffectiveResources()
         {

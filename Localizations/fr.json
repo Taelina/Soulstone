@@ -439,5 +439,10 @@
   "InitiativeDMBadge": "MD / Hôte",
   "InitiativeMemberBadge": "Membre synchronisé",
   "InitiativeDMRequired": "Seul le chef de groupe / MD contrôle le flux des tours.",
+  "DiceSysMakeSheetTemplate": "Définir la fiche actuelle comme modèle",
+  "DiceSysMakeSheetTemplateLabel": "Modèle de fiche",
+  "DiceSysMakeSheetTemplateTooltip": "Enregistre les stats, compétences, capacités, ressources et emplacements de la fiche actuelle comme modèle par défaut pour ce système de dés.",
+  "DiceSysLinkedLabel": "Système lié :",
+  "DiceSysSwitchWarnToast": "Fiche et système actuels sauvegardés avant le changement",
   "PluginCommandHelp": "Ouvre la fenêtre principale. Utilisez '/soulstone init' pour l'initiative et '/soulstone group' pour le groupe."
 }

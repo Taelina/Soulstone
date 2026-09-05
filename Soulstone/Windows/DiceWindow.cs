@@ -281,7 +281,8 @@ namespace Soulstone.Windows
                     PartySyncManager.Instance.BroadcastDiceRoll(
                         rollInputText,
                         DR.RollResult,
-                        string.Join(", ", DR.IndividualRolls));
+                        string.Join(", ", DR.IndividualRolls),
+                        echoText: $"[Soulstone] {rollInputText}: {resultSeString.TextValue}");
 
                     rollHistory.Add(new RollHistoryEntry
                     {

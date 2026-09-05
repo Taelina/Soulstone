@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Soulstone.Datamodels
 {
-    internal class Ability
+    public class Ability
     {
         public int id;
         public string abilityName = string.Empty;

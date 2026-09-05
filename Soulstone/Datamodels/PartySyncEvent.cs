@@ -37,6 +37,9 @@ namespace Soulstone.Datamodels
 
         [JsonPropertyName("p")]
         public string PayloadJson { get; set; } = string.Empty;
+
+        [JsonPropertyName("e")]
+        public string EchoMessage { get; set; } = string.Empty;
     }
 
     public class PresencePayload
@@ -64,6 +67,7 @@ namespace Soulstone.Datamodels
         public bool IsCriticalSuccess { get; set; }
         public bool IsCriticalFailure { get; set; }
         public string RulesetName { get; set; } = string.Empty;
+        public string EchoMessage { get; set; } = string.Empty;
     }
 
     public class InitiativeSyncPayload
@@ -97,6 +101,9 @@ namespace Soulstone.Datamodels
         public string SenderName { get; set; } = string.Empty;
         public string SystemName { get; set; } = string.Empty;
         public string RulesetJson { get; set; } = string.Empty;
+        public Dictionary<string, Attribute> Attributes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, Skill> Skills { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, Ability> Abilities { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 
     public class BuffUpdatePayload

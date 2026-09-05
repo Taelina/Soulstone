@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Attribute = Soulstone.Datamodels.Attribute;
 
 namespace Soulstone.Managers
 {
@@ -264,6 +265,11 @@ namespace Soulstone.Managers
             string localName = GetLocalPlayerName();
             bool isFromSelf = string.Equals(senderName, localName, StringComparison.OrdinalIgnoreCase);
 
+            if (!isFromSelf && !string.IsNullOrWhiteSpace(packet.EchoMessage) && packet.EventType != SyncEventType.DiceRoll)
+            {
+                Messages.PrintEcho(packet.EchoMessage);
+            }
+
             switch (packet.EventType)
             {
                 case SyncEventType.Presence:
@@ -323,6 +329,16 @@ namespace Soulstone.Managers
                                 OnPartyMemberUpdated?.Invoke(member);
                             }
                             OnRemoteDiceRolled?.Invoke(roll);
+
+                            if (!isFromSelf)
+                            {
+                                string rollEcho = !string.IsNullOrWhiteSpace(packet.EchoMessage)
+                                    ? packet.EchoMessage
+                                    : (!string.IsNullOrWhiteSpace(roll.EchoMessage)
+                                        ? roll.EchoMessage
+                                        : $"[Soulstone] {roll.CharacterName} rolled {roll.RollName}: {roll.Total} ({roll.Details})");
+                                Messages.PrintEcho(rollEcho);
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -462,6 +478,24 @@ namespace Soulstone.Managers
                             PendingRollRequests[request.RequestId] = request;
                             OnRollRequested?.Invoke(request);
                             OnPartyRosterUpdated?.Invoke();
+
+                            if (!isFromSelf)
+                            {
+                                try
+                                {
+                                    if (Plugin.ToastGui != null)
+                                    {
+                                        var options = new Dalamud.Game.Gui.Toast.QuestToastOptions
+                                        {
+                                            PlaySound = true,
+                                            DisplayCheckmark = false,
+                                            IconId = 0
+                                        };
+                                        Plugin.ToastGui.ShowQuest($"Roll Requested: {request.RollName} ({request.Formula}) by {senderName}", options);
+                                    }
+                                }
+                                catch { }
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -749,10 +783,10 @@ namespace Soulstone.Managers
         {
             if (!string.IsNullOrWhiteSpace(humanReadableEcho)) Messages.PrintEcho(humanReadableEcho);
             if (!relayClient.IsConnected || configuration == null) return;
-            _ = SendPacketCoreAsync(eventType, payload);
+            _ = SendPacketCoreAsync(eventType, payload, humanReadableEcho);
         }
 
-        private async Task SendPacketCoreAsync(SyncEventType eventType, object payload)
+        private async Task SendPacketCoreAsync(SyncEventType eventType, object payload, string humanReadableEcho = "")
         {
             if (configuration == null) return;
             try
@@ -763,7 +797,8 @@ namespace Soulstone.Managers
                     EventType = eventType,
                     SenderName = GetLocalPlayerName(),
                     SenderWorld = GetLocalPlayerWorld(),
-                    PayloadJson = JsonSerializer.Serialize(payload)
+                    PayloadJson = JsonSerializer.Serialize(payload),
+                    EchoMessage = humanReadableEcho
                 };
 
                 RelayEnvelope envelope = eventType == SyncEventType.PrivateStats
@@ -825,6 +860,10 @@ namespace Soulstone.Managers
         {
             string roller = GetLocalPlayerName();
             string actor = string.IsNullOrWhiteSpace(characterName) ? roller : characterName;
+            string echo = !string.IsNullOrWhiteSpace(echoText)
+                ? echoText
+                : $"[Soulstone] {actor} rolled {rollName}: {total} ({details})";
+
             var payload = new DiceRollPayload
             {
                 CharacterName = actor,
@@ -834,10 +873,11 @@ namespace Soulstone.Managers
                 Details = details,
                 IsCriticalSuccess = isCritSuccess,
                 IsCriticalFailure = isCritFailure,
-                RulesetName = DiceSystemManager.Instance.CurrentDiceSystem?.systemName ?? string.Empty
+                RulesetName = DiceSystemManager.Instance.CurrentDiceSystem?.systemName ?? string.Empty,
+                EchoMessage = echo
             };
 
-            SendPacket(SyncEventType.DiceRoll, payload, echoText);
+            SendPacket(SyncEventType.DiceRoll, payload, echo);
 
             var member = ConnectedPartyMembers.GetOrAdd(actor, name => new PartyMemberSyncData { CharacterName = name });
             member.LastRollSummary = $"{rollName}: {total} ({details})";
@@ -1002,12 +1042,32 @@ namespace Soulstone.Managers
 
             try
             {
+                var sheet = CharacterManager.Instance.CharacterSheet;
+                if (sheet != null)
+                {
+                    if (sheet.characterAttributes != null && sheet.characterAttributes.Count > 0)
+                    {
+                        system.systemAttributes = new Dictionary<string, Attribute>(sheet.characterAttributes, StringComparer.OrdinalIgnoreCase);
+                    }
+                    if (sheet.characterSkills != null && sheet.characterSkills.Count > 0)
+                    {
+                        system.systemSkills = new Dictionary<string, Skill>(sheet.characterSkills, StringComparer.OrdinalIgnoreCase);
+                    }
+                    if (sheet.characterAbilities != null && sheet.characterAbilities.Count > 0)
+                    {
+                        system.systemAbilities = new Dictionary<string, Ability>(sheet.characterAbilities, StringComparer.OrdinalIgnoreCase);
+                    }
+                }
+
                 string json = JsonSerializer.Serialize(system);
                 var payload = new RulesetBroadcastPayload
                 {
                     SenderName = GetLocalPlayerName(),
                     SystemName = system.systemName,
-                    RulesetJson = json
+                    RulesetJson = json,
+                    Attributes = system.systemAttributes,
+                    Skills = system.systemSkills,
+                    Abilities = system.systemAbilities
                 };
 
                 SendPacket(SyncEventType.RulesetBroadcast, payload, $"[Soulstone] Party Leader shared ruleset: {system.systemName}");

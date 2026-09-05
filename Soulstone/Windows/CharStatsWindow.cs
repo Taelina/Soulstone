@@ -227,6 +227,16 @@ namespace Soulstone.Windows
                         UiUtils.Badge(string.Format(LocalizationManager.Instance.GetLocalizedString("SystemDiceBadgeFormat"), diceType), new Vector4(0.3f, 0.2f, 0.5f, 0.4f), ImGuiColors.DalamudViolet);
                     }
 
+                    if (!string.IsNullOrWhiteSpace(currentCharacter.linkedDiceSystem))
+                    {
+                        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                        UiUtils.Badge(currentCharacter.linkedDiceSystem, new Vector4(0.2f, 0.35f, 0.5f, 0.4f), ImGuiColors.ParsedBlue);
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel")} {currentCharacter.linkedDiceSystem}");
+                        }
+                    }
+
                     // Right side: Edit Stats checkbox & Save button
                     var saveLabel = LocalizationManager.Instance.GetLocalizedString("SaveStatButton");
                     var editLabel = LocalizationManager.Instance.GetLocalizedString("EditStatCheckbox");

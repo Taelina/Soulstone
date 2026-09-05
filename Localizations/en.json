@@ -439,5 +439,10 @@
   "InitiativeDMBadge": "DM / Host",
   "InitiativeMemberBadge": "Synced Member",
   "InitiativeDMRequired": "Only the party leader / DM controls the round flow.",
+  "DiceSysMakeSheetTemplate": "Make Current Sheet a Template",
+  "DiceSysMakeSheetTemplateLabel": "Sheet Template",
+  "DiceSysMakeSheetTemplateTooltip": "Captures the current character sheet's stats, skills, abilities, resources, and slots as the default template for this dice system.",
+  "DiceSysLinkedLabel": "Linked System:",
+  "DiceSysSwitchWarnToast": "Saved current character and ruleset before switching",
   "PluginCommandHelp": "Opens the main window. Use '/soulstone init' for initiative and '/soulstone group' for group management."
 }

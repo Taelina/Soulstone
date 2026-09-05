@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace Soulstone.Datamodels
 {
-    internal class Attribute
+    public class Attribute
     {
         [JsonInclude]
         public string Name = "";

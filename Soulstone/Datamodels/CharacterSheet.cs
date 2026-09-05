@@ -87,6 +87,7 @@ namespace Soulstone.Datamodels
         public Dictionary<string, Attribute> characterAttributes = new Dictionary<string, Attribute>();
         public Dictionary<string, Skill> characterSkills = new Dictionary<string, Skill>();
         public Dictionary<string, Ability> characterAbilities = new Dictionary<string, Ability>();
+        public string linkedDiceSystem = string.Empty;
 
         public string CharacterFullName { get => characterFullName; set => characterFullName = value;}
         public string CharacterNickName { get => characterNickName; set => characterNickName = value; }
@@ -120,6 +121,7 @@ namespace Soulstone.Datamodels
         public Dictionary<string, Attribute> CharacterAttributes { get => characterAttributes; set => characterAttributes = value; }
         public Dictionary<string, Skill> CharacterSkills { get => characterSkills; set => characterSkills = value; }
         public Dictionary<string, Ability> CharacterAbilities { get => characterAbilities; set => characterAbilities = value; }
+        public string LinkedDiceSystem { get => linkedDiceSystem; set => linkedDiceSystem = value; }
         public string CharacterJob { get => characterJob; set => characterJob = value; }
         public int CharacterLevel { get => characterLevel; set => characterLevel = value; }
         public string CharacterClass { get => characterClass; set => characterClass = value; }
@@ -695,6 +697,16 @@ namespace Soulstone.Datamodels
                     Type = Dalamud.Game.Text.XivChatType.Echo
                 };
                 Messages.SendMessage(rollMessage);
+
+                string actor = !string.IsNullOrWhiteSpace(CharacterFullName) ? CharacterFullName : "Character";
+                string echo = $"[Soulstone] {actor} rolled Initiative: {(detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue)}";
+                PartySyncManager.Instance.BroadcastDiceRoll(
+                    "Initiative",
+                    roll.RollResult,
+                    string.Join(", ", roll.IndividualRolls),
+                    echoText: echo,
+                    characterName: actor
+                );
             }
             catch
             {
@@ -830,10 +842,112 @@ namespace Soulstone.Datamodels
             return 0; // 0 indicates unlimited
         }
 
+        public void ApplyRulesetTemplate(DiceSystem? system)
+        {
+            if (system == null) return;
+
+            linkedDiceSystem = system.systemName;
+
+            characterAttributes ??= new Dictionary<string, Attribute>();
+            if (system.SystemAttributes != null)
+            {
+                foreach (var kv in system.SystemAttributes)
+                {
+                    if (!characterAttributes.ContainsKey(kv.Key))
+                    {
+                        characterAttributes[kv.Key] = new Attribute(kv.Value.Name, kv.Value.Value);
+                    }
+                }
+            }
+
+            characterSkills ??= new Dictionary<string, Skill>();
+            if (system.SystemSkills != null)
+            {
+                foreach (var kv in system.SystemSkills)
+                {
+                    if (!characterSkills.ContainsKey(kv.Key))
+                    {
+                        characterSkills[kv.Key] = new Skill
+                        {
+                            skillName = kv.Value.skillName,
+                            linkedAttribute = kv.Value.linkedAttribute,
+                            skillModifier = kv.Value.skillModifier
+                        };
+                    }
+                }
+            }
+
+            characterAbilities ??= new Dictionary<string, Ability>();
+            if (system.SystemAbilities != null)
+            {
+                foreach (var kv in system.SystemAbilities)
+                {
+                    if (!characterAbilities.ContainsKey(kv.Key))
+                    {
+                        characterAbilities[kv.Key] = new Ability
+                        {
+                            abilityName = kv.Value.abilityName,
+                            linkedAttribute = kv.Value.linkedAttribute,
+                            linkedSkill = kv.Value.linkedSkill,
+                            abilityModifier = kv.Value.abilityModifier,
+                            abilityDescription = kv.Value.abilityDescription
+                        };
+                    }
+                }
+            }
+
+            characterResources ??= new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
+            foreach (var resDef in system.GetEffectiveResources())
+            {
+                if (!characterResources.ContainsKey(resDef.Name))
+                {
+                    characterResources[resDef.Name] = new CharacterResource(resDef.Name, resDef.DefaultCurrent, resDef.DefaultMax, 0, resDef.Formula);
+                }
+            }
+
+            if (system.CustomEquipmentSlots != null && system.CustomEquipmentSlots.Count > 0)
+            {
+                equippedGear ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var slot in system.CustomEquipmentSlots)
+                {
+                    if (!equippedGear.ContainsKey(slot))
+                    {
+                        equippedGear[slot] = string.Empty;
+                    }
+                }
+            }
+
+            if (system.CustomAugmentationSlots != null && system.CustomAugmentationSlots.Count > 0)
+            {
+                equippedAugmentations ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var slot in system.CustomAugmentationSlots)
+                {
+                    if (!equippedAugmentations.ContainsKey(slot))
+                    {
+                        equippedAugmentations[slot] = string.Empty;
+                    }
+                }
+            }
+
+            if (system.SystemHasInventoryLimit && system.InventoryMaxSlots > 0 && customInventoryCapacity == 0)
+            {
+                customInventoryCapacity = system.InventoryMaxSlots;
+            }
+
+            RecalculateAllResourceMaxes(system);
+        }
+
         public static void CreateNewSheet(string characterName)
         {
             CharacterSheet newsheet = new CharacterSheet();
-            newsheet.CharacterFullName = characterName;     
+            newsheet.CharacterFullName = characterName;
+
+            var activeSys = DiceSystemManager.Instance.CurrentDiceSystem;
+            if (activeSys != null)
+            {
+                newsheet.ApplyRulesetTemplate(activeSys);
+            }
+
             SaveSheet(newsheet);
             CharacterManager.Instance.ForceLoadCharData(characterName);
         }
@@ -849,6 +963,11 @@ namespace Soulstone.Datamodels
                     Plugin.Log?.Information("No existing character sheet found, creating a new one.");
                     CharacterSheet newsheet = new CharacterSheet();
                     newsheet.CharacterFullName = characterName;
+                    var activeSys = DiceSystemManager.Instance.CurrentDiceSystem;
+                    if (activeSys != null)
+                    {
+                        newsheet.ApplyRulesetTemplate(activeSys);
+                    }
                     SaveSheet(newsheet);
                 }
 

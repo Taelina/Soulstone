@@ -126,11 +126,13 @@ namespace Soulstone.Windows
             var saveLabel = LocalizationManager.Instance.GetLocalizedString("DiceSystemSaveButton");
             var chooseLabel = LocalizationManager.Instance.GetLocalizedString("DiceSystemChoose");
             var revertLabel = LocalizationManager.Instance.GetLocalizedString("GroupRevertRuleset");
+            var templateLabel = LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplate");
 
             var saveWidth = ImGui.CalcTextSize(saveLabel).X + 36.0f * ImGuiHelpers.GlobalScale;
             var chooseWidth = ImGui.CalcTextSize(chooseLabel).X + 36.0f * ImGuiHelpers.GlobalScale;
+            var templateWidth = ImGui.CalcTextSize(templateLabel).X + 36.0f * ImGuiHelpers.GlobalScale;
             var revertWidth = DiceSystemManager.Instance.IsSessionRulesetActive ? ImGui.CalcTextSize(revertLabel).X + 36.0f * ImGuiHelpers.GlobalScale : 0f;
-            var totalButtonsWidth = saveWidth + chooseWidth + revertWidth + 16.0f * ImGuiHelpers.GlobalScale;
+            var totalButtonsWidth = saveWidth + chooseWidth + templateWidth + revertWidth + 24.0f * ImGuiHelpers.GlobalScale;
 
             var rightX = ImGui.GetWindowContentRegionMax().X - totalButtonsWidth;
             if (ImGui.GetCursorPosX() < rightX)
@@ -147,6 +149,38 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
             }
 
+            if (UiUtils.IconButton("MakeSheetTemplateTopBtn", FontAwesomeIcon.FileSignature, templateLabel))
+            {
+                var sheet = CharacterManager.Instance.CharacterSheet;
+                if (sheet != null)
+                {
+                    currentSystem.CaptureTemplateFromSheet(sheet);
+                    DiceSystem.SaveDiceSystem(currentSystem);
+                    CharacterSheet.SaveSheet(sheet);
+                    string msg = $"[Soulstone] Character '{sheet.CharacterFullName}' saved as template for '{currentSystem.systemName}'.";
+                    Messages.PrintEcho(msg);
+                    try
+                    {
+                        if (Plugin.ToastGui != null)
+                        {
+                            var toastOptions = new Dalamud.Game.Gui.Toast.QuestToastOptions
+                            {
+                                PlaySound = true,
+                                DisplayCheckmark = true,
+                                IconId = 0
+                            };
+                            Plugin.ToastGui.ShowQuest(msg, toastOptions);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateTooltip"));
+            }
+
+            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
             if (UiUtils.IconButton("SaveDiceSysBtn", FontAwesomeIcon.Save, saveLabel))
             {
                 DiceSystem.SaveDiceSystem(currentSystem);
@@ -163,7 +197,7 @@ namespace Soulstone.Windows
                         DiceSystem? loadedSystem = DiceSystem.LoadDiceSystem(path, true);
                         if (loadedSystem != null)
                         {
-                            DiceSystemManager.Instance.CurrentDiceSystem = loadedSystem;
+                            DiceSystemManager.Instance.SwitchDiceSystem(loadedSystem);
                         }
                     }
                     catch (Exception ex)
@@ -238,6 +272,43 @@ namespace Soulstone.Windows
                         ImGui.SetNextItemWidth(90.0f * ImGuiHelpers.GlobalScale);
                         ImGui.InputInt("##SystemInventoryMaxSlotsGen", ref currentSystem.inventoryMaxSlots, 5);
                         if (currentSystem.inventoryMaxSlots < 1) currentSystem.inventoryMaxSlots = 1;
+                    }
+
+                    // Make Current Sheet a Template Row
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateLabel"));
+                    ImGui.TableNextColumn();
+                    if (UiUtils.IconButton("MakeSheetTemplateGenBtn", FontAwesomeIcon.FileSignature, LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplate")))
+                    {
+                        var sheet = CharacterManager.Instance.CharacterSheet;
+                        if (sheet != null)
+                        {
+                            currentSystem.CaptureTemplateFromSheet(sheet);
+                            DiceSystem.SaveDiceSystem(currentSystem);
+                            CharacterSheet.SaveSheet(sheet);
+                            string msg = $"[Soulstone] Character '{sheet.CharacterFullName}' saved as template for '{currentSystem.systemName}'.";
+                            Messages.PrintEcho(msg);
+                            try
+                            {
+                                if (Plugin.ToastGui != null)
+                                {
+                                    var toastOptions = new Dalamud.Game.Gui.Toast.QuestToastOptions
+                                    {
+                                        PlaySound = true,
+                                        DisplayCheckmark = true,
+                                        IconId = 0
+                                    };
+                                    Plugin.ToastGui.ShowQuest(msg, toastOptions);
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateTooltip"));
                     }
                 }
             }

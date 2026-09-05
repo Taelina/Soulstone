@@ -465,5 +465,180 @@ namespace Soulstone.Tests.Managers
             Assert.True(RelayCrypto.TryDecryptInvite(payload, parsedCode, out var decoded));
             Assert.Equal(invite.ServerUrl, decoded!.ServerUrl);
         }
+
+        [Fact]
+        public void CharacterSheet_ApplyRulesetTemplate_PopulatesAttributesSkillsAndResources()
+        {
+            var sheet = new CharacterSheet { CharacterFullName = "Alphinaud Leveilleur" };
+            var system = new DiceSystem { SystemName = "Custom Tactical D20" };
+            system.SystemAttributes["Strength"] = new Soulstone.Datamodels.Attribute("Strength", 14);
+            system.SystemAttributes["Intelligence"] = new Soulstone.Datamodels.Attribute("Intelligence", 18);
+            system.SystemSkills["Arcana"] = new Skill { skillName = "Arcana", linkedAttribute = "Intelligence", skillModifier = 5 };
+            system.SystemAbilities["Aetheric Ray"] = new Ability { abilityName = "Aetheric Ray", linkedAttribute = "Intelligence", abilityModifier = 3 };
+            system.AddResource(new ResourceDefinition("Aether", defaultMax: 100, defaultCurrent: 50, colorHex: "#3498db", description: "Aether charge"));
+            system.CustomEquipmentSlots.Add("Grimoire");
+            system.CustomAugmentationSlots.Add("Neural Link");
+
+            sheet.ApplyRulesetTemplate(system);
+
+            Assert.Equal("Custom Tactical D20", sheet.LinkedDiceSystem);
+            Assert.True(sheet.characterAttributes.ContainsKey("Strength"));
+            Assert.Equal(14, sheet.characterAttributes["Strength"].Value);
+            Assert.True(sheet.characterAttributes.ContainsKey("Intelligence"));
+            Assert.Equal(18, sheet.characterAttributes["Intelligence"].Value);
+            Assert.True(sheet.characterSkills.ContainsKey("Arcana"));
+            Assert.Equal("Intelligence", sheet.characterSkills["Arcana"].linkedAttribute);
+            Assert.Equal(5, sheet.characterSkills["Arcana"].skillModifier);
+            Assert.True(sheet.characterAbilities.ContainsKey("Aetheric Ray"));
+            Assert.Equal(3, sheet.characterAbilities["Aetheric Ray"].abilityModifier);
+            Assert.True(sheet.characterResources.ContainsKey("Aether"));
+            Assert.Equal(100, sheet.characterResources["Aether"].MaxValue);
+            Assert.Equal(50, sheet.characterResources["Aether"].CurrentValue);
+            Assert.True(sheet.equippedGear.ContainsKey("Grimoire"));
+            Assert.True(sheet.equippedAugmentations.ContainsKey("Neural Link"));
+        }
+
+        [Fact]
+        public void DiceSystem_CaptureTemplateFromSheet_CapturesAllSheetElements()
+        {
+            var sheet = new CharacterSheet { CharacterFullName = "Alisaie Leveilleur" };
+            sheet.characterAttributes["Dexterity"] = new Soulstone.Datamodels.Attribute("Dexterity", 16);
+            sheet.characterSkills["Fencing"] = new Skill { skillName = "Fencing", linkedAttribute = "Dexterity", skillModifier = 4 };
+            sheet.characterAbilities["Red Doublet"] = new Ability { abilityName = "Red Doublet", linkedAttribute = "Dexterity", abilityModifier = 2 };
+            sheet.characterResources["Mana"] = new CharacterResource("Mana", 80, 80, formula: "10 + 2 * Dexterity");
+            sheet.equippedGear["Rapier"] = "Mythrite Rapier";
+            sheet.equippedAugmentations["Aether Accelerator"] = "Model 1";
+
+            var system = new DiceSystem { SystemName = "Red Mage System" };
+            system.CaptureTemplateFromSheet(sheet);
+
+            Assert.Equal("Red Mage System", sheet.LinkedDiceSystem);
+            Assert.True(system.SystemAttributes.ContainsKey("Dexterity"));
+            Assert.Equal(16, system.SystemAttributes["Dexterity"].Value);
+            Assert.True(system.SystemSkills.ContainsKey("Fencing"));
+            Assert.Equal(4, system.SystemSkills["Fencing"].skillModifier);
+            Assert.True(system.SystemAbilities.ContainsKey("Red Doublet"));
+            Assert.Contains(system.SystemResources, r => r.Name == "Mana" && r.Formula == "10 + 2 * Dexterity");
+            Assert.Contains("Rapier", system.CustomEquipmentSlots);
+            Assert.Contains("Aether Accelerator", system.CustomAugmentationSlots);
+        }
+
+        [Fact]
+        public void DiceSystemManager_SwitchDiceSystem_SavesPreviousSheetAndAppliesNewTemplate()
+        {
+            var dsm = DiceSystemManager.Instance;
+            var initialSys = new DiceSystem { SystemName = "InitialSystem" };
+            dsm.CurrentDiceSystem = initialSys;
+
+            var sheet = new CharacterSheet { CharacterFullName = "Estinien Varlineau" };
+            sheet.characterAttributes["Strength"] = new Soulstone.Datamodels.Attribute("Strength", 18);
+            CharacterManager.Instance.CharacterSheet = sheet;
+
+            var newSys = new DiceSystem { SystemName = "Dragoon Tactical" };
+            newSys.SystemAttributes["Agility"] = new Soulstone.Datamodels.Attribute("Agility", 15);
+            newSys.SystemSkills["Jump"] = new Skill { skillName = "Jump", linkedAttribute = "Agility", skillModifier = 6 };
+
+            dsm.SwitchDiceSystem(newSys);
+
+            Assert.Equal("Dragoon Tactical", dsm.CurrentDiceSystem?.SystemName);
+            Assert.Equal("Dragoon Tactical", sheet.LinkedDiceSystem);
+            Assert.True(sheet.characterAttributes.ContainsKey("Strength"));
+            Assert.True(sheet.characterAttributes.ContainsKey("Agility"));
+            Assert.True(sheet.characterSkills.ContainsKey("Jump"));
+        }
+
+        [Fact]
+        public void RulesetOffered_SkippedIfMatchingActiveRulesetByName()
+        {
+            var dsm = DiceSystemManager.Instance;
+            dsm.CurrentDiceSystem = new DiceSystem { SystemName = "Pathfinder2e" };
+
+            var offeredSys = new DiceSystem { SystemName = "Pathfinder2e", SuccessThreshold = 15 };
+            var payload = new RulesetBroadcastPayload
+            {
+                SenderName = "DM",
+                SystemName = "Pathfinder2e",
+                RulesetJson = JsonSerializer.Serialize(offeredSys)
+            };
+
+            dsm.OnRulesetOfferedFromParty(payload);
+
+            Assert.False(dsm.IsSessionRulesetActive);
+            Assert.Equal(0, dsm.CurrentDiceSystem.SuccessThreshold);
+        }
+
+        [Fact]
+        public void RulesetOffered_AdoptsAndAppliesTemplateWhenNameDiffers()
+        {
+            var dsm = DiceSystemManager.Instance;
+            dsm.CurrentDiceSystem = new DiceSystem { SystemName = "Standard_Dice_System" };
+
+            var offeredSys = new DiceSystem { SystemName = "Cyberpunk RED", SuccessThreshold = 12 };
+            var attr = new Dictionary<string, Soulstone.Datamodels.Attribute>
+            {
+                { "Reflexes", new Soulstone.Datamodels.Attribute("Reflexes", 8) }
+            };
+            var skills = new Dictionary<string, Skill>
+            {
+                { "Handgun", new Skill { skillName = "Handgun", linkedAttribute = "Reflexes", skillModifier = 4 } }
+            };
+
+            var payload = new RulesetBroadcastPayload
+            {
+                SenderName = "DM",
+                SystemName = "Cyberpunk RED",
+                RulesetJson = JsonSerializer.Serialize(offeredSys),
+                Attributes = attr,
+                Skills = skills
+            };
+
+            dsm.OnRulesetOfferedFromParty(payload);
+
+            Assert.True(dsm.IsSessionRulesetActive);
+            Assert.NotNull(dsm.CurrentDiceSystem);
+            Assert.Equal("Cyberpunk RED", dsm.CurrentDiceSystem.SystemName);
+            Assert.True(dsm.CurrentDiceSystem.SystemAttributes.ContainsKey("Reflexes"));
+            Assert.True(dsm.CurrentDiceSystem.SystemSkills.ContainsKey("Handgun"));
+
+            dsm.RevertToLocalRuleset();
+        }
+
+        [Fact]
+        public void HandleIncomingPacket_DiceRoll_TriggersRemoteDiceRolledAndUpdatesMemberSummary()
+        {
+            var syncMgr = PartySyncManager.Instance;
+            syncMgr.ConnectedPartyMembers.Clear();
+
+            var member = syncMgr.ConnectedPartyMembers.GetOrAdd("Urianger Augurelt", n => new PartyMemberSyncData { CharacterName = n });
+
+            var rollPayload = new DiceRollPayload
+            {
+                CharacterName = "Urianger Augurelt",
+                RolledBy = "Urianger Augurelt",
+                RollName = "Astrology",
+                Total = 19,
+                Details = "1d20+4 -> [15] + 4",
+                EchoMessage = "[Soulstone] Urianger Augurelt rolled Astrology: 19 (1d20+4 -> [15] + 4)"
+            };
+
+            var packet = new PartySyncPacket
+            {
+                ProtocolVersion = 1,
+                EventType = SyncEventType.DiceRoll,
+                SenderName = "Urianger Augurelt",
+                PayloadJson = JsonSerializer.Serialize(rollPayload),
+                EchoMessage = rollPayload.EchoMessage
+            };
+
+            DiceRollPayload? observedRoll = null;
+            syncMgr.OnRemoteDiceRolled += r => observedRoll = r;
+
+            syncMgr.HandleIncomingPacket(packet, "Urianger Augurelt");
+
+            Assert.NotNull(observedRoll);
+            Assert.Equal("Astrology", observedRoll!.RollName);
+            Assert.Equal(19, observedRoll.Total);
+            Assert.Equal("Astrology: 19 (1d20+4 -> [15] + 4)", member.LastRollSummary);
+        }
     }
 }
