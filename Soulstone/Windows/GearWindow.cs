@@ -193,7 +193,7 @@ namespace Soulstone.Windows
             }
 
             // Right side buttons
-            float rightButtonsWidth = item != null ? (80.0f * ImGuiHelpers.GlobalScale) : (60.0f * ImGuiHelpers.GlobalScale);
+            float rightButtonsWidth = item != null ? (92.0f * ImGuiHelpers.GlobalScale) : (60.0f * ImGuiHelpers.GlobalScale);
             var rightBtnX = pos.X + width - rightButtonsWidth;
             ImGui.SetCursorScreenPos(new Vector2(rightBtnX, pos.Y + 10.0f * ImGuiHelpers.GlobalScale));
 
@@ -210,6 +210,13 @@ namespace Soulstone.Windows
                 {
                     equipModalSlot = slot;
                     showEquipModal = true;
+                }
+
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.IconButton($"Delete_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
+                {
+                    sheet.RemoveItem(item.Id);
+                    CharacterSheet.SaveSheet(sheet);
                 }
             }
             else
@@ -327,6 +334,12 @@ namespace Soulstone.Windows
                                 sheet.UnequipGear(selectedSlot);
                                 CharacterSheet.SaveSheet(sheet);
                             }
+                            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("DeleteButton")}###InspectDeleteBtn"))
+                            {
+                                sheet.RemoveItem(equipped.Id);
+                                CharacterSheet.SaveSheet(sheet);
+                            }
                         }
                         else
                         {
@@ -365,15 +378,15 @@ namespace Soulstone.Windows
             {
                 var gearInInventory = sheet.CharacterInventory
                     .OfType<GearItem>()
-                    .Where(g => string.Equals(g.Slot, equipModalSlot, StringComparison.OrdinalIgnoreCase)
+                    .Where(g => !g.isAugmentation && (string.Equals(g.Slot, equipModalSlot, StringComparison.OrdinalIgnoreCase)
                              || string.Equals(g.Slot, "General", StringComparison.OrdinalIgnoreCase)
-                             || string.IsNullOrWhiteSpace(g.Slot))
+                             || string.IsNullOrWhiteSpace(g.Slot)))
                     .ToList();
 
                 if (gearInInventory.Count == 0)
                 {
                     // Also show any gear in inventory if none match specifically
-                    gearInInventory = sheet.CharacterInventory.OfType<GearItem>().ToList();
+                    gearInInventory = sheet.CharacterInventory.OfType<GearItem>().Where(g => !g.isAugmentation).ToList();
                 }
 
                 if (gearInInventory.Count == 0)

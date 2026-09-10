@@ -440,6 +440,58 @@ namespace Soulstone.Tests.Managers
         }
 
         [Fact]
+        public void ExecuteRollRequest_WithUseSystemDice_RollsWithActiveDiceSystem()
+        {
+            var syncMgr = PartySyncManager.Instance;
+            syncMgr.PendingRollRequests.Clear();
+
+            var previousSystem = DiceSystemManager.Instance.CurrentDiceSystem;
+            DiceSystemManager.Instance.CurrentDiceSystem = new DiceSystem
+            {
+                SystemName = "Pool Ruleset",
+                SystemType = SystemType.DicePoolSystem,
+                DiceType = DiceType.d10,
+                SuccessThreshold = 7
+            };
+
+            try
+            {
+                var request = new RollRequestPayload
+                {
+                    RequestId = "req-system",
+                    RequestedBy = "Dungeon Master",
+                    TargetName = syncMgr.GetLocalPlayerName(),
+                    RollName = "Athletics",
+                    // Formula is display only when UseSystemDice is set; it is never parsed as XdY
+                    Formula = "5d10 >= 7",
+                    UseSystemDice = true,
+                    StatValue = 5
+                };
+
+                var packet = new PartySyncPacket
+                {
+                    ProtocolVersion = 1,
+                    EventType = SyncEventType.RollRequest,
+                    SenderName = "Dungeon Master",
+                    PayloadJson = JsonSerializer.Serialize(request)
+                };
+
+                syncMgr.HandleIncomingPacket(packet, "Dungeon Master");
+
+                Assert.True(syncMgr.PendingRollRequests.TryGetValue("req-system", out var queued));
+                Assert.True(queued!.UseSystemDice);
+                Assert.Equal(5, queued.StatValue);
+
+                Assert.True(syncMgr.ExecuteRollRequest("req-system"));
+                Assert.False(syncMgr.PendingRollRequests.ContainsKey("req-system"));
+            }
+            finally
+            {
+                DiceSystemManager.Instance.CurrentDiceSystem = previousSystem;
+            }
+        }
+
+        [Fact]
         public void ShortInviteLink_SupportsRemotePlainHttpUrlsWithoutSsl()
         {
             var keys = RelayCrypto.CreateHostKeyPair();

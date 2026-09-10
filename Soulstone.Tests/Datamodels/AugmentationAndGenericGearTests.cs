@@ -213,5 +213,70 @@ namespace Soulstone.Tests.Datamodels
             deserialized.GetGearStatBonus("Armor").Should().Be(15);
             deserialized.GetGearStatBonus("Health").Should().Be(40);
         }
+
+        [Fact]
+        public void AugmentationsAndGear_MutualExclusivityOnEquip()
+        {
+            var sheet = new CharacterSheet { CharacterFullName = "TestRunner" };
+
+            var standardGear = new GearItem("Iron Helm", "Head", "A sturdy helm", "Common", isAugmentation: false);
+            var augmentation = new GearItem("Neural Chip", "Neural", "Brain processor", "Rare", isAugmentation: true);
+
+            sheet.AddItem(standardGear);
+            sheet.AddItem(augmentation);
+
+            // Augmentation MUST NOT be equippable as standard gear
+            sheet.EquipGear(augmentation).Should().BeFalse();
+            sheet.EquipGear("Head", augmentation.Id).Should().BeFalse();
+            sheet.EquipGear("Neural", augmentation.Id).Should().BeFalse();
+            sheet.GetEquippedGear("Head").Should().BeNull();
+            sheet.GetEquippedGear("Neural").Should().BeNull();
+            sheet.EquippedGear.Should().BeEmpty();
+
+            // Standard gear MUST NOT be equippable as an augmentation
+            sheet.EquipAugmentation(standardGear).Should().BeFalse();
+            sheet.EquipAugmentation("Neural", standardGear.Id).Should().BeFalse();
+            sheet.EquipAugmentation("Head", standardGear.Id).Should().BeFalse();
+            sheet.GetEquippedAugmentation("Neural").Should().BeNull();
+            sheet.GetEquippedAugmentation("Head").Should().BeNull();
+            sheet.EquippedAugmentations.Should().BeEmpty();
+
+            // Valid equips should succeed
+            sheet.EquipGear(standardGear).Should().BeTrue();
+            sheet.EquipAugmentation(augmentation).Should().BeTrue();
+
+            sheet.GetEquippedGear("Head")?.Name.Should().Be("Iron Helm");
+            sheet.GetEquippedAugmentation("Neural")?.Name.Should().Be("Neural Chip");
+        }
+
+        [Fact]
+        public void DeleteItem_EquippedGearAndAugmentations_UnequipsAndRemovesFromInventory()
+        {
+            var sheet = new CharacterSheet { CharacterFullName = "Deleter" };
+
+            var gear = new GearItem("Steel Boots", "Feet", "Heavy boots", "Common", isAugmentation: false);
+            var aug = new GearItem("Cyber Arm", "Arms", "Augmented arm", "Epic", isAugmentation: true);
+
+            sheet.AddItem(gear);
+            sheet.AddItem(aug);
+
+            sheet.EquipGear(gear).Should().BeTrue();
+            sheet.EquipAugmentation(aug).Should().BeTrue();
+
+            sheet.IsItemEquipped(gear.Id).Should().BeTrue();
+            sheet.IsItemEquipped(aug.Id).Should().BeTrue();
+
+            // Delete gear
+            sheet.RemoveItem(gear.Id).Should().BeTrue();
+            sheet.CharacterInventory.Should().NotContain(gear);
+            sheet.IsItemEquipped(gear.Id).Should().BeFalse();
+            sheet.GetEquippedGear("Feet").Should().BeNull();
+
+            // Delete augmentation
+            sheet.RemoveItem(aug.Id).Should().BeTrue();
+            sheet.CharacterInventory.Should().NotContain(aug);
+            sheet.IsItemEquipped(aug.Id).Should().BeFalse();
+            sheet.GetEquippedAugmentation("Arms").Should().BeNull();
+        }
     }
 }

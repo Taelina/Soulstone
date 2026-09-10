@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using Xunit;
+using Soulstone.Datamodels;
 using Soulstone.Utils;
 
 namespace Soulstone.Tests.Utils
@@ -177,6 +178,19 @@ namespace Soulstone.Tests.Utils
         }
 
         [Theory]
+        [InlineData("1d20-3", "1d20 - 3")]
+        [InlineData("3d8-1", "3d8 - 1")]
+        public void ParseDiceRollString_WithNegativeModifier_AppliesModifier(string input, string expectedFormula)
+        {
+            // Act
+            var result = DiceRoll.ParseDiceRollString(input);
+
+            // Assert
+            result.Should().NotBeNull();
+            result!.RollResultString.TextValue.Should().Contain(expectedFormula);
+        }
+
+        [Theory]
         [InlineData("")]
         [InlineData("invalid")]
         [InlineData("d20")]
@@ -194,6 +208,196 @@ namespace Soulstone.Tests.Utils
 
             // Assert
             result.Should().BeNull();
+        }
+
+        #endregion
+
+        #region Dice System Aware Rolls
+
+        [Theory]
+        [InlineData(DiceType.d4, 4)]
+        [InlineData(DiceType.d6, 6)]
+        [InlineData(DiceType.d10, 10)]
+        [InlineData(DiceType.d20, 20)]
+        [InlineData(DiceType.d100, 100)]
+        public void GetSystemSides_ReturnsSidesConfiguredOnSystem(DiceType diceType, int expectedSides)
+        {
+            // Arrange
+            var system = new DiceSystem { DiceType = diceType };
+
+            // Act & Assert
+            DiceRoll.GetSystemSides(system).Should().Be(expectedSides);
+        }
+
+        [Fact]
+        public void GetSystemSides_WithNullSystem_DefaultsToTwenty()
+        {
+            DiceRoll.GetSystemSides(null).Should().Be(20);
+        }
+
+        [Fact]
+        public void RollWithSystem_DnDSystem_UsesSystemDiceTypeAndModifier()
+        {
+            // Arrange
+            var system = new DiceSystem { SystemType = SystemType.DnDSystem, DiceType = DiceType.d12 };
+
+            // Act
+            var roll = DiceRoll.RollWithSystem(system, numberOfDice: 5, addedValue: 3, rollName: "Check");
+
+            // Assert
+            roll.Should().NotBeNull();
+            roll!.RollResultString.TextValue.Should().Contain("1d12 + 3");
+            roll.IndividualRolls.Should().HaveCount(1);
+        }
+
+        [Fact]
+        public void RollWithSystem_DicePoolSystem_RollsPoolAgainstThreshold()
+        {
+            // Arrange
+            var system = new DiceSystem
+            {
+                SystemType = SystemType.DicePoolSystem,
+                DiceType = DiceType.d10,
+                SuccessThreshold = 7
+            };
+
+            // Act
+            var roll = DiceRoll.RollWithSystem(system, numberOfDice: 6, rollName: "Pool");
+
+            // Assert
+            roll.Should().NotBeNull();
+            roll!.RollResultString.TextValue.Should().Contain("6d10");
+            roll.RollResultString.TextValue.Should().Contain("Success Threshold: 7");
+            roll.IndividualRolls.Should().HaveCount(6);
+        }
+
+        [Fact]
+        public void RollWithSystem_PercentileSystem_RollsAgainstTarget()
+        {
+            // Arrange
+            var system = new DiceSystem
+            {
+                SystemType = SystemType.PercentileSystem,
+                DiceType = DiceType.d100,
+                SuccessInterval = 5
+            };
+
+            // Act
+            var roll = DiceRoll.RollWithSystem(system, numberOfDice: 1, target: 65, rollName: "Sanity");
+
+            // Assert
+            roll.Should().NotBeNull();
+            roll!.RollResultString.TextValue.Should().Contain("target : 65");
+            roll.RollResult.Should().BeInRange(1, 100);
+        }
+
+        [Fact]
+        public void RollStatWithSystem_DnDSystem_TreatsStatValueAsModifier()
+        {
+            // Arrange
+            var system = new DiceSystem { SystemType = SystemType.DnDSystem, DiceType = DiceType.d20 };
+
+            // Act
+            var roll = DiceRoll.RollStatWithSystem(system, "Strength Check", 4);
+
+            // Assert
+            roll.Should().NotBeNull();
+            roll!.RollResultString.TextValue.Should().Contain("Strength Check 1d20 + 4");
+            roll.IndividualRolls.Should().HaveCount(1);
+            roll.RollResult.Should().BeInRange(5, 24);
+        }
+
+        [Fact]
+        public void RollStatWithSystem_DicePoolSystem_TreatsStatValueAsPoolSize()
+        {
+            // Arrange
+            var system = new DiceSystem
+            {
+                SystemType = SystemType.DicePoolSystem,
+                DiceType = DiceType.d6,
+                SuccessThreshold = 4
+            };
+
+            // Act
+            var roll = DiceRoll.RollStatWithSystem(system, "Athletics", 5);
+
+            // Assert
+            roll.Should().NotBeNull();
+            roll!.IndividualRolls.Should().HaveCount(5);
+            roll.RollResultString.TextValue.Should().Contain("Athletics 5d6");
+        }
+
+        [Fact]
+        public void RollStatWithSystem_PercentileSystem_TreatsStatValueAsTarget()
+        {
+            // Arrange
+            var system = new DiceSystem { SystemType = SystemType.PercentileSystem, DiceType = DiceType.d100 };
+
+            // Act
+            var roll = DiceRoll.RollStatWithSystem(system, "Occult", 45);
+
+            // Assert
+            roll.Should().NotBeNull();
+            roll!.RollResultString.TextValue.Should().Contain("target : 45");
+        }
+
+        [Fact]
+        public void RollStatWithSystem_DicePoolSystem_WithNonPositiveStat_StillRollsOneDie()
+        {
+            // Arrange
+            var system = new DiceSystem { SystemType = SystemType.DicePoolSystem, DiceType = DiceType.d10 };
+
+            // Act
+            var roll = DiceRoll.RollStatWithSystem(system, "Untrained", 0);
+
+            // Assert
+            roll.Should().NotBeNull();
+            roll!.IndividualRolls.Should().HaveCount(1);
+        }
+
+        [Theory]
+        [InlineData(DiceType.d20, 0, "1d20")]
+        [InlineData(DiceType.d20, 3, "1d20+3")]
+        [InlineData(DiceType.d20, -2, "1d20-2")]
+        [InlineData(DiceType.d12, 1, "1d12+1")]
+        public void DescribeSystemRoll_DnDSystem_FormatsSignedModifier(DiceType diceType, int statValue, string expected)
+        {
+            // Arrange
+            var system = new DiceSystem { SystemType = SystemType.DnDSystem, DiceType = diceType };
+
+            // Act & Assert
+            DiceRoll.DescribeSystemRoll(system, statValue).Should().Be(expected);
+        }
+
+        [Fact]
+        public void DescribeSystemRoll_DicePoolSystem_ShowsPoolAndThreshold()
+        {
+            // Arrange
+            var system = new DiceSystem
+            {
+                SystemType = SystemType.DicePoolSystem,
+                DiceType = DiceType.d10,
+                SuccessThreshold = 8
+            };
+
+            // Act & Assert
+            DiceRoll.DescribeSystemRoll(system, 4).Should().Be("4d10 >= 8");
+        }
+
+        [Fact]
+        public void DescribeSystemRoll_PercentileSystem_ShowsTarget()
+        {
+            // Arrange
+            var system = new DiceSystem { SystemType = SystemType.PercentileSystem, DiceType = DiceType.d100 };
+
+            // Act & Assert
+            DiceRoll.DescribeSystemRoll(system, 55).Should().Be("1d100 <= 55");
+        }
+
+        [Fact]
+        public void DescribeSystemRoll_WithNullSystem_FallsBackToD20()
+        {
+            DiceRoll.DescribeSystemRoll(null).Should().Be("1d20");
         }
 
         #endregion

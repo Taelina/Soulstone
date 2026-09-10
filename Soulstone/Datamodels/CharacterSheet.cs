@@ -325,22 +325,29 @@ namespace Soulstone.Datamodels
             if (string.IsNullOrWhiteSpace(slot) || string.IsNullOrWhiteSpace(itemId)) return false;
             characterInventory ??= new List<Item>();
             var item = characterInventory.FirstOrDefault(i => i.Id == itemId);
-            if (item == null) return false;
+            if (item is not GearItem gear || gear.IsAugmentation) return false;
 
             equippedGear ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            var existingSlot = equippedGear.FirstOrDefault(kv => kv.Value == itemId).Key;
+            if (existingSlot != null)
+            {
+                equippedGear.Remove(existingSlot);
+            }
+
             equippedGear[slot] = itemId;
             return true;
         }
 
         public bool EquipGear(GearItem gear, string? slot = null)
         {
-            if (gear == null) return false;
+            if (gear == null || gear.IsAugmentation) return false;
             characterInventory ??= new List<Item>();
             if (!characterInventory.Any(i => i.Id == gear.Id))
             {
                 characterInventory.Add(gear);
             }
-            string targetSlot = !string.IsNullOrWhiteSpace(slot) ? slot : gear.Slot;
+            string targetSlot = !string.IsNullOrWhiteSpace(slot) ? slot : (!string.IsNullOrWhiteSpace(gear.Slot) ? gear.Slot : "Head");
             return EquipGear(targetSlot, gear.Id);
         }
 
@@ -353,6 +360,10 @@ namespace Soulstone.Datamodels
         public bool EquipAugmentation(string slot, string itemId)
         {
             if (string.IsNullOrWhiteSpace(slot) || string.IsNullOrWhiteSpace(itemId)) return false;
+            characterInventory ??= new List<Item>();
+            var item = characterInventory.FirstOrDefault(i => i.Id == itemId);
+            if (item is not GearItem aug || !aug.IsAugmentation) return false;
+
             equippedAugmentations ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
             var existingSlot = equippedAugmentations.FirstOrDefault(kv => kv.Value == itemId).Key;
@@ -367,13 +378,13 @@ namespace Soulstone.Datamodels
 
         public bool EquipAugmentation(GearItem item, string? slot = null)
         {
-            if (item == null) return false;
+            if (item == null || !item.IsAugmentation) return false;
             characterInventory ??= new List<Item>();
             if (!characterInventory.Any(i => i.Id == item.Id))
             {
                 characterInventory.Add(item);
             }
-            string targetSlot = !string.IsNullOrWhiteSpace(slot) ? slot : item.Slot;
+            string targetSlot = !string.IsNullOrWhiteSpace(slot) ? slot : (!string.IsNullOrWhiteSpace(item.Slot) ? item.Slot : "Neural");
             return EquipAugmentation(targetSlot, item.Id);
         }
 

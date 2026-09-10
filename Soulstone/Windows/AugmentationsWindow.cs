@@ -203,8 +203,10 @@ namespace Soulstone.Windows
                 var unequipBtnWidth = ImGui.CalcTextSize(unequipLabel).X + 16.0f * ImGuiHelpers.GlobalScale;
                 var changeLabel = LocalizationManager.Instance.GetLocalizedString("ChooseGearTitle");
                 var changeBtnWidth = ImGui.CalcTextSize(changeLabel).X + 16.0f * ImGuiHelpers.GlobalScale;
+                var deleteLabel = LocalizationManager.Instance.GetLocalizedString("DeleteButton");
+                var deleteBtnWidth = ImGui.CalcTextSize(deleteLabel).X + 16.0f * ImGuiHelpers.GlobalScale;
 
-                var rightStartX = pos.X + width - unequipBtnWidth - changeBtnWidth - 14.0f * ImGuiHelpers.GlobalScale;
+                var rightStartX = pos.X + width - unequipBtnWidth - changeBtnWidth - deleteBtnWidth - 20.0f * ImGuiHelpers.GlobalScale;
                 if (ImGui.GetCursorScreenPos().X < rightStartX)
                 {
                     ImGui.SetCursorScreenPos(new Vector2(rightStartX, pos.Y + 14.0f * ImGuiHelpers.GlobalScale));
@@ -220,6 +222,13 @@ namespace Soulstone.Windows
                 if (ImGui.Button($"{unequipLabel}###UnequipAug_{slot}", new Vector2(unequipBtnWidth, btnHeight)))
                 {
                     sheet.UnequipAugmentation(slot);
+                    CharacterSheet.SaveSheet(sheet);
+                }
+
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                if (ImGui.Button($"{deleteLabel}###DeleteAug_{slot}", new Vector2(deleteBtnWidth, btnHeight)))
+                {
+                    sheet.RemoveItem(item.Id);
                     CharacterSheet.SaveSheet(sheet);
                 }
             }
@@ -328,6 +337,12 @@ namespace Soulstone.Windows
                 var slot = kv.Key;
                 var item = kv.Value;
 
+                if (UiUtils.IconButton($"DelAugSide_{slot}_{item.Id}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                {
+                    sheet.RemoveItem(item.Id);
+                    CharacterSheet.SaveSheet(sheet);
+                }
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                 UiUtils.Badge(GetLocalizedSlotName(slot), new Vector4(0.15f, 0.25f, 0.35f, 0.8f), ImGuiColors.ParsedBlue);
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                 ImGui.TextColored(GetRarityColor(item.Rarity), item.Name);
@@ -358,9 +373,20 @@ namespace Soulstone.Windows
             {
                 var augsInInventory = sheet.CharacterInventory
                     .OfType<GearItem>()
-                    .Where(g => (g.isAugmentation || string.Equals(g.Slot, equipModalSlot, StringComparison.OrdinalIgnoreCase)) &&
+                    .Where(g => g.isAugmentation &&
+                                (string.Equals(g.Slot, equipModalSlot, StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(g.Slot, "General", StringComparison.OrdinalIgnoreCase)
+                                 || string.IsNullOrWhiteSpace(g.Slot)) &&
                                 !sheet.IsAugmentationEquipped(g.Id))
                     .ToList();
+
+                if (augsInInventory.Count == 0)
+                {
+                    augsInInventory = sheet.CharacterInventory
+                        .OfType<GearItem>()
+                        .Where(g => g.isAugmentation && !sheet.IsAugmentationEquipped(g.Id))
+                        .ToList();
+                }
 
                 if (augsInInventory.Count == 0)
                 {

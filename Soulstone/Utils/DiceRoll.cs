@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Soulstone.Utils
@@ -138,7 +139,7 @@ namespace Soulstone.Utils
             }
         }
 
-        // To be called when parsing a generic chat like dice roll string like "2d6" or "3d8+2"
+        // To be called when parsing a generic chat like dice roll string like "2d6", "3d8+2" or "1d20-1"
         public static DiceRoll? ParseDiceRollString(string input, bool advantage = false, bool disadvantage = false)
         {
             if (string.IsNullOrWhiteSpace(input))
@@ -148,40 +149,30 @@ namespace Soulstone.Utils
 
             try
             {
-                DiceRoll? result = null;
-                // Expected format: XdY where X is number of dice and Y is sides per die
-                string[] bonus = input.ToLower().Split('+');
-                string[] parts = bonus[0].ToLower().Split('d');
-                if (parts.Length == 2 &&
-                    int.TryParse(parts[0], out int numberOfDice) &&
-                    int.TryParse(parts[1], out int sidesPerDie) &&
-                    numberOfDice > 0 && sidesPerDie > 0)
+                // Expected format: XdY with an optional signed modifier, e.g. 2d6, 3d8+2, 1d20-1
+                var match = Regex.Match(input.Replace(" ", string.Empty), @"^(\d+)d(\d+)([+-]\d+)?$", RegexOptions.IgnoreCase);
+                if (!match.Success)
                 {
-                    if (bonus.Length == 2)
-                    {
-                        if (int.TryParse(bonus[1], out int addedValue))
-                        {
-                            result = RollDiceRegular(numberOfDice, sidesPerDie, addedValue, "", advantage, disadvantage);
-                        }
-                        else
-                        {
-                            Plugin.Log?.Warning("Invalid bonus format in dice roll string. Bonus must be an integer.");
-                        }
-                    }
-                    else if (bonus.Length == 1)
-                    {
-                        result = RollDiceRegular(numberOfDice, sidesPerDie, 0, "", advantage, disadvantage);
-                    }
-                    else
-                    {
-                        Plugin.Log?.Warning("Invalid dice roll format. Too many '+' characters.");
-                    }
+                    Plugin.Log?.Warning("Invalid dice roll format. Use XdY(+/-Z) (e.g., 2d6 for two six-sided dice).");
+                    return null;
                 }
-                else
+
+                if (!int.TryParse(match.Groups[1].Value, out int numberOfDice) ||
+                    !int.TryParse(match.Groups[2].Value, out int sidesPerDie) ||
+                    numberOfDice <= 0 || sidesPerDie <= 0)
                 {
-                    Plugin.Log?.Warning("Invalid dice roll format. Use XdY (e.g., 2d6 for two six-sided dice).");
+                    Plugin.Log?.Warning("Invalid dice roll format. Dice count and sides must both be positive.");
+                    return null;
                 }
-                return result;
+
+                int addedValue = 0;
+                if (match.Groups[3].Success && !int.TryParse(match.Groups[3].Value, out addedValue))
+                {
+                    Plugin.Log?.Warning("Invalid bonus format in dice roll string. Bonus must be an integer.");
+                    return null;
+                }
+
+                return RollDiceRegular(numberOfDice, sidesPerDie, addedValue, "", advantage, disadvantage);
             }
             catch (Exception ex)
             {
@@ -190,37 +181,73 @@ namespace Soulstone.Utils
             }
         }
 
+        // Resolves the number of sides configured on a dice system (d4 through d100).
+        public static int GetSystemSides(DiceSystem? diceSystem)
+        {
+            string diceType = diceSystem != null ? (Enum.GetName<DiceType>(diceSystem.DiceType) ?? "d20") : "d20";
+            string[] parsedType = diceType.Split('d');
+            return parsedType.Length > 1 && int.TryParse(parsedType[1], out int sides) && sides > 0 ? sides : 20;
+        }
+
+        // Rolls according to the rules of a given dice system rather than a hardcoded d20.
+        // As in CharStatsWindow, callers pass the same effective stat value as numberOfDice,
+        // addedValue and target: each system type only consumes the one that applies to it.
+        public static DiceRoll? RollWithSystem(DiceSystem? diceSystem, int numberOfDice, int addedValue = 0, bool advantage = false, bool disadvantage = false, string rollName = "", int target = 0, int rawSuccesses = 0)
+        {
+            int parsedSides = GetSystemSides(diceSystem);
+            SystemType sysType = diceSystem?.systemType ?? SystemType.DnDSystem;
+
+            switch (sysType)
+            {
+                case SystemType.DicePoolSystem:
+                    int threshold = diceSystem?.SuccessThreshold ?? 8;
+                    int poolSize = Math.Max(1, numberOfDice);
+                    Plugin.Log?.Information($"Rolling {poolSize}d{parsedSides} against success threshold {threshold} with {rawSuccesses} epic bonus");
+                    return RollDicePool(poolSize, parsedSides, threshold, rollName, rawSuccesses);
+                case SystemType.PercentileSystem:
+                    int interval = diceSystem?.successInterval ?? 10;
+                    Plugin.Log?.Information($"Rolling 1d100 against target {target}");
+                    return RollDicePercentile(target, rollName, interval);
+                case SystemType.DnDSystem:
+                default:
+                    Plugin.Log?.Information($"Rolling 1d{parsedSides} + {addedValue}");
+                    return RollDiceRegular(1, parsedSides, addedValue, rollName, advantage, disadvantage);
+            }
+        }
+
+        // Rolls a single stat value under the active system: the value acts as a modifier in
+        // d20-like systems, as the pool size in dice pool systems and as the percentile target.
+        public static DiceRoll? RollStatWithSystem(DiceSystem? diceSystem, string rollName, int statValue, bool advantage = false, bool disadvantage = false, int rawSuccesses = 0)
+        {
+            return RollWithSystem(diceSystem, statValue, statValue, advantage, disadvantage, rollName, statValue, rawSuccesses);
+        }
+
+        // Human readable formula for a dice system, used for UI defaults and roll request labels.
+        public static string DescribeSystemRoll(DiceSystem? diceSystem, int statValue = 0)
+        {
+            int sides = GetSystemSides(diceSystem);
+            SystemType sysType = diceSystem?.systemType ?? SystemType.DnDSystem;
+
+            switch (sysType)
+            {
+                case SystemType.DicePoolSystem:
+                    return $"{Math.Max(1, statValue)}d{sides} >= {diceSystem?.SuccessThreshold ?? 8}";
+                case SystemType.PercentileSystem:
+                    return $"1d100 <= {statValue}";
+                case SystemType.DnDSystem:
+                default:
+                    if (statValue > 0) return $"1d{sides}+{statValue}";
+                    if (statValue < 0) return $"1d{sides}{statValue}";
+                    return $"1d{sides}";
+            }
+        }
+
         public static void RollDice(int numberOfDice, int addedValue = 0, bool advantage = false, bool disadvantage = false, string rollName = "", bool detailedRoll = false, int target = 0, int rawSuccesses = 0)
         {
             try
             {
                 DiceSystem? currentDiceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
-                string diceType = currentDiceSystem != null ? (Enum.GetName<DiceType>(currentDiceSystem.DiceType) ?? "d20") : "d20";
-                string[] parsedType = diceType.Split('d');
-                int parsedSides = parsedType.Length > 1 && int.TryParse(parsedType[1], out int sides) ? sides : 20;
-                DiceRoll? roll = null;
-
-                SystemType sysType = currentDiceSystem?.systemType ?? SystemType.DnDSystem;
-                switch (sysType)
-                {
-                    case SystemType.DnDSystem:
-                        Plugin.Log?.Information($"Rolling 1d{parsedSides} + {addedValue}");
-                        roll = DiceRoll.RollDiceRegular(1, parsedSides, addedValue, rollName, advantage, disadvantage);
-                        break;
-                    case SystemType.DicePoolSystem:
-                        int threshold = currentDiceSystem?.SuccessThreshold ?? 8;
-                        Plugin.Log?.Information($"Rolling {numberOfDice}d{parsedSides} against success threshold {threshold} with {rawSuccesses} epic bonus");
-                        roll = RollDicePool(numberOfDice, parsedSides, threshold, rollName, rawSuccesses);
-                        break;
-                    case SystemType.PercentileSystem:
-                        int interval = currentDiceSystem?.successInterval ?? 10;
-                        Plugin.Log?.Information($"Rolling 1d100 against target {target}");
-                        roll = RollDicePercentile(target, rollName, interval);
-                        break;
-                    default:
-                        roll = DiceRoll.RollDiceRegular(1, parsedSides, addedValue, rollName, advantage, disadvantage);
-                        break;
-                }
+                DiceRoll? roll = RollWithSystem(currentDiceSystem, numberOfDice, addedValue, advantage, disadvantage, rollName, target, rawSuccesses);
 
                 if (roll != null)
                 {

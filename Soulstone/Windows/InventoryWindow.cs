@@ -587,12 +587,20 @@ namespace Soulstone.Windows
             ImGui.Separator();
             ImGui.Spacing();
 
-            // Equip / Unequip Button if Gear
+            // Equip / Unequip Button if Gear / Augmentation
             if (item is GearItem gearToEquip)
             {
-                if (sheet.IsItemEquipped(gearToEquip.Id))
+                bool isEquipped = sheet.IsItemEquipped(gearToEquip.Id);
+                string equipBtnLabel = gearToEquip.isAugmentation
+                    ? LocalizationManager.Instance.GetLocalizedString("InstallButton")
+                    : LocalizationManager.Instance.GetLocalizedString("EquipButton");
+                string unequipBtnLabel = gearToEquip.isAugmentation
+                    ? LocalizationManager.Instance.GetLocalizedString("UninstallButton")
+                    : LocalizationManager.Instance.GetLocalizedString("UnequipButton");
+
+                if (isEquipped)
                 {
-                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("UnequipButton")}###InvUnequipBtn"))
+                    if (ImGui.Button($"{unequipBtnLabel}###InvUnequipBtn"))
                     {
                         sheet.UnequipItem(gearToEquip.Id);
                         CharacterSheet.SaveSheet(sheet);
@@ -600,9 +608,16 @@ namespace Soulstone.Windows
                 }
                 else
                 {
-                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("EquipButton")}###InvEquipBtn"))
+                    if (ImGui.Button($"{equipBtnLabel}###InvEquipBtn"))
                     {
-                        sheet.EquipGear(gearToEquip);
+                        if (gearToEquip.isAugmentation)
+                        {
+                            sheet.EquipAugmentation(gearToEquip);
+                        }
+                        else
+                        {
+                            sheet.EquipGear(gearToEquip);
+                        }
                         CharacterSheet.SaveSheet(sheet);
                     }
                 }

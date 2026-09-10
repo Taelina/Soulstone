@@ -28,10 +28,15 @@ namespace Soulstone.Windows
         private bool isGridView = false; // false = Cards View, true = Tactical Grid View
 
         // Roll Controls & Presets
-        private string rollFormula = "1d20";
         private string rollName = "Check";
         private readonly Dictionary<string, string> memberRollFormulas = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> memberRollNames = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, int> memberRollStatValues = new(StringComparer.OrdinalIgnoreCase);
+
+        // Rolls follow the active dice system unless the DM opts into a raw formula
+        private bool useSystemDice = true;
+        private bool rollAdvantage = false;
+        private bool rollDisadvantage = false;
 
         // Expanded Sections
         private readonly HashSet<string> expandedStatsMembers = new(StringComparer.OrdinalIgnoreCase);
@@ -43,6 +48,7 @@ namespace Soulstone.Windows
         private bool showBatchRollModal = false;
         private string batchRollName = "Group Check";
         private string batchRollFormula = "1d20";
+        private int batchRollStatValue = 0;
 
         // Toast / Feedback timer
         private DateTime inviteCopiedTime = DateTime.MinValue;
@@ -388,6 +394,7 @@ namespace Soulstone.Windows
                 {
                     if (UiUtils.IconButton("GroupBatchRollBtn", FontAwesomeIcon.Bullhorn, LocalizationManager.Instance.GetLocalizedString("GroupBatchRoll")))
                     {
+                        batchRollFormula = DiceRoll.DescribeSystemRoll(DiceSystemManager.Instance.CurrentDiceSystem);
                         showBatchRollModal = true;
                     }
 
@@ -822,25 +829,43 @@ namespace Soulstone.Windows
         {
             if (!expandedRollDrawers.Contains(member.CharacterName)) return;
 
+            var diceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
+            int curStatValue = memberRollStatValues.TryGetValue(member.CharacterName, out var sVal) ? sVal : 0;
+
             ImGui.Spacing();
             using (var drawer = ImRaii.Group())
             {
                 ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("GroupQuickRoll")}: {member.CharacterName}");
+                ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
+                UiUtils.Badge(DiceRoll.DescribeSystemRoll(diceSystem, curStatValue), new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
                 ImGui.Spacing();
 
-                // Presets
-                if (ImGui.SmallButton("d20##Preset")) { SetMemberFormula(member.CharacterName, "1d20", "Check"); }
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.SmallButton("d100##Preset")) { SetMemberFormula(member.CharacterName, "1d100", "Check"); }
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.SmallButton("Advantage##Preset")) { SetMemberFormula(member.CharacterName, "2d20kh1", "Advantage Check"); }
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.SmallButton("Disadvantage##Preset")) { SetMemberFormula(member.CharacterName, "2d20kl1", "Disadvantage Check"); }
+                // Rolls honour the active dice system by default; unchecking allows a raw formula.
+                ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDice")}##UseSystem_{member.CharacterName}", ref useSystemDice);
+                if (ImGui.IsItemHovered())
+                {
+                    string systemLabel = diceSystem?.systemName ?? LocalizationManager.Instance.GetLocalizedString("GroupSystemRoll");
+                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDiceTooltip", systemLabel));
+                }
+
+                if (diceSystem?.systemHasAdvantageDisadvantage == true && (diceSystem?.systemType ?? SystemType.DnDSystem) == SystemType.DnDSystem)
+                {
+                    ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
+                    if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("AdvantageCheckbox")}##RollAdv_{member.CharacterName}", ref rollAdvantage))
+                    {
+                        if (rollAdvantage) rollDisadvantage = false;
+                    }
+                    ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                    if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("DisadvantageCheckbox")}##RollDisadv_{member.CharacterName}", ref rollDisadvantage))
+                    {
+                        if (rollDisadvantage) rollAdvantage = false;
+                    }
+                }
 
                 ImGui.Spacing();
 
                 string curName = memberRollNames.TryGetValue(member.CharacterName, out var nVal) ? nVal : rollName;
-                string curFormula = memberRollFormulas.TryGetValue(member.CharacterName, out var fVal) ? fVal : rollFormula;
+                string curFormula = memberRollFormulas.TryGetValue(member.CharacterName, out var fVal) ? fVal : $"1d{DiceRoll.GetSystemSides(diceSystem)}";
 
                 ImGui.SetNextItemWidth(140.0f * ImGuiHelpers.GlobalScale);
                 if (ImGui.InputTextWithHint($"##RollName_{member.CharacterName}", LocalizationManager.Instance.GetLocalizedString("GroupRollName"), ref curName, 128))
@@ -849,10 +874,22 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                ImGui.SetNextItemWidth(120.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.InputTextWithHint($"##RollFormula_{member.CharacterName}", LocalizationManager.Instance.GetLocalizedString("GroupRollFormula"), ref curFormula, 128))
+                if (useSystemDice)
                 {
-                    memberRollFormulas[member.CharacterName] = curFormula;
+                    // The single value means modifier, pool size or target depending on the system.
+                    ImGui.SetNextItemWidth(120.0f * ImGuiHelpers.GlobalScale);
+                    if (ImGui.InputInt($"{GetSystemStatLabel(diceSystem)}##RollStat_{member.CharacterName}", ref curStatValue))
+                    {
+                        memberRollStatValues[member.CharacterName] = curStatValue;
+                    }
+                }
+                else
+                {
+                    ImGui.SetNextItemWidth(120.0f * ImGuiHelpers.GlobalScale);
+                    if (ImGui.InputTextWithHint($"##RollFormula_{member.CharacterName}", LocalizationManager.Instance.GetLocalizedString("GroupRollFormula"), ref curFormula, 128))
+                    {
+                        memberRollFormulas[member.CharacterName] = curFormula;
+                    }
                 }
 
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
@@ -860,7 +897,14 @@ namespace Soulstone.Windows
                 {
                     if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("GroupRequestRoll")}##{member.CharacterName}"))
                     {
-                        PartySyncManager.Instance.RequestRoll(member.CharacterName, curFormula, curName);
+                        if (useSystemDice)
+                        {
+                            PartySyncManager.Instance.RequestRollWithSystem(member.CharacterName, curName, curStatValue, rollAdvantage, rollDisadvantage);
+                        }
+                        else
+                        {
+                            PartySyncManager.Instance.RequestRoll(member.CharacterName, curFormula, curName, rollAdvantage, rollDisadvantage);
+                        }
                     }
                 }
 
@@ -869,16 +913,29 @@ namespace Soulstone.Windows
                 {
                     if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("GroupRollForMember")}##{member.CharacterName}"))
                     {
-                        PartySyncManager.Instance.RollForMember(member.CharacterName, curFormula, curName);
+                        if (useSystemDice)
+                        {
+                            PartySyncManager.Instance.RollForMemberWithSystem(member.CharacterName, curName, curStatValue, rollAdvantage, rollDisadvantage);
+                        }
+                        else
+                        {
+                            PartySyncManager.Instance.RollForMember(member.CharacterName, curFormula, curName, rollAdvantage, rollDisadvantage);
+                        }
                     }
                 }
             }
         }
 
-        private void SetMemberFormula(string memberName, string formula, string name)
+        // Label for the single numeric input, which the active system reads as a modifier,
+        // a dice pool size or a percentile target.
+        private static string GetSystemStatLabel(DiceSystem? diceSystem)
         {
-            memberRollFormulas[memberName] = formula;
-            memberRollNames[memberName] = name;
+            return (diceSystem?.systemType ?? SystemType.DnDSystem) switch
+            {
+                SystemType.DicePoolSystem => LocalizationManager.Instance.GetLocalizedString("GroupRollPoolSize"),
+                SystemType.PercentileSystem => LocalizationManager.Instance.GetLocalizedString("GroupRollTarget"),
+                _ => LocalizationManager.Instance.GetLocalizedString("GroupRollModifier"),
+            };
         }
 
         private void DrawDmPrivateStats(PartyMemberSyncData member)
@@ -938,8 +995,7 @@ namespace Soulstone.Windows
                 {
                     if (ImGui.SmallButton($"{chipText} 🎲##Stat_{memberName}_{kv.Key}"))
                     {
-                        string formula = kv.Value >= 0 ? $"1d20+{kv.Value}" : $"1d20{kv.Value}";
-                        PartySyncManager.Instance.RollForMember(memberName, formula, $"{kv.Key} Check");
+                        PartySyncManager.Instance.RollForMemberWithSystem(memberName, $"{kv.Key} Check", kv.Value, rollAdvantage, rollDisadvantage);
                     }
                     if (ImGui.IsItemHovered())
                     {
@@ -1025,12 +1081,12 @@ namespace Soulstone.Windows
                     {
                         if (UiUtils.IconButton($"GridRoll_{member.CharacterName}", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("GroupRollForMember")))
                         {
-                            PartySyncManager.Instance.RollForMember(member.CharacterName, "1d20", "Check");
+                            PartySyncManager.Instance.RollForMemberWithSystem(member.CharacterName, rollName);
                         }
                         ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                         if (UiUtils.IconButton($"GridReq_{member.CharacterName}", FontAwesomeIcon.Bullhorn, LocalizationManager.Instance.GetLocalizedString("GroupRequestRoll")))
                         {
-                            PartySyncManager.Instance.RequestRoll(member.CharacterName, "1d20", "Check");
+                            PartySyncManager.Instance.RequestRollWithSystem(member.CharacterName, rollName);
                         }
                     }
 
@@ -1071,23 +1127,44 @@ namespace Soulstone.Windows
 
             if (ImGui.BeginPopupModal(LocalizationManager.Instance.GetLocalizedString("GroupBatchRollTitle"), ref showBatchRollModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
+                var diceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
+                string systemFormula = DiceRoll.DescribeSystemRoll(diceSystem);
+
                 ImGui.Spacing();
                 ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("GroupBatchRollTitle"));
                 ImGui.Spacing();
 
-                // Quick Presets
-                if (ImGui.SmallButton("Perception 1d20")) { batchRollName = "Perception Check"; batchRollFormula = "1d20"; }
+                // Quick presets, expressed with the active dice system instead of a fixed d20
+                if (ImGui.SmallButton($"Perception {systemFormula}")) { batchRollName = "Perception Check"; batchRollFormula = systemFormula; }
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.SmallButton("Initiative 1d20")) { batchRollName = "Initiative"; batchRollFormula = "1d20"; }
+                if (ImGui.SmallButton($"Initiative {systemFormula}")) { batchRollName = "Initiative"; batchRollFormula = systemFormula; }
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.SmallButton("Save 1d20")) { batchRollName = "Saving Throw"; batchRollFormula = "1d20"; }
+                if (ImGui.SmallButton($"Save {systemFormula}")) { batchRollName = "Saving Throw"; batchRollFormula = systemFormula; }
 
                 ImGui.Spacing();
                 ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
                 ImGui.InputTextWithHint("##BatchRollName", LocalizationManager.Instance.GetLocalizedString("GroupRollName"), ref batchRollName, 128);
 
-                ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputTextWithHint("##BatchRollFormula", LocalizationManager.Instance.GetLocalizedString("GroupRollFormula"), ref batchRollFormula, 128);
+                if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDice")}##BatchUseSystem", ref useSystemDice))
+                {
+                    if (useSystemDice) batchRollFormula = systemFormula;
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    string systemLabel = diceSystem?.systemName ?? LocalizationManager.Instance.GetLocalizedString("GroupSystemRoll");
+                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDiceTooltip", systemLabel));
+                }
+
+                if (useSystemDice)
+                {
+                    ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
+                    ImGui.InputInt($"{GetSystemStatLabel(diceSystem)}##BatchRollStat", ref batchRollStatValue);
+                }
+                else
+                {
+                    ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
+                    ImGui.InputTextWithHint("##BatchRollFormula", LocalizationManager.Instance.GetLocalizedString("GroupRollFormula"), ref batchRollFormula, 128);
+                }
 
                 ImGui.Spacing();
                 ImGui.Separator();
@@ -1101,7 +1178,14 @@ namespace Soulstone.Windows
                         {
                             if (m.HasSoulstone)
                             {
-                                PartySyncManager.Instance.RequestRoll(m.CharacterName, batchRollFormula, batchRollName);
+                                if (useSystemDice)
+                                {
+                                    PartySyncManager.Instance.RequestRollWithSystem(m.CharacterName, batchRollName, batchRollStatValue);
+                                }
+                                else
+                                {
+                                    PartySyncManager.Instance.RequestRoll(m.CharacterName, batchRollFormula, batchRollName);
+                                }
                             }
                         }
                         showBatchRollModal = false;

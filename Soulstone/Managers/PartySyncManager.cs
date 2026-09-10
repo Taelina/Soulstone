@@ -901,6 +901,26 @@ namespace Soulstone.Managers
             return true;
         }
 
+        // Asks the target to roll with their own dice system rather than a fixed d20 formula.
+        public bool RequestRollWithSystem(string targetName, string rollName, int statValue = 0, bool advantage = false, bool disadvantage = false)
+        {
+            if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName)) return false;
+            var diceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
+            var request = new RollRequestPayload
+            {
+                RequestedBy = GetLocalPlayerName(),
+                TargetName = targetName,
+                RollName = string.IsNullOrWhiteSpace(rollName) ? "Check" : rollName.Trim(),
+                Formula = DiceRoll.DescribeSystemRoll(diceSystem, statValue),
+                Advantage = advantage,
+                Disadvantage = disadvantage,
+                UseSystemDice = true,
+                StatValue = statValue
+            };
+            SendPacket(SyncEventType.RollRequest, request, $"[Soulstone] Roll requested from {targetName}: {request.RollName} ({request.Formula})");
+            return true;
+        }
+
         public bool RollForMember(string targetName, string formula, string rollName, bool advantage = false, bool disadvantage = false)
         {
             if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName)) return false;
@@ -911,10 +931,25 @@ namespace Soulstone.Managers
             return true;
         }
 
+        // Rolls on a member's behalf using the active dice system (dice type, system type and
+        // thresholds) instead of a hardcoded d20 formula.
+        public bool RollForMemberWithSystem(string targetName, string rollName, int statValue = 0, bool advantage = false, bool disadvantage = false, int rawSuccesses = 0)
+        {
+            if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName)) return false;
+            var diceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
+            string label = string.IsNullOrWhiteSpace(rollName) ? DiceRoll.DescribeSystemRoll(diceSystem, statValue) : rollName.Trim();
+            var roll = DiceRoll.RollStatWithSystem(diceSystem, label, statValue, advantage, disadvantage, rawSuccesses);
+            if (roll == null) return false;
+            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: $"[Soulstone] Rolled for {targetName}: {roll.RollResultString.TextValue}", characterName: targetName);
+            return true;
+        }
+
         public bool ExecuteRollRequest(string requestId)
         {
             if (!PendingRollRequests.TryRemove(requestId, out var request)) return false;
-            var roll = DiceRoll.ParseDiceRollString(request.Formula, request.Advantage, request.Disadvantage);
+            var roll = request.UseSystemDice
+                ? DiceRoll.RollStatWithSystem(DiceSystemManager.Instance.CurrentDiceSystem, request.RollName, request.StatValue, request.Advantage, request.Disadvantage)
+                : DiceRoll.ParseDiceRollString(request.Formula, request.Advantage, request.Disadvantage);
             if (roll == null) return false;
             BroadcastDiceRoll(request.RollName, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: $"[Soulstone] {request.RollName}: {roll.RollResultString.TextValue}");
             OnPartyRosterUpdated?.Invoke();

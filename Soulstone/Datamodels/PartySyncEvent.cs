@@ -121,6 +121,11 @@ namespace Soulstone.Datamodels
         public string Formula { get; set; } = "1d20";
         public bool Advantage { get; set; }
         public bool Disadvantage { get; set; }
+
+        // When set, the receiver rolls with its active dice system (using StatValue as the
+        // modifier / pool size / percentile target) instead of parsing Formula as XdY.
+        public bool UseSystemDice { get; set; }
+        public int StatValue { get; set; }
     }
 
     public class PrivateStatsPayload
