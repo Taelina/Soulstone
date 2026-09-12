@@ -723,26 +723,30 @@ namespace Soulstone.Windows
         private void DrawCardVitals(PartyMemberSyncData member)
         {
             // HP Bar
-            int maxHp = member.MaxHp > 0 ? member.MaxHp : 100;
-            float hpFraction = Math.Clamp((float)member.CurrentHp / maxHp, 0.0f, 1.0f);
-            string hpOverlay = $"{LocalizationManager.Instance.GetLocalizedString("GroupHealth")}: {member.CurrentHp} / {maxHp} ({(int)(hpFraction * 100)}%)";
-
-            Vector4 hpColor = GetHpBarColor(hpFraction);
-            using (ImRaii.PushColor(ImGuiCol.PlotHistogram, hpColor))
-            using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
+            if (member.MaxHp > 0)
             {
-                ImGui.ProgressBar(hpFraction, new Vector2(-1.0f, 18.0f * ImGuiHelpers.GlobalScale), hpOverlay);
+                float hpFraction = Math.Clamp((float)member.CurrentHp / member.MaxHp, 0.0f, 1.0f);
+                string hpOverlay = $"{LocalizationManager.Instance.GetLocalizedString("GroupHealth")}: {member.CurrentHp} / {member.MaxHp} ({(int)(hpFraction * 100)}%)";
+
+                Vector4 hpColor = GetHpBarColor(hpFraction);
+                using (ImRaii.PushColor(ImGuiCol.PlotHistogram, hpColor))
+                using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
+                {
+                    ImGui.ProgressBar(hpFraction, new Vector2(-1.0f, 18.0f * ImGuiHelpers.GlobalScale), hpOverlay);
+                }
             }
 
             // Mana Bar
-            int maxMana = member.MaxMana > 0 ? member.MaxMana : 100;
-            float manaFraction = Math.Clamp((float)member.CurrentMana / maxMana, 0.0f, 1.0f);
-            string manaOverlay = $"{LocalizationManager.Instance.GetLocalizedString("GroupMana")}: {member.CurrentMana} / {maxMana} ({(int)(manaFraction * 100)}%)";
-
-            using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.20f, 0.50f, 0.85f, 0.9f)))
-            using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
+            if (member.MaxMana > 0)
             {
-                ImGui.ProgressBar(manaFraction, new Vector2(-1.0f, 15.0f * ImGuiHelpers.GlobalScale), manaOverlay);
+                float manaFraction = Math.Clamp((float)member.CurrentMana / member.MaxMana, 0.0f, 1.0f);
+                string manaOverlay = $"{LocalizationManager.Instance.GetLocalizedString("GroupMana")}: {member.CurrentMana} / {member.MaxMana} ({(int)(manaFraction * 100)}%)";
+
+                using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.20f, 0.50f, 0.85f, 0.9f)))
+                using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
+                {
+                    ImGui.ProgressBar(manaFraction, new Vector2(-1.0f, 15.0f * ImGuiHelpers.GlobalScale), manaOverlay);
+                }
             }
 
             // Custom Resources
@@ -1058,20 +1062,32 @@ namespace Soulstone.Windows
 
                     // Col 2: Health
                     ImGui.TableSetColumnIndex(2);
-                    int maxHp = member.MaxHp > 0 ? member.MaxHp : 100;
-                    float hpFraction = Math.Clamp((float)member.CurrentHp / maxHp, 0.0f, 1.0f);
-                    using (ImRaii.PushColor(ImGuiCol.PlotHistogram, GetHpBarColor(hpFraction)))
+                    if (member.MaxHp > 0)
                     {
-                        ImGui.ProgressBar(hpFraction, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), $"{member.CurrentHp}/{maxHp}");
+                        float hpFraction = Math.Clamp((float)member.CurrentHp / member.MaxHp, 0.0f, 1.0f);
+                        using (ImRaii.PushColor(ImGuiCol.PlotHistogram, GetHpBarColor(hpFraction)))
+                        {
+                            ImGui.ProgressBar(hpFraction, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), $"{member.CurrentHp}/{member.MaxHp}");
+                        }
+                    }
+                    else
+                    {
+                        ImGui.TextDisabled("—");
                     }
 
                     // Col 3: Mana
                     ImGui.TableSetColumnIndex(3);
-                    int maxMana = member.MaxMana > 0 ? member.MaxMana : 100;
-                    float manaFraction = Math.Clamp((float)member.CurrentMana / maxMana, 0.0f, 1.0f);
-                    using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.20f, 0.50f, 0.85f, 0.9f)))
+                    if (member.MaxMana > 0)
                     {
-                        ImGui.ProgressBar(manaFraction, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), $"{member.CurrentMana}/{maxMana}");
+                        float manaFraction = Math.Clamp((float)member.CurrentMana / member.MaxMana, 0.0f, 1.0f);
+                        using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.20f, 0.50f, 0.85f, 0.9f)))
+                        {
+                            ImGui.ProgressBar(manaFraction, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), $"{member.CurrentMana}/{member.MaxMana}");
+                        }
+                    }
+                    else
+                    {
+                        ImGui.TextDisabled("—");
                     }
 
                     // Col 4: Last Roll

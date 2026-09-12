@@ -38,6 +38,14 @@ namespace Soulstone.Utils
             "if", "cond", "choose"
         };
 
+        [ThreadStatic]
+        private static Stack<string>? evaluationStack;
+
+        [ThreadStatic]
+        private static HashSet<string>? resolvingStats;
+
+        private const int MaxRecursionDepth = 32;
+
         public static double Evaluate(
             string formula,
             CharacterSheet? sheet = null,
@@ -47,12 +55,33 @@ namespace Soulstone.Utils
             if (string.IsNullOrWhiteSpace(formula))
                 return 0;
 
-            var tokens = Tokenize(formula);
-            if (tokens.Count == 0)
-                return 0;
+            evaluationStack ??= new Stack<string>();
+            resolvingStats ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            var parser = new Parser(tokens, sheet, diceSystem, customVariables);
-            return parser.Parse();
+            if (evaluationStack.Count >= MaxRecursionDepth)
+            {
+                string stackChain = string.Join(" -> ", evaluationStack.Reverse());
+                Plugin.Log?.Error($"[StatFormulaEvaluator] Recursion depth limit ({MaxRecursionDepth}) exceeded in formula solver for '{formula}'. Call stack: {stackChain}");
+                throw new InvalidOperationException($"Recursion limit exceeded ({MaxRecursionDepth}) in formula evaluator for '{formula}'. Call chain: {stackChain}");
+            }
+
+            evaluationStack.Push(formula);
+            try
+            {
+                var tokens = Tokenize(formula);
+                if (tokens.Count == 0)
+                    return 0;
+
+                var parser = new Parser(tokens, sheet, diceSystem, customVariables);
+                return parser.Parse();
+            }
+            finally
+            {
+                if (evaluationStack.Count > 0)
+                {
+                    evaluationStack.Pop();
+                }
+            }
         }
 
         public static int EvaluateToInt(
@@ -73,8 +102,9 @@ namespace Soulstone.Utils
 
                 return (int)Math.Round(result);
             }
-            catch
+            catch (Exception ex)
             {
+                Plugin.Log?.Error(ex, $"[StatFormulaEvaluator] Failed to evaluate formula '{formula}'. Returning default value {defaultValue}.");
                 return defaultValue;
             }
         }
@@ -178,6 +208,32 @@ namespace Soulstone.Utils
 
             if (sheet == null)
                 return 0;
+
+            resolvingStats ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (resolvingStats.Contains(cleanName))
+            {
+                string chain = string.Join(" -> ", evaluationStack != null ? evaluationStack.Reverse() : Array.Empty<string>());
+                Plugin.Log?.Error($"[StatFormulaEvaluator] Circular dependency detected in formula solver for '{cleanName}'. Active chain: {chain} -> '{cleanName}'");
+                throw new InvalidOperationException($"Circular dependency detected in formula solver for '{cleanName}'. Active chain: {chain} -> '{cleanName}'");
+            }
+
+            resolvingStats.Add(cleanName);
+            try
+            {
+                return ResolveStatValueInternal(cleanName, sheet, diceSystem, customVariables);
+            }
+            finally
+            {
+                resolvingStats.Remove(cleanName);
+            }
+        }
+
+        private static double ResolveStatValueInternal(
+            string cleanName,
+            CharacterSheet sheet,
+            DiceSystem? diceSystem,
+            IDictionary<string, double>? customVariables)
+        {
 
             // Handle Dot Notation (e.g. Strength.Mod, Health.Current, Health.Max, Gear.Strength, Buff.Strength)
             if (cleanName.Contains('.') || cleanName.Contains(':'))

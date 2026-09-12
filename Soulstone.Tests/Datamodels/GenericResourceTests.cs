@@ -61,16 +61,11 @@ namespace Soulstone.Tests.Datamodels
         [Fact]
         public void DiceSystem_GenericResources_AddRemoveAndDefaults()
         {
-            var system = new DiceSystem
-            {
-                systemHasManaOrResourcePoints = true
-            };
+            var system = new DiceSystem();
 
-            // Defaults when empty
+            // Defaults when empty is empty
             var effective = system.GetEffectiveResources();
-            effective.Should().HaveCount(2);
-            effective[0].Name.Should().Be("Health");
-            effective[1].Name.Should().Be("Mana");
+            effective.Should().BeEmpty();
 
             // Add custom resource
             system.AddResource(new ResourceDefinition("Rage", 100, 0, "#e74c3c", "Combat rage"));
@@ -252,6 +247,95 @@ namespace Soulstone.Tests.Datamodels
             deserialized!.CharacterResources["HolyPower"].ResourceType.Should().Be(ResourceType.Counter);
             deserialized.CharacterResources["SpellDC"].ResourceType.Should().Be(ResourceType.FlatNumber);
             deserialized.CharacterResources["Shield"].ResourceType.Should().Be(ResourceType.Bar);
+        }
+
+        [Fact]
+        public void CharacterSheet_And_DiceSystem_CanDeleteAnyResource_EvenHealthAndMana()
+        {
+            var sheet = new CharacterSheet();
+            sheet.CharacterHealthPoints = 100;
+            sheet.CharacterMaxHealthPoints = 100;
+            sheet.CharacterManaPoints = 50;
+            sheet.CharacterMaxManaPoints = 50;
+            sheet.SyncResourcesWithLegacyFields();
+
+            sheet.CharacterResources.Should().ContainKey("Health");
+            sheet.CharacterResources.Should().ContainKey("Mana");
+
+            // Remove Health
+            sheet.RemoveResource("Health").Should().BeTrue();
+            sheet.CharacterResources.Should().NotContainKey("Health");
+            sheet.CharacterHealthPoints.Should().Be(0);
+            sheet.CharacterMaxHealthPoints.Should().Be(0);
+
+            // Remove Mana
+            sheet.RemoveResource("Mana").Should().BeTrue();
+            sheet.CharacterResources.Should().NotContainKey("Mana");
+            sheet.CharacterManaPoints.Should().Be(0);
+            sheet.CharacterMaxManaPoints.Should().Be(0);
+
+            // Subsequent sync should NOT re-add Health or Mana when they have been deleted (max == 0)
+            sheet.SyncResourcesWithLegacyFields();
+            sheet.CharacterResources.Should().BeEmpty();
+
+            // DiceSystem can also delete any resource
+            var system = new DiceSystem();
+            system.AddResource(new ResourceDefinition("Health", 100, 100, "#2ecc71", "Health Points", isRequired: true));
+            system.AddResource(new ResourceDefinition("Mana", 100, 100, "#3498db", "Mana Points"));
+
+            system.RemoveResource("Health").Should().BeTrue();
+            system.RemoveResource("Mana").Should().BeTrue();
+            system.GetEffectiveResources().Should().BeEmpty();
+        }
+
+        [Fact]
+        public void Reordering_Resources_Attributes_Skills_Abilities_Slots_WorksCorrectly()
+        {
+            // DiceSystem Resource reordering
+            var system = new DiceSystem();
+            system.AddResource(new ResourceDefinition("ResA", 10, 10, "#111111"));
+            system.AddResource(new ResourceDefinition("ResB", 20, 20, "#222222"));
+            system.AddResource(new ResourceDefinition("ResC", 30, 30, "#333333"));
+
+            system.MoveResource("ResC", -1).Should().BeTrue(); // Move ResC up: ResA, ResC, ResB
+            var resList = system.GetEffectiveResources();
+            resList[0].Name.Should().Be("ResA");
+            resList[1].Name.Should().Be("ResC");
+            resList[2].Name.Should().Be("ResB");
+
+            // CharacterSheet Resource reordering
+            var sheet = new CharacterSheet();
+            sheet.CharacterResources["ResA"] = new CharacterResource("ResA", 10, 10);
+            sheet.CharacterResources["ResB"] = new CharacterResource("ResB", 20, 20);
+            sheet.CharacterResources["ResC"] = new CharacterResource("ResC", 30, 30);
+
+            sheet.MoveResource("ResA", 1).Should().BeTrue(); // Move ResA down: ResB, ResA, ResC
+            var sheetKeys = sheet.CharacterResources.Keys.ToList();
+            sheetKeys[0].Should().Be("ResB");
+            sheetKeys[1].Should().Be("ResA");
+            sheetKeys[2].Should().Be("ResC");
+
+            // Attribute reordering
+            sheet.CharacterAttributes["Attr1"] = new Soulstone.Datamodels.Attribute("Attr1", 10);
+            sheet.CharacterAttributes["Attr2"] = new Soulstone.Datamodels.Attribute("Attr2", 12);
+            sheet.MoveAttribute("Attr2", -1).Should().BeTrue();
+            sheet.CharacterAttributes.Keys.First().Should().Be("Attr2");
+
+            // Skill reordering
+            sheet.CharacterSkills["Skill1"] = new Skill("Skill1", 2);
+            sheet.CharacterSkills["Skill2"] = new Skill("Skill2", 4);
+            sheet.MoveSkill("Skill2", -1).Should().BeTrue();
+            sheet.CharacterSkills.Keys.First().Should().Be("Skill2");
+
+            // Ability reordering
+            sheet.CharacterAbilities["Ability1"] = new Ability("Ability1", 3);
+            sheet.CharacterAbilities["Ability2"] = new Ability("Ability2", 5);
+            sheet.MoveAbility("Ability2", -1).Should().BeTrue();
+            sheet.CharacterAbilities.Keys.First().Should().Be("Ability2");
+
+            // Slots reordering in DiceSystem
+            system.MoveEquipmentSlot("Head", 1).Should().BeTrue();
+            system.MoveAugmentationSlot("Optics", -1).Should().BeTrue();
         }
     }
 }

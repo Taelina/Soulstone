@@ -257,6 +257,7 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
   - Tabletop dice notation: `1d20`, `2d6`, `d100`.
   - Unary operators: `+`, `-`.
 - Gracefully handles division by zero and malformed expressions with safe fallbacks and detailed error reporting.
+- Features recursion depth protection (`MaxRecursionDepth = 32`) and circular dependency cycle detection to prevent infinite formula loops and stack overflow crashes.
 - Used for dynamic resource max calculations, dynamic ability damage/healing formulas, flat-number resource rolls, and formula-based combat initiative modifiers.
 - Detailed reference and user guide: [`docs/FORMULA_SOLVER.md`](FORMULA_SOLVER.md).
 

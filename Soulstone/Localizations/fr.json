@@ -1,4 +1,8 @@
 {
+  "MoveUpTooltip": "Monter",
+  "MoveDownTooltip": "Descendre",
+  "MoveLeftTooltip": "Déplacer vers la gauche",
+  "MoveRightTooltip": "Déplacer vers la droite",
   "AddButton": "+",
   "SupprButton": "-",
   "ThrowButton": "Lancer",

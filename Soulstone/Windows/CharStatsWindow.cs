@@ -333,11 +333,15 @@ namespace Soulstone.Windows
 
             float spacing = 8.0f * ImGuiHelpers.GlobalScale;
             float minCardWidth = 150.0f * ImGuiHelpers.GlobalScale;
-            float cardHeight = (editingStats ? 68.0f : 58.0f) * ImGuiHelpers.GlobalScale;
+            float cardHeight = (editingStats ? 72.0f : 58.0f) * ImGuiHelpers.GlobalScale;
             float contentWidth = ImGui.GetContentRegionAvail().X;
             int maxCols = Math.Max(1, (int)Math.Floor((contentWidth + spacing) / (minCardWidth + spacing)));
             int columns = Math.Clamp(resources.Count, 1, maxCols);
             float cardWidth = (contentWidth - (spacing * (columns - 1))) / columns;
+
+            string? resToRemove = null;
+            string? resToMoveLeft = null;
+            string? resToMoveRight = null;
 
             for (int i = 0; i < resources.Count; i++)
             {
@@ -347,11 +351,27 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, spacing);
                 }
 
-                DrawResourceCard(res, cardWidth, cardHeight);
+                DrawResourceCard(res, cardWidth, cardHeight, i, resources.Count, ref resToMoveLeft, ref resToMoveRight, ref resToRemove);
+            }
+
+            if (resToMoveLeft != null)
+            {
+                currentCharacter.MoveResource(resToMoveLeft, -1);
+                currentDiceSystem?.MoveResource(resToMoveLeft, -1);
+            }
+            if (resToMoveRight != null)
+            {
+                currentCharacter.MoveResource(resToMoveRight, 1);
+                currentDiceSystem?.MoveResource(resToMoveRight, 1);
+            }
+            if (resToRemove != null)
+            {
+                currentCharacter.RemoveResource(resToRemove);
+                currentDiceSystem?.RemoveResource(resToRemove);
             }
         }
 
-        private void DrawResourceCard(CharacterResource res, float cardWidth, float cardHeight)
+        private void DrawResourceCard(CharacterResource res, float cardWidth, float cardHeight, int index, int totalCount, ref string? resToMoveLeft, ref string? resToMoveRight, ref string? resToRemove)
         {
             var def = currentDiceSystem?.SystemResources.FirstOrDefault(d => string.Equals(d.Name, res.Name, StringComparison.OrdinalIgnoreCase));
             var resCol = GetResourceColor(res.Name, def?.ColorHex);
@@ -365,20 +385,42 @@ namespace Soulstone.Windows
             {
                 if (card.Success)
                 {
-                    // Top line: Name and Recalc button (if editing) or Roll button / Type badge
+                    // Top line: Name and Recalc / Move / Del button (if editing) or Roll button / Type badge
                     ImGui.TextColored(resCol, res.Name);
 
                     if (editingStats)
                     {
+                        float btnsWidth = 22.0f * ImGuiHelpers.GlobalScale; // Trash
+                        if (index > 0) btnsWidth += 20.0f * ImGuiHelpers.GlobalScale;
+                        if (index < totalCount - 1) btnsWidth += 20.0f * ImGuiHelpers.GlobalScale;
+                        if (!string.IsNullOrWhiteSpace(effectiveFormula)) btnsWidth += 20.0f * ImGuiHelpers.GlobalScale;
+
+                        var rightBtnX = cardWidth - btnsWidth - 14.0f * ImGuiHelpers.GlobalScale;
+                        if (ImGui.GetCursorPosX() < rightBtnX)
+                            ImGui.SameLine(rightBtnX);
+                        else
+                            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+
+                        if (index > 0)
+                        {
+                            if (UiUtils.IconButton($"MoveLeftRes_{res.Name}", FontAwesomeIcon.ChevronLeft, LocalizationManager.Instance.GetLocalizedString("MoveLeftTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                            {
+                                resToMoveLeft = res.Name;
+                            }
+                            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                        }
+
+                        if (index < totalCount - 1)
+                        {
+                            if (UiUtils.IconButton($"MoveRightRes_{res.Name}", FontAwesomeIcon.ChevronRight, LocalizationManager.Instance.GetLocalizedString("MoveRightTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                            {
+                                resToMoveRight = res.Name;
+                            }
+                            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                        }
+
                         if (!string.IsNullOrWhiteSpace(effectiveFormula))
                         {
-                            var syncBtnWidth = 20.0f * ImGuiHelpers.GlobalScale;
-                            var rightBtnX = cardWidth - syncBtnWidth - 16.0f * ImGuiHelpers.GlobalScale;
-                            if (ImGui.GetCursorPosX() < rightBtnX)
-                                ImGui.SameLine(rightBtnX);
-                            else
-                                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-
                             if (UiUtils.IconButton($"RecalcRes_{res.Name}", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("RecalculateResourcesBtn"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
                             {
                                 currentCharacter.RecalculateResourceMax(res.Name, currentDiceSystem);
@@ -387,6 +429,12 @@ namespace Soulstone.Windows
                             {
                                 ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("RecalculateResourcesTooltip")}\n({effectiveFormula})");
                             }
+                            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                        }
+
+                        if (UiUtils.IconButton($"DelRes_{res.Name}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                        {
+                            resToRemove = res.Name;
                         }
                     }
 
@@ -633,11 +681,15 @@ namespace Soulstone.Windows
                     }
                     else
                     {
+                        var attrList = effectiveAttributes.ToList();
                         string? attrToRemove = null;
+                        string? attrToMoveUp = null;
+                        string? attrToMoveDown = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
 
-                        foreach (KeyValuePair<string, Datamodels.Attribute> attribute in effectiveAttributes)
+                        for (int i = 0; i < attrList.Count; i++)
                         {
+                            var attribute = attrList[i];
                             ImGui.PushID($"AttrCard_{attribute.Key}");
 
                             var pos = ImGui.GetCursorScreenPos();
@@ -665,6 +717,23 @@ namespace Soulstone.Windows
 
                             if (editingStats)
                             {
+                                if (i > 0)
+                                {
+                                    if (UiUtils.IconButton($"MoveUp_{attribute.Key}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        attrToMoveUp = attribute.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                if (i < attrList.Count - 1)
+                                {
+                                    if (UiUtils.IconButton($"MoveDown_{attribute.Key}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        attrToMoveDown = attribute.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+
                                 if (UiUtils.IconButton($"Del_{attribute.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
                                 {
                                     attrToRemove = attribute.Key;
@@ -857,6 +926,16 @@ namespace Soulstone.Windows
                             ImGui.SetCursorScreenPos(new Vector2(pos.X, pos.Y + cardHeight + 4.0f * ImGuiHelpers.GlobalScale));
                         }
 
+                        if (attrToMoveUp != null)
+                        {
+                            currentCharacter.MoveAttribute(attrToMoveUp, -1);
+                            currentDiceSystem?.MoveAttribute(attrToMoveUp, -1);
+                        }
+                        if (attrToMoveDown != null)
+                        {
+                            currentCharacter.MoveAttribute(attrToMoveDown, 1);
+                            currentDiceSystem?.MoveAttribute(attrToMoveDown, 1);
+                        }
                         if (attrToRemove != null)
                         {
                             currentCharacter.characterAttributes.Remove(attrToRemove);
@@ -915,12 +994,16 @@ namespace Soulstone.Windows
                     }
                     else
                     {
+                        var skillList = effectiveSkills.ToList();
                         string? skillToRemove = null;
+                        string? skillToMoveUp = null;
+                        string? skillToMoveDown = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
                         var effectiveAttributes = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
 
-                        foreach (KeyValuePair<string, Skill> skill in effectiveSkills)
+                        for (int i = 0; i < skillList.Count; i++)
                         {
+                            var skill = skillList[i];
                             ImGui.PushID($"SkillCard_{skill.Key}");
 
                             var pos = ImGui.GetCursorScreenPos();
@@ -966,6 +1049,23 @@ namespace Soulstone.Windows
 
                             if (editingStats)
                             {
+                                if (i > 0)
+                                {
+                                    if (UiUtils.IconButton($"MoveUpSkill_{skill.Key}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        skillToMoveUp = skill.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                if (i < skillList.Count - 1)
+                                {
+                                    if (UiUtils.IconButton($"MoveDownSkill_{skill.Key}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        skillToMoveDown = skill.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+
                                 if (UiUtils.IconButton($"Del_{skill.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
                                 {
                                     skillToRemove = skill.Key;
@@ -1112,6 +1212,16 @@ namespace Soulstone.Windows
                             ImGui.SetCursorScreenPos(new Vector2(pos.X, pos.Y + cardHeight + 4.0f * ImGuiHelpers.GlobalScale));
                         }
 
+                        if (skillToMoveUp != null)
+                        {
+                            currentCharacter.MoveSkill(skillToMoveUp, -1);
+                            currentDiceSystem?.MoveSkill(skillToMoveUp, -1);
+                        }
+                        if (skillToMoveDown != null)
+                        {
+                            currentCharacter.MoveSkill(skillToMoveDown, 1);
+                            currentDiceSystem?.MoveSkill(skillToMoveDown, 1);
+                        }
                         if (skillToRemove != null)
                         {
                             currentCharacter.characterSkills.Remove(skillToRemove);
@@ -1171,12 +1281,16 @@ namespace Soulstone.Windows
                     }
                     else
                     {
+                        var abilityList = effectiveAbilities.ToList();
                         string? abilityToRemove = null;
+                        string? abilityToMoveUp = null;
+                        string? abilityToMoveDown = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
                         var effectiveAttributes = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
 
-                        foreach (KeyValuePair<string, Ability> ability in effectiveAbilities)
+                        for (int i = 0; i < abilityList.Count; i++)
                         {
+                            var ability = abilityList[i];
                             ImGui.PushID($"AbilityCard_{ability.Key}");
 
                             var pos = ImGui.GetCursorScreenPos();
@@ -1232,6 +1346,23 @@ namespace Soulstone.Windows
 
                             if (editingStats)
                             {
+                                if (i > 0)
+                                {
+                                    if (UiUtils.IconButton($"MoveUpAbility_{ability.Key}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        abilityToMoveUp = ability.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                if (i < abilityList.Count - 1)
+                                {
+                                    if (UiUtils.IconButton($"MoveDownAbility_{ability.Key}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        abilityToMoveDown = ability.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+
                                 if (UiUtils.IconButton($"Del_{ability.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
                                 {
                                     abilityToRemove = ability.Key;
@@ -1385,6 +1516,16 @@ namespace Soulstone.Windows
                             ImGui.SetCursorScreenPos(new Vector2(pos.X, pos.Y + cardHeight + 4.0f * ImGuiHelpers.GlobalScale));
                         }
 
+                        if (abilityToMoveUp != null)
+                        {
+                            currentCharacter.MoveAbility(abilityToMoveUp, -1);
+                            currentDiceSystem?.MoveAbility(abilityToMoveUp, -1);
+                        }
+                        if (abilityToMoveDown != null)
+                        {
+                            currentCharacter.MoveAbility(abilityToMoveDown, 1);
+                            currentDiceSystem?.MoveAbility(abilityToMoveDown, 1);
+                        }
                         if (abilityToRemove != null)
                         {
                             currentCharacter.characterAbilities.Remove(abilityToRemove);

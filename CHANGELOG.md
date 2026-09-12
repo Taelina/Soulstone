@@ -5,6 +5,30 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-09-13
+
+### Added
+- **Stat, Resource & Slot Reordering Controls**:
+  - Added full reordering controls (Move Up / Move Down / Move Left / Move Right) for resources, attributes, skills, abilities, equipment slots, and augmentation slots in character sheets and dice systems.
+  - Implemented underlying reordering helpers (`MoveResource`, `MoveAttribute`, `MoveSkill`, `MoveAbility`, `MoveEquipmentSlot`, `MoveAugmentationSlot`) across `CharacterSheet` and `DiceSystem`.
+- **Universal Resource Deletion & Dynamic Resource Flexibility**:
+  - Unlocked deletion for any resource, including default "Health" and "Mana", across custom dice systems and character sheets.
+  - Removed forced injection/respawning of "Health" and "Mana" resources.
+  - Updated character stat sheet, tactical grid, and party group management interfaces to gracefully handle characters and rulesets with no Health or Mana resources without rendering broken empty gauges.
+
+### Fixed
+- **Formula Solver Recursion & Circular Reference Protection**:
+  - Added recursive dependency cycle tracking (`resolvingStats`) and stack depth limit enforcement (`MaxRecursionDepth = 32`) in `StatFormulaEvaluator`.
+  - Recursive self-referencing formulas now safely log detailed diagnostic error call chains and return safe default values instead of crashing the game client with a stack overflow.
+
+### Changed
+- **Version Manifests & Metadata**:
+  - Bumped version to `1.0.5.0` across `Soulstone.csproj`, `Soulstone.json`, and `SoulstoneRep.json`.
+- **Localization**:
+  - Added localized tooltips for reordering controls in English and French dictionaries (`en.json` and `fr.json`).
+
+---
+
 ## [1.0.4] - 2026-09-12
 
 ### Added

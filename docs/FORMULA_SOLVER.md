@@ -21,6 +21,7 @@ The **Soulstone Formula Solver** (`StatFormulaEvaluator`) is a safe, expressive 
 6. [Mathematical Functions](#6-mathematical-functions)
 7. [Practical Examples](#7-practical-examples)
 8. [API & Programmatic Usage](#8-api--programmatic-usage)
+9. [Recursion & Error Handling Safety](#9-recursion--error-handling-safety)
 
 ---
 
@@ -267,3 +268,13 @@ else
 List<string> vars = StatFormulaEvaluator.ExtractVariables("10 + STR.Mod + Athletics + Gear.Bonus");
 // Returns: ["STR.Mod", "Athletics", "Gear.Bonus"]
 ```
+
+---
+
+## 9. Recursion & Error Handling Safety
+
+To prevent game crashes and infinite execution loops caused by cyclic formula dependencies (e.g., Resource A referencing Resource B, which references Resource A):
+
+- **Circular Dependency Tracking**: The evaluator maintains thread-static tracking of currently resolving variables (`resolvingStats`). If a variable attempts to resolve itself directly or indirectly within the same evaluation stack, an informative error is logged with the full resolution call chain, and the evaluator halts immediately.
+- **Maximum Recursion Depth**: Enforces a strict recursion depth limit (`MaxRecursionDepth = 32`).
+- **Safe Fallback**: High-level evaluation calls (`EvaluateToInt`, `TryEvaluate`) catch circular reference exceptions, log the stack trace to Dalamud's log, and safely return the specified default value without interrupting game execution.

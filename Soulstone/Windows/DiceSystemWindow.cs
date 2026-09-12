@@ -489,11 +489,12 @@ namespace Soulstone.Windows
                             ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("ResourceTypeLabel"), ImGuiTableColumnFlags.WidthStretch, 0.20f);
                             ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceMax"), ImGuiTableColumnFlags.WidthStretch, 0.25f);
                             ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"), ImGuiTableColumnFlags.WidthStretch, 0.35f);
-                            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 65.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 115.0f * ImGuiHelpers.GlobalScale);
                             ImGui.TableHeadersRow();
 
-                            foreach (var res in resources)
+                            for (int i = 0; i < resources.Count; i++)
                             {
+                                var res = resources[i];
                                 ImGui.PushID($"ResDefRow_{res.Name}");
                                 ImGui.TableNextRow();
 
@@ -563,20 +564,34 @@ namespace Soulstone.Windows
                                     ImGui.TextDisabled("—");
                                 }
 
-                                // Actions (Edit / Delete)
+                                // Actions (Move Up / Move Down / Edit / Delete)
                                 ImGui.TableNextColumn();
-                                if (UiUtils.IconButton($"EditRes_{res.Name}", FontAwesomeIcon.Edit, LocalizationManager.Instance.GetLocalizedString("DiceSysEditResource"), new Vector2(24, 20) * ImGuiHelpers.GlobalScale))
+                                if (i > 0)
+                                {
+                                    if (UiUtils.IconButton($"MoveUpRes_{res.Name}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        currentSystem.MoveResource(res.Name, -1);
+                                    }
+                                    ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                if (i < resources.Count - 1)
+                                {
+                                    if (UiUtils.IconButton($"MoveDownRes_{res.Name}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        currentSystem.MoveResource(res.Name, 1);
+                                    }
+                                    ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
+                                }
+
+                                if (UiUtils.IconButton($"EditRes_{res.Name}", FontAwesomeIcon.Edit, LocalizationManager.Instance.GetLocalizedString("DiceSysEditResource"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
                                 {
                                     resToEdit = res;
                                 }
 
-                                if (!res.IsRequired && !string.Equals(res.Name, "Health", StringComparison.OrdinalIgnoreCase))
+                                ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
+                                if (UiUtils.IconButton($"DelRes_{res.Name}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DiceSysDeleteResource"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
                                 {
-                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    if (UiUtils.IconButton($"DelRes_{res.Name}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DiceSysDeleteResource"), new Vector2(24, 20) * ImGuiHelpers.GlobalScale))
-                                    {
-                                        resToRemove = res.Name;
-                                    }
+                                    resToRemove = res.Name;
                                 }
 
                                 ImGui.PopID();
@@ -727,11 +742,8 @@ namespace Soulstone.Windows
                 ImGui.InputText("##ModalResDesc", ref modalResourceDesc, 100);
 
                 // Is Required
-                if (!string.Equals(modalResourceName, "Health", StringComparison.OrdinalIgnoreCase))
-                {
-                    ImGui.Spacing();
-                    ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceIsRequired"), ref modalResourceIsRequired);
-                }
+                ImGui.Spacing();
+                ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceIsRequired"), ref modalResourceIsRequired);
 
                 ImGui.Spacing();
                 ImGui.Separator();
@@ -826,10 +838,32 @@ namespace Soulstone.Windows
 
                         var slots = currentSystem.GetEffectiveAugmentationSlots();
                         string? slotToRemove = null;
-                        foreach (var slot in slots)
+                        string? slotToMoveUp = null;
+                        string? slotToMoveDown = null;
+
+                        for (int i = 0; i < slots.Count; i++)
                         {
+                            var slot = slots[i];
                             UiUtils.Badge(slot, new Vector4(0.2f, 0.25f, 0.35f, 0.7f), ImGuiColors.ParsedBlue);
                             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+
+                            if (i > 0)
+                            {
+                                if (UiUtils.IconButton($"MoveUpAugSlot_{slot}", FontAwesomeIcon.ChevronLeft, LocalizationManager.Instance.GetLocalizedString("MoveLeftTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                {
+                                    slotToMoveUp = slot;
+                                }
+                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                            }
+                            if (i < slots.Count - 1)
+                            {
+                                if (UiUtils.IconButton($"MoveDownAugSlot_{slot}", FontAwesomeIcon.ChevronRight, LocalizationManager.Instance.GetLocalizedString("MoveRightTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                {
+                                    slotToMoveDown = slot;
+                                }
+                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                            }
+
                             if (UiUtils.IconButton($"DelAugSlot_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
                             {
                                 slotToRemove = slot;
@@ -838,6 +872,14 @@ namespace Soulstone.Windows
                         }
                         ImGui.NewLine();
 
+                        if (slotToMoveUp != null)
+                        {
+                            currentSystem.MoveAugmentationSlot(slotToMoveUp, -1);
+                        }
+                        if (slotToMoveDown != null)
+                        {
+                            currentSystem.MoveAugmentationSlot(slotToMoveDown, 1);
+                        }
                         if (slotToRemove != null)
                         {
                             if (currentSystem.customAugmentationSlots == null || currentSystem.customAugmentationSlots.Count == 0)

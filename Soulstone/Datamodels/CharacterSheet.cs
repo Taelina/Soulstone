@@ -72,10 +72,10 @@ namespace Soulstone.Datamodels
         public int characterLevel;
         public string characterClass = string.Empty;
         public int characterExperiencePoints;
-        public int characterHealthPoints;
-        public int characterMaxHealthPoints;
-        public int characterManaPoints;
-        public int characterMaxManaPoints;
+        public int characterHealthPoints = 100;
+        public int characterMaxHealthPoints = 100;
+        public int characterManaPoints = 100;
+        public int characterMaxManaPoints = 100;
 
         //Character Generic Resources fields
         public Dictionary<string, CharacterResource> characterResources = new Dictionary<string, CharacterResource>();
@@ -153,21 +153,26 @@ namespace Soulstone.Datamodels
             equippedAugmentations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             characterResources = new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
             activeBuffs = new List<Buff>();
-            SyncResourcesWithLegacyFields();
         }
 
         public void SyncResourcesWithLegacyFields()
         {
             characterResources ??= new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
 
-            if (!characterResources.TryGetValue("Health", out var healthRes))
+            if (characterResources.Count == 0)
             {
                 if (characterHealthPoints != 0 || characterMaxHealthPoints != 0)
                 {
                     characterResources["Health"] = new CharacterResource("Health", characterHealthPoints, characterMaxHealthPoints);
                 }
+                if (characterManaPoints != 0 || characterMaxManaPoints != 0)
+                {
+                    characterResources["Mana"] = new CharacterResource("Mana", characterManaPoints, characterMaxManaPoints);
+                }
+                return;
             }
-            else
+
+            if (characterResources.TryGetValue("Health", out var healthRes))
             {
                 if (characterHealthPoints != 0 || characterMaxHealthPoints != 0)
                 {
@@ -181,14 +186,7 @@ namespace Soulstone.Datamodels
                 }
             }
 
-            if (!characterResources.TryGetValue("Mana", out var manaRes))
-            {
-                if (characterManaPoints != 0 || characterMaxManaPoints != 0)
-                {
-                    characterResources["Mana"] = new CharacterResource("Mana", characterManaPoints, characterMaxManaPoints);
-                }
-            }
-            else
+            if (characterResources.TryGetValue("Mana", out var manaRes))
             {
                 if (characterManaPoints != 0 || characterMaxManaPoints != 0)
                 {
@@ -201,6 +199,123 @@ namespace Soulstone.Datamodels
                     characterMaxManaPoints = manaRes.MaxValue;
                 }
             }
+        }
+
+        public bool RemoveResource(string name)
+        {
+            if (characterResources == null) return false;
+            var key = characterResources.Keys.FirstOrDefault(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase));
+            if (key == null) return false;
+
+            bool removed = characterResources.Remove(key);
+            if (removed)
+            {
+                if (string.Equals(name, "Health", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "HP", StringComparison.OrdinalIgnoreCase))
+                {
+                    characterHealthPoints = 0;
+                    characterMaxHealthPoints = 0;
+                }
+                else if (string.Equals(name, "Mana", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "MP", StringComparison.OrdinalIgnoreCase))
+                {
+                    characterManaPoints = 0;
+                    characterMaxManaPoints = 0;
+                }
+                PartySyncManager.Instance.BroadcastResourceUpdate();
+            }
+            return removed;
+        }
+
+        public bool MoveResource(string resourceName, int direction)
+        {
+            if (characterResources == null || characterResources.Count < 2) return false;
+            var keys = characterResources.Keys.ToList();
+            int idx = keys.FindIndex(k => string.Equals(k, resourceName, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= keys.Count) return false;
+
+            string targetKey = keys[targetIdx];
+            keys[targetIdx] = keys[idx];
+            keys[idx] = targetKey;
+
+            var newDict = new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in keys)
+            {
+                newDict[k] = characterResources[k];
+            }
+            characterResources = newDict;
+            PartySyncManager.Instance.BroadcastResourceUpdate();
+            return true;
+        }
+
+        public bool MoveAttribute(string attributeKey, int direction)
+        {
+            if (characterAttributes == null || characterAttributes.Count < 2) return false;
+            var keys = characterAttributes.Keys.ToList();
+            int idx = keys.FindIndex(k => string.Equals(k, attributeKey, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= keys.Count) return false;
+
+            string targetKey = keys[targetIdx];
+            keys[targetIdx] = keys[idx];
+            keys[idx] = targetKey;
+
+            var newDict = new Dictionary<string, Attribute>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in keys)
+            {
+                newDict[k] = characterAttributes[k];
+            }
+            characterAttributes = newDict;
+            return true;
+        }
+
+        public bool MoveSkill(string skillKey, int direction)
+        {
+            if (characterSkills == null || characterSkills.Count < 2) return false;
+            var keys = characterSkills.Keys.ToList();
+            int idx = keys.FindIndex(k => string.Equals(k, skillKey, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= keys.Count) return false;
+
+            string targetKey = keys[targetIdx];
+            keys[targetIdx] = keys[idx];
+            keys[idx] = targetKey;
+
+            var newDict = new Dictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in keys)
+            {
+                newDict[k] = characterSkills[k];
+            }
+            characterSkills = newDict;
+            return true;
+        }
+
+        public bool MoveAbility(string abilityKey, int direction)
+        {
+            if (characterAbilities == null || characterAbilities.Count < 2) return false;
+            var keys = characterAbilities.Keys.ToList();
+            int idx = keys.FindIndex(k => string.Equals(k, abilityKey, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= keys.Count) return false;
+
+            string targetKey = keys[targetIdx];
+            keys[targetIdx] = keys[idx];
+            keys[idx] = targetKey;
+
+            var newDict = new Dictionary<string, Ability>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in keys)
+            {
+                newDict[k] = characterAbilities[k];
+            }
+            characterAbilities = newDict;
+            return true;
         }
 
         public void SetResourceCurrent(string name, int value)
@@ -882,11 +997,11 @@ namespace Soulstone.Datamodels
                 }
                 else if (string.Equals(resourceName, "Health", StringComparison.OrdinalIgnoreCase))
                 {
-                    baseMax = characterMaxHealthPoints > 0 ? characterMaxHealthPoints : 100;
+                    baseMax = characterMaxHealthPoints;
                 }
                 else if (string.Equals(resourceName, "Mana", StringComparison.OrdinalIgnoreCase))
                 {
-                    baseMax = characterMaxManaPoints > 0 ? characterMaxManaPoints : 100;
+                    baseMax = characterMaxManaPoints;
                 }
                 else if (diceSystem != null)
                 {

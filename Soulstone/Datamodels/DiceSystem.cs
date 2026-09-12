@@ -78,6 +78,10 @@ namespace Soulstone.Datamodels
         public int successInterval = 0;
         public int dicePoolMaxSuccessCount = 1;
 
+        public DiceSystem()
+        {
+        }
+
         public string SystemName { get => systemName; set => systemName = value; }
         public bool DicePoolSystemEnabled { get => dicePoolSystemEnabled; set => dicePoolSystemEnabled = value; }
         public bool RegularDiceSystemEnabled { get => regularDiceSystemEnabled; set => regularDiceSystemEnabled = value; }
@@ -92,7 +96,30 @@ namespace Soulstone.Datamodels
         public bool SystemHasAdvantageDisadvantage { get => systemHasAdvantageDisadvantage; set => systemHasAdvantageDisadvantage = value; }
         public SystemType SystemType { get => systemType; set => systemType = value; }
         public int SuccessInterval { get => successInterval; set => successInterval = value; }
-        public bool SystemHasManaOrResourcePoints { get => systemHasManaOrResourcePoints; set => systemHasManaOrResourcePoints = value; }
+        public bool SystemHasManaOrResourcePoints
+        {
+            get => systemHasManaOrResourcePoints;
+            set
+            {
+                systemHasManaOrResourcePoints = value;
+                if (systemResources != null)
+                {
+                    bool hasMana = systemResources.Any(r => string.Equals(r.Name, "Mana", StringComparison.OrdinalIgnoreCase));
+                    if (value && !hasMana)
+                    {
+                        systemResources.Add(new ResourceDefinition("Mana", 100, 100, "#3498db", "Mana Points"));
+                    }
+                    else if (!value && hasMana)
+                    {
+                        var mana = systemResources.FirstOrDefault(r => string.Equals(r.Name, "Mana", StringComparison.OrdinalIgnoreCase));
+                        if (mana != null && string.Equals(mana.Description, "Mana Points", StringComparison.OrdinalIgnoreCase))
+                        {
+                            systemResources.Remove(mana);
+                        }
+                    }
+                }
+            }
+        }
         public bool SystemHasClasses { get => systemHasClasses; set => systemHasClasses = value; }
         public bool SystemHasBonusTemp { get => systemHasBonusTemp; set => systemHasBonusTemp = value; }
         public bool SystemHasBonusPerm { get => systemHasBonusPerm; set => systemHasBonusPerm = value; }
@@ -186,22 +213,8 @@ namespace Soulstone.Datamodels
 
         public List<ResourceDefinition> GetEffectiveResources()
         {
-            if (systemResources != null && systemResources.Count > 0)
-            {
-                return systemResources;
-            }
-
-            var defaults = new List<ResourceDefinition>
-            {
-                new ResourceDefinition("Health", 100, 100, "#2ecc71", "Health Points", isRequired: true)
-            };
-
-            if (systemHasManaOrResourcePoints)
-            {
-                defaults.Add(new ResourceDefinition("Mana", 100, 100, "#3498db", "Mana Points"));
-            }
-
-            return defaults;
+            systemResources ??= new List<ResourceDefinition>();
+            return systemResources;
         }
 
         public void AddResource(ResourceDefinition resource)
@@ -224,6 +237,128 @@ namespace Soulstone.Datamodels
                 return systemResources.Remove(existing);
             }
             return false;
+        }
+
+        public bool MoveResource(string resourceName, int direction)
+        {
+            if (systemResources == null || systemResources.Count < 2) return false;
+            int idx = systemResources.FindIndex(r => string.Equals(r.Name, resourceName, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= systemResources.Count) return false;
+
+            var item = systemResources[idx];
+            systemResources.RemoveAt(idx);
+            systemResources.Insert(targetIdx, item);
+            return true;
+        }
+
+        public bool MoveAttribute(string attributeKey, int direction)
+        {
+            if (systemAttributes == null || systemAttributes.Count < 2) return false;
+            var keys = systemAttributes.Keys.ToList();
+            int idx = keys.FindIndex(k => string.Equals(k, attributeKey, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= keys.Count) return false;
+
+            string targetKey = keys[targetIdx];
+            keys[targetIdx] = keys[idx];
+            keys[idx] = targetKey;
+
+            var newDict = new Dictionary<string, Attribute>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in keys)
+            {
+                newDict[k] = systemAttributes[k];
+            }
+            systemAttributes = newDict;
+            return true;
+        }
+
+        public bool MoveSkill(string skillKey, int direction)
+        {
+            if (systemSkills == null || systemSkills.Count < 2) return false;
+            var keys = systemSkills.Keys.ToList();
+            int idx = keys.FindIndex(k => string.Equals(k, skillKey, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= keys.Count) return false;
+
+            string targetKey = keys[targetIdx];
+            keys[targetIdx] = keys[idx];
+            keys[idx] = targetKey;
+
+            var newDict = new Dictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in keys)
+            {
+                newDict[k] = systemSkills[k];
+            }
+            systemSkills = newDict;
+            return true;
+        }
+
+        public bool MoveAbility(string abilityKey, int direction)
+        {
+            if (systemAbilities == null || systemAbilities.Count < 2) return false;
+            var keys = systemAbilities.Keys.ToList();
+            int idx = keys.FindIndex(k => string.Equals(k, abilityKey, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= keys.Count) return false;
+
+            string targetKey = keys[targetIdx];
+            keys[targetIdx] = keys[idx];
+            keys[idx] = targetKey;
+
+            var newDict = new Dictionary<string, Ability>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in keys)
+            {
+                newDict[k] = systemAbilities[k];
+            }
+            systemAbilities = newDict;
+            return true;
+        }
+
+        public bool MoveEquipmentSlot(string slotName, int direction)
+        {
+            if (customEquipmentSlots == null || customEquipmentSlots.Count == 0)
+            {
+                customEquipmentSlots = GearItem.StandardSlots.ToList();
+            }
+            if (customEquipmentSlots.Count < 2) return false;
+            int idx = customEquipmentSlots.FindIndex(s => string.Equals(s, slotName, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= customEquipmentSlots.Count) return false;
+
+            var item = customEquipmentSlots[idx];
+            customEquipmentSlots.RemoveAt(idx);
+            customEquipmentSlots.Insert(targetIdx, item);
+            return true;
+        }
+
+        public bool MoveAugmentationSlot(string slotName, int direction)
+        {
+            if (customAugmentationSlots == null || customAugmentationSlots.Count == 0)
+            {
+                customAugmentationSlots = GearItem.StandardAugmentationSlots.ToList();
+            }
+            if (customAugmentationSlots.Count < 2) return false;
+            int idx = customAugmentationSlots.FindIndex(s => string.Equals(s, slotName, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            int targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= customAugmentationSlots.Count) return false;
+
+            var item = customAugmentationSlots[idx];
+            customAugmentationSlots.RemoveAt(idx);
+            customAugmentationSlots.Insert(targetIdx, item);
+            return true;
         }
 
         public List<string> GetEffectiveEquipmentSlots()

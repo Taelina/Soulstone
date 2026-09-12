@@ -266,17 +266,15 @@ namespace Soulstone.Tests.Datamodels
         }
 
         [Fact]
-        public void GetEffectiveResources_WhenEmpty_ReturnsDefaultsIncludingManaIfEnabled()
+        public void GetEffectiveResources_WhenEmpty_ReturnsEmptyUnlessResourcesAdded()
         {
             var system = new DiceSystem { SystemHasManaOrResourcePoints = false };
             var eff1 = system.GetEffectiveResources();
-            eff1.Should().ContainSingle(r => r.Name == "Health");
+            eff1.Should().BeEmpty();
 
             system.SystemHasManaOrResourcePoints = true;
             var eff2 = system.GetEffectiveResources();
-            eff2.Should().HaveCount(2);
-            eff2.Should().Contain(r => r.Name == "Health");
-            eff2.Should().Contain(r => r.Name == "Mana");
+            eff2.Should().ContainSingle(r => r.Name == "Mana");
         }
     }
 }
