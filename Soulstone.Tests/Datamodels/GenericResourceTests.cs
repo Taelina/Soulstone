@@ -126,7 +126,11 @@ namespace Soulstone.Tests.Datamodels
             var system = new DiceSystem();
             system.AddResource(new ResourceDefinition("Stamina", 200, 200, "#f39c12"));
 
-            var allResources = sheet.GetEffectiveResources(system);
+            var systemResources = sheet.GetEffectiveResources(system);
+            systemResources.Should().Contain(r => r.Name == "Stamina");
+            systemResources.Should().NotContain(r => r.Name == "Focus");
+
+            var allResources = sheet.GetEffectiveResources(null);
             allResources.Should().Contain(r => r.Name == "Health");
             allResources.Should().Contain(r => r.Name == "Mana");
             allResources.Should().Contain(r => r.Name == "Focus");

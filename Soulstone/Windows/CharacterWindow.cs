@@ -56,6 +56,7 @@ namespace Soulstone.Windows
             if (currentCharacter == null)
             {
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedMessage"));
+                DrawModals();
                 return;
             }
 
@@ -297,14 +298,16 @@ namespace Soulstone.Windows
                     ImGui.TableNextColumn();
                     UiUtils.ManageInputField(ref currentCharacter.characterGender, "CharacterGender", editingCharsheet, -1f);
 
-                    // Row 5: Pronouns
+                    // Row 5: Pronouns & Linked System
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
                     ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharPronounsField"));
                     ImGui.TableNextColumn();
                     UiUtils.ManageInputField(ref currentCharacter.characterPronouns, "CharacterPronouns", editingCharsheet, -1f);
                     ImGui.TableNextColumn();
+                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"));
                     ImGui.TableNextColumn();
+                    UiUtils.ManageInputField(ref currentCharacter.linkedDiceSystem, "CharacterLinkedSystem", editingCharsheet, -1f);
                 }
             }
         }
@@ -644,6 +647,7 @@ namespace Soulstone.Windows
                     if (!string.IsNullOrWhiteSpace(newCharname))
                     {
                         CharacterSheet.CreateNewSheet(newCharname);
+                        currentCharacter = CharacterManager.Instance.CharacterSheet;
                         showCreateCharPopup = false;
                     }
                 }
@@ -675,7 +679,7 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(100, 0) * ImGuiHelpers.GlobalScale))
                 {
-                    if (!string.IsNullOrWhiteSpace(newMemberName))
+                    if (currentCharacter != null && !string.IsNullOrWhiteSpace(newMemberName))
                     {
                         currentCharacter.characterFamily ??= new Dictionary<string, string>();
                         currentCharacter.characterFamily[newMemberName] = newMemberDescription;
@@ -710,7 +714,7 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(100, 0) * ImGuiHelpers.GlobalScale))
                 {
-                    if (!string.IsNullOrWhiteSpace(newMemberName))
+                    if (currentCharacter != null && !string.IsNullOrWhiteSpace(newMemberName))
                     {
                         currentCharacter.characterFriends ??= new Dictionary<string, string>();
                         currentCharacter.characterFriends[newMemberName] = newMemberDescription;
@@ -745,7 +749,7 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(100, 0) * ImGuiHelpers.GlobalScale))
                 {
-                    if (!string.IsNullOrWhiteSpace(newMemberName))
+                    if (currentCharacter != null && !string.IsNullOrWhiteSpace(newMemberName))
                     {
                         currentCharacter.characterEnnemies ??= new Dictionary<string, string>();
                         currentCharacter.characterEnnemies[newMemberName] = newMemberDescription;

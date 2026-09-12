@@ -243,6 +243,8 @@
   "DiceTypeCombo": "Type de dé :",
   "SuccessThresholdLabel": "Seuil de réussite (pour les systèmes à pool de dés) :",
   "SuccessIntervalLabel": "Interval de réussite (pour les systèmes pourcentage) :",
+  "DicePoolMaxSuccessCountLabel": "Nombre de succès sur résultat maximum (pool de dés) :",
+  "DicePoolMaxSuccessCountTooltip": "Le nombre de succès accordés lorsqu'un dé obtient sa valeur maximale (ex. 2 succès pour un 10 sur un d10).",
   "DndStyleAttrCheckbox": "Attributs de style DnD",
   "SkillUniqueAttrCheckbox": "Compétence liée à un seul attribut",
   "AbilityUniqueAttrCheckbox": "Capacité liée à un seul attribut",

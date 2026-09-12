@@ -243,6 +243,8 @@
   "DiceTypeCombo": "Dice Type :",
   "SuccessThresholdLabel": "Success Threshold (for dice pool systems) :",
   "SuccessIntervalLabel": "Success Interval (for percentile dice systems) :",
+  "DicePoolMaxSuccessCountLabel": "Success count on maximum die roll (dice pool) :",
+  "DicePoolMaxSuccessCountTooltip": "The number of successes awarded when a die lands on its maximum value (e.g. 2 successes for rolling a 10 on a d10).",
   "DndStyleAttrCheckbox": "DnD style attributes",
   "SkillUniqueAttrCheckbox": "Skill linked only to one attribute",
   "AbilityUniqueAttrCheckbox": "Ability linked only to one attribute",

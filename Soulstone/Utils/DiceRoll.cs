@@ -82,7 +82,7 @@ namespace Soulstone.Utils
         }
 
         // To be called for dice pool style rolls where each die that meets or exceeds a threshold counts as a success
-        public static DiceRoll RollDicePool(int numberOfDice, int sidesPerDie, int successThreshold, string rollName = "", int rawSuccesses = 0)
+        public static DiceRoll RollDicePool(int numberOfDice, int sidesPerDie, int successThreshold, string rollName = "", int rawSuccesses = 0, int maxSuccessCount = 1)
         {
             DiceRoll diceRoll = new DiceRoll();
             Random rand = new Random();
@@ -92,7 +92,11 @@ namespace Soulstone.Utils
             {
                 int roll = rand.Next(1, sidesPerDie + 1);
                 rolls.Add(roll);
-                if (roll >= successThreshold)
+                if (roll == sidesPerDie && maxSuccessCount > 1)
+                {
+                    successes += maxSuccessCount;
+                }
+                else if (roll >= successThreshold)
                 {
                     successes++;
                 }
@@ -206,9 +210,10 @@ namespace Soulstone.Utils
             {
                 case SystemType.DicePoolSystem:
                     int threshold = diceSystem?.SuccessThreshold ?? 8;
+                    int maxSuccesses = diceSystem?.DicePoolMaxSuccessCount ?? 1;
                     int poolSize = Math.Max(1, numberOfDice);
-                    Plugin.Log?.Information($"Rolling {poolSize}d{parsedSides} against success threshold {threshold} with {rawSuccesses} epic bonus");
-                    return RollDicePool(poolSize, parsedSides, threshold, rollName, rawSuccesses);
+                    Plugin.Log?.Information($"Rolling {poolSize}d{parsedSides} against success threshold {threshold} (max die successes: {maxSuccesses}) with {rawSuccesses} epic bonus");
+                    return RollDicePool(poolSize, parsedSides, threshold, rollName, rawSuccesses, maxSuccesses);
                 case SystemType.PercentileSystem:
                     int interval = diceSystem?.successInterval ?? 10;
                     Plugin.Log?.Information($"Rolling 1d100 against target {target}");

@@ -163,5 +163,74 @@ namespace Soulstone.Tests.Managers
             var action = () => CharacterSheet.SaveSheet(null!);
             action.Should().NotThrow();
         }
+
+        [Fact]
+        public void CreateNewSheet_InitializesAndLoadsNewSheetIntoManager()
+        {
+            // Arrange
+            CharacterManager.Instance.Reset();
+            CharacterManager.Instance.CharacterSheet.Should().BeNull();
+
+            // Act
+            CharacterSheet.CreateNewSheet("Krile Mayer Baldesion");
+
+            // Assert
+            CharacterManager.Instance.CharacterSheet.Should().NotBeNull();
+            CharacterManager.Instance.CharacterSheet!.CharacterFullName.Should().Be("Krile Mayer Baldesion");
+        }
+
+        [Fact]
+        public void LinkedDiceSystem_CanBeModifiedAndPersisted()
+        {
+            // Arrange
+            var sheet = new CharacterSheet
+            {
+                CharacterFullName = "Urianger Augurelt",
+                LinkedDiceSystem = "Astrology D20"
+            };
+            CharacterSheet.SaveSheet(sheet);
+
+            // Act
+            sheet.LinkedDiceSystem = "Custom Oracle System";
+            CharacterSheet.SaveSheet(sheet);
+
+            var reloaded = CharacterSheet.LoadSheet("Urianger Augurelt");
+
+            // Assert
+            reloaded.Should().NotBeNull();
+            reloaded!.LinkedDiceSystem.Should().Be("Custom Oracle System");
+            reloaded.linkedDiceSystem.Should().Be("Custom Oracle System");
+        }
+
+        [Fact]
+        public void ForceLoadCharData_WhenCharacterHasLinkedDiceSystem_SwitchesDiceSystem()
+        {
+            // Arrange
+            var customSys = new DiceSystem
+            {
+                systemName = "Shadowrun D6",
+                systemType = SystemType.DicePoolSystem,
+                diceType = DiceType.d6
+            };
+            DiceSystem.SaveDiceSystem(customSys);
+
+            var sheet = new CharacterSheet
+            {
+                CharacterFullName = "Thancred Waters",
+                LinkedDiceSystem = "Shadowrun D6"
+            };
+            CharacterSheet.SaveSheet(sheet);
+
+            // Set current dice system to something else first
+            var initialSys = new DiceSystem { systemName = "Standard_Dice_System" };
+            DiceSystemManager.Instance.CurrentDiceSystem = initialSys;
+
+            // Act
+            CharacterManager.Instance.ForceLoadCharData("Thancred Waters");
+
+            // Assert
+            DiceSystemManager.Instance.CurrentDiceSystem.Should().NotBeNull();
+            DiceSystemManager.Instance.CurrentDiceSystem!.systemName.Should().Be("Shadowrun D6");
+        }
     }
 }

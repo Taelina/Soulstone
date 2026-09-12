@@ -122,6 +122,36 @@ namespace Soulstone.Tests.Utils
             roll.RollResultString.TextValue.Should().Contain("(Success Threshold: 6): Successes:");
         }
 
+        [Fact]
+        public void RollDicePool_WithMaxSuccessCount_AwardsExtraSuccessesWhenMaxRolled()
+        {
+            // Act - roll a large pool of d4 dice where 4 is rolled with maxSuccessCount=2 and threshold=4
+            // Since any 4 will give 2 successes, total successes >= count of 4s * 2
+            var roll = DiceRoll.RollDicePool(100, 4, 4, "ExaltedPool", rawSuccesses: 0, maxSuccessCount: 2);
+
+            // Assert
+            int maxCount = roll.IndividualRolls.Count(r => r == 4);
+            int expectedSuccesses = maxCount * 2;
+            roll.RollResult.Should().Be(expectedSuccesses);
+        }
+
+        [Fact]
+        public void RollWithSystem_DicePoolSystem_HonorsDicePoolMaxSuccessCount()
+        {
+            var system = new DiceSystem
+            {
+                SystemType = SystemType.DicePoolSystem,
+                DiceType = DiceType.d6,
+                SuccessThreshold = 6,
+                DicePoolMaxSuccessCount = 3
+            };
+
+            var roll = DiceRoll.RollWithSystem(system, numberOfDice: 50);
+            roll.Should().NotBeNull();
+            int sixesCount = roll!.IndividualRolls.Count(r => r == 6);
+            roll.RollResult.Should().Be(sixesCount * 3);
+        }
+
         #endregion
 
         #region Percentile Dice Rolls

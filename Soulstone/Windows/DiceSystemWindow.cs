@@ -394,16 +394,22 @@ namespace Soulstone.Windows
 
                         if (currentSystem.initiativeStatType == InitiativeStatType.Attribute)
                         {
-                            if (sheet?.characterAttributes != null && sheet.characterAttributes.Count > 0)
+                            var attrs = currentSystem.SystemAttributes != null && currentSystem.SystemAttributes.Count > 0
+                                ? currentSystem.SystemAttributes.Keys
+                                : sheet?.characterAttributes?.Keys;
+                            if (attrs != null)
                             {
-                                options.AddRange(sheet.characterAttributes.Keys);
+                                options.AddRange(attrs);
                             }
                         }
                         else if (currentSystem.initiativeStatType == InitiativeStatType.Skill)
                         {
-                            if (sheet?.characterSkills != null && sheet.characterSkills.Count > 0)
+                            var skills = currentSystem.SystemSkills != null && currentSystem.SystemSkills.Count > 0
+                                ? currentSystem.SystemSkills.Keys
+                                : sheet?.characterSkills?.Keys;
+                            if (skills != null)
                             {
-                                options.AddRange(sheet.characterSkills.Keys);
+                                options.AddRange(skills);
                             }
                         }
 
@@ -894,6 +900,21 @@ namespace Soulstone.Windows
                     ImGui.TableNextColumn();
                     ImGui.SetNextItemWidth(90.0f * ImGuiHelpers.GlobalScale);
                     ImGui.InputInt("##SuccessInterval", ref currentSystem.successInterval, 1);
+
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("DicePoolMaxSuccessCountLabel"));
+                    ImGui.TableNextColumn();
+                    ImGui.SetNextItemWidth(90.0f * ImGuiHelpers.GlobalScale);
+                    if (ImGui.InputInt("##DicePoolMaxSuccessCount", ref currentSystem.dicePoolMaxSuccessCount, 1))
+                    {
+                        if (currentSystem.dicePoolMaxSuccessCount < 1) currentSystem.dicePoolMaxSuccessCount = 1;
+                    }
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DicePoolMaxSuccessCountTooltip"));
+                    }
                 }
             }
         }

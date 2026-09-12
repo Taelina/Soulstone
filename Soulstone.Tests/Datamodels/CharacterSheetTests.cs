@@ -300,5 +300,45 @@ namespace Soulstone.Tests.Datamodels
             // Dynamic: 3 (Skill only, attribute chosen at roll time) = 3
             sheet.GetEffectiveSkillTotal("Stealth", dynamicDiceSys).Should().Be(3);
         }
+
+        [Fact]
+        public void GetEffectiveStats_WhenDiceSystemDefinesStats_FiltersOutOtherStats()
+        {
+            var sheet = new CharacterSheet();
+            sheet.CharacterAttributes["Strength"] = new Attribute("Strength", 10);
+            sheet.CharacterAttributes["Dexterity"] = new Attribute("Dexterity", 12);
+            sheet.CharacterAttributes["CustomOldAttr"] = new Attribute("CustomOldAttr", 5);
+
+            sheet.CharacterSkills["Athletics"] = new Skill { SkillName = "Athletics", SkillModifier = 2 };
+            sheet.CharacterSkills["OldUnusedSkill"] = new Skill { SkillName = "OldUnusedSkill", SkillModifier = 1 };
+
+            sheet.CharacterAbilities["Rage"] = new Ability { AbilityName = "Rage", AbilityModifier = 3 };
+            sheet.CharacterAbilities["OldAbility"] = new Ability { AbilityName = "OldAbility", AbilityModifier = 1 };
+
+            var system = new DiceSystem();
+            system.SystemAttributes["Strength"] = new Attribute("Strength", 10);
+            system.SystemAttributes["Dexterity"] = new Attribute("Dexterity", 10);
+            system.SystemSkills["Athletics"] = new Skill { SkillName = "Athletics", SkillModifier = 0 };
+            system.SystemAbilities["Rage"] = new Ability { AbilityName = "Rage", AbilityModifier = 0 };
+
+            var attrs = sheet.GetEffectiveAttributes(system);
+            attrs.Should().ContainKey("Strength");
+            attrs.Should().ContainKey("Dexterity");
+            attrs.Should().NotContainKey("CustomOldAttr");
+
+            var skills = sheet.GetEffectiveSkills(system);
+            skills.Should().ContainKey("Athletics");
+            skills.Should().NotContainKey("OldUnusedSkill");
+
+            var abs = sheet.GetEffectiveAbilities(system);
+            abs.Should().ContainKey("Rage");
+            abs.Should().NotContainKey("OldAbility");
+
+            // When system has no defined stats, falls back to all character stats
+            var emptySystem = new DiceSystem();
+            sheet.GetEffectiveAttributes(emptySystem).Should().ContainKey("CustomOldAttr");
+            sheet.GetEffectiveSkills(emptySystem).Should().ContainKey("OldUnusedSkill");
+            sheet.GetEffectiveAbilities(emptySystem).Should().ContainKey("OldAbility");
+        }
     }
 }

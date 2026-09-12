@@ -77,6 +77,18 @@ namespace Soulstone.Windows
             if (CharacterManager.Instance.CharacterSheet != null)
             {
                 currentCharacter = CharacterManager.Instance.CharacterSheet;
+                if (!DiceSystemManager.Instance.IsSessionRulesetActive && !string.IsNullOrWhiteSpace(currentCharacter.linkedDiceSystem))
+                {
+                    var activeSys = DiceSystemManager.Instance.CurrentDiceSystem;
+                    if (activeSys == null || !string.Equals(activeSys.systemName, currentCharacter.linkedDiceSystem, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var linkedSys = DiceSystem.LoadDiceSystem(currentCharacter.linkedDiceSystem);
+                        if (linkedSys != null)
+                        {
+                            DiceSystemManager.Instance.SwitchDiceSystem(linkedSys);
+                        }
+                    }
+                }
             }
             if (DiceSystemManager.Instance.CurrentDiceSystem != null)
             {
@@ -238,7 +250,14 @@ namespace Soulstone.Windows
                         UiUtils.Badge(string.Format(LocalizationManager.Instance.GetLocalizedString("SystemDiceBadgeFormat"), diceType), new Vector4(0.3f, 0.2f, 0.5f, 0.4f), ImGuiColors.DalamudViolet);
                     }
 
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.linkedDiceSystem))
+                    if (editingStats)
+                    {
+                        ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"));
+                        ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                        UiUtils.ManageInputField(ref currentCharacter.linkedDiceSystem, "LinkedDiceSystemInput", editingStats, 100.0f);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(currentCharacter.linkedDiceSystem))
                     {
                         ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                         UiUtils.Badge(currentCharacter.linkedDiceSystem, new Vector4(0.2f, 0.35f, 0.5f, 0.4f), ImGuiColors.ParsedBlue);
@@ -576,13 +595,15 @@ namespace Soulstone.Windows
                 if (child.Success)
                 {
                     // Column Header
+                    var effectiveAttributes = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
+
                     ImGui.PushFont(UiBuilder.IconFont);
                     ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.ShieldAlt.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    UiUtils.Badge((currentCharacter.characterAttributes?.Count ?? 0).ToString(), new Vector4(0.35f, 0.28f, 0.12f, 0.5f), ImGuiColors.ParsedGold);
+                    UiUtils.Badge((effectiveAttributes?.Count ?? 0).ToString(), new Vector4(0.35f, 0.28f, 0.12f, 0.5f), ImGuiColors.ParsedGold);
 
                     var addBtnWidth = 24.0f * ImGuiHelpers.GlobalScale;
                     var rightX = ImGui.GetWindowContentRegionMax().X - addBtnWidth;
@@ -601,7 +622,7 @@ namespace Soulstone.Windows
                     ImGui.Separator();
                     ImGui.Spacing();
 
-                    if (currentCharacter.characterAttributes == null || currentCharacter.characterAttributes.Count == 0)
+                    if (effectiveAttributes == null || effectiveAttributes.Count == 0)
                     {
                         ImGui.Spacing();
                         ImGui.PushFont(UiBuilder.IconFont);
@@ -615,7 +636,7 @@ namespace Soulstone.Windows
                         string? attrToRemove = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
 
-                        foreach (KeyValuePair<string, Datamodels.Attribute> attribute in currentCharacter.characterAttributes)
+                        foreach (KeyValuePair<string, Datamodels.Attribute> attribute in effectiveAttributes)
                         {
                             ImGui.PushID($"AttrCard_{attribute.Key}");
 
@@ -839,6 +860,7 @@ namespace Soulstone.Windows
                         if (attrToRemove != null)
                         {
                             currentCharacter.characterAttributes.Remove(attrToRemove);
+                            currentDiceSystem?.SystemAttributes?.Remove(attrToRemove);
                         }
                     }
                 }
@@ -854,13 +876,15 @@ namespace Soulstone.Windows
                 if (child.Success)
                 {
                     // Column Header
+                    var effectiveSkills = currentCharacter.GetEffectiveSkills(currentDiceSystem);
+
                     ImGui.PushFont(UiBuilder.IconFont);
                     ImGui.TextColored(ImGuiColors.ParsedGreen, FontAwesomeIcon.Book.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("SkillLabel"));
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    UiUtils.Badge((currentCharacter.characterSkills?.Count ?? 0).ToString(), new Vector4(0.15f, 0.35f, 0.2f, 0.5f), ImGuiColors.ParsedGreen);
+                    UiUtils.Badge((effectiveSkills?.Count ?? 0).ToString(), new Vector4(0.15f, 0.35f, 0.2f, 0.5f), ImGuiColors.ParsedGreen);
 
                     var addBtnWidth = 24.0f * ImGuiHelpers.GlobalScale;
                     var rightX = ImGui.GetWindowContentRegionMax().X - addBtnWidth;
@@ -873,14 +897,14 @@ namespace Soulstone.Windows
                     {
                         newSkillName = "";
                         newSkillValue = 0;
-                        selectedAttribute = currentCharacter.characterAttributes?.Keys.FirstOrDefault() ?? "";
+                        selectedAttribute = currentCharacter.GetEffectiveAttributes(currentDiceSystem)?.Keys.FirstOrDefault() ?? "";
                         showSkillPopup = true;
                     }
 
                     ImGui.Separator();
                     ImGui.Spacing();
 
-                    if (currentCharacter.characterSkills == null || currentCharacter.characterSkills.Count == 0)
+                    if (effectiveSkills == null || effectiveSkills.Count == 0)
                     {
                         ImGui.Spacing();
                         ImGui.PushFont(UiBuilder.IconFont);
@@ -893,8 +917,9 @@ namespace Soulstone.Windows
                     {
                         string? skillToRemove = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
+                        var effectiveAttributes = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
 
-                        foreach (KeyValuePair<string, Skill> skill in currentCharacter.characterSkills)
+                        foreach (KeyValuePair<string, Skill> skill in effectiveSkills)
                         {
                             ImGui.PushID($"SkillCard_{skill.Key}");
 
@@ -1090,6 +1115,7 @@ namespace Soulstone.Windows
                         if (skillToRemove != null)
                         {
                             currentCharacter.characterSkills.Remove(skillToRemove);
+                            currentDiceSystem?.SystemSkills?.Remove(skillToRemove);
                         }
                     }
                 }
@@ -1105,13 +1131,15 @@ namespace Soulstone.Windows
                 if (child.Success)
                 {
                     // Column Header
+                    var effectiveAbilities = currentCharacter.GetEffectiveAbilities(currentDiceSystem);
+
                     ImGui.PushFont(UiBuilder.IconFont);
                     ImGui.TextColored(ImGuiColors.TankBlue, FontAwesomeIcon.Bolt.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TextColored(ImGuiColors.TankBlue, LocalizationManager.Instance.GetLocalizedString("AbilityLabel"));
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    UiUtils.Badge((currentCharacter.characterAbilities?.Count ?? 0).ToString(), new Vector4(0.15f, 0.25f, 0.45f, 0.5f), ImGuiColors.TankBlue);
+                    UiUtils.Badge((effectiveAbilities?.Count ?? 0).ToString(), new Vector4(0.15f, 0.25f, 0.45f, 0.5f), ImGuiColors.TankBlue);
 
                     var addBtnWidth = 24.0f * ImGuiHelpers.GlobalScale;
                     var rightX = ImGui.GetWindowContentRegionMax().X - addBtnWidth;
@@ -1124,15 +1152,15 @@ namespace Soulstone.Windows
                     {
                         newAbilityName = "";
                         newAbilityValue = 0;
-                        selectedAttribute = currentCharacter.characterAttributes?.Keys.FirstOrDefault() ?? "";
-                        selectedSkill = currentCharacter.characterSkills?.Keys.FirstOrDefault() ?? "";
+                        selectedAttribute = currentCharacter.GetEffectiveAttributes(currentDiceSystem)?.Keys.FirstOrDefault() ?? "";
+                        selectedSkill = currentCharacter.GetEffectiveSkills(currentDiceSystem)?.Keys.FirstOrDefault() ?? "";
                         showAbilitiesPopup = true;
                     }
 
                     ImGui.Separator();
                     ImGui.Spacing();
 
-                    if (currentCharacter.characterAbilities == null || currentCharacter.characterAbilities.Count == 0)
+                    if (effectiveAbilities == null || effectiveAbilities.Count == 0)
                     {
                         ImGui.Spacing();
                         ImGui.PushFont(UiBuilder.IconFont);
@@ -1145,8 +1173,9 @@ namespace Soulstone.Windows
                     {
                         string? abilityToRemove = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
+                        var effectiveAttributes = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
 
-                        foreach (KeyValuePair<string, Ability> ability in currentCharacter.characterAbilities)
+                        foreach (KeyValuePair<string, Ability> ability in effectiveAbilities)
                         {
                             ImGui.PushID($"AbilityCard_{ability.Key}");
 
@@ -1359,6 +1388,7 @@ namespace Soulstone.Windows
                         if (abilityToRemove != null)
                         {
                             currentCharacter.characterAbilities.Remove(abilityToRemove);
+                            currentDiceSystem?.SystemAbilities?.Remove(abilityToRemove);
                         }
                     }
                 }
@@ -1401,7 +1431,12 @@ namespace Soulstone.Windows
                         currentCharacter.characterAttributes ??= new Dictionary<string, Datamodels.Attribute>();
                         if (!currentCharacter.characterAttributes.ContainsKey(newAttributeName))
                         {
-                            currentCharacter.characterAttributes.Add(newAttributeName, new Datamodels.Attribute(newAttributeName, newAttributeValue, newAttributeDescription));
+                            var newAttr = new Datamodels.Attribute(newAttributeName, newAttributeValue, newAttributeDescription);
+                            currentCharacter.characterAttributes.Add(newAttributeName, newAttr);
+                            if (currentDiceSystem != null && currentDiceSystem.SystemAttributes != null && currentDiceSystem.SystemAttributes.Count > 0)
+                            {
+                                currentDiceSystem.SystemAttributes[newAttributeName] = new Datamodels.Attribute(newAttributeName, newAttributeValue, newAttributeDescription);
+                            }
                             newAttributeName = "";
                             newAttributeValue = 0;
                             newAttributeDescription = "";
@@ -1444,7 +1479,7 @@ namespace Soulstone.Windows
                 ImGui.InputText("##NewSkillDesc", ref newSkillDescription, 200);
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute"));
-                var attrKeys = currentCharacter.characterAttributes?.Keys.ToList() ?? new List<string>();
+                var attrKeys = currentCharacter.GetEffectiveAttributes(currentDiceSystem)?.Keys.ToList() ?? new List<string>();
                 if (attrKeys.Count > 0)
                 {
                     if (string.IsNullOrEmpty(selectedAttribute) || !attrKeys.Contains(selectedAttribute))
@@ -1485,6 +1520,16 @@ namespace Soulstone.Windows
                         if (!currentCharacter.characterSkills.ContainsKey(newSkillName))
                         {
                             currentCharacter.characterSkills.Add(newSkillName, newSkill);
+                            if (currentDiceSystem != null && currentDiceSystem.SystemSkills != null && currentDiceSystem.SystemSkills.Count > 0)
+                            {
+                                currentDiceSystem.SystemSkills[newSkillName] = new Skill
+                                {
+                                    skillName = newSkillName,
+                                    skillModifier = newSkillValue,
+                                    linkedAttribute = selectedAttribute,
+                                    skillDescription = newSkillDescription
+                                };
+                            }
                             newSkillName = "";
                             newSkillValue = 0;
                             newSkillDescription = "";
@@ -1521,7 +1566,8 @@ namespace Soulstone.Windows
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("SelectLinkedAttributePrompt"));
                 var noneLabel = LocalizationManager.Instance.GetLocalizedString("NoneOption");
-                var attrKeys = currentCharacter.characterAttributes?.Keys.ToList() ?? new List<string>();
+                var effectiveAttrs = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
+                var attrKeys = effectiveAttrs?.Keys.ToList() ?? new List<string>();
                 var attrOptions = new List<string> { "" };
                 attrOptions.AddRange(attrKeys);
                 if (ImGui.BeginCombo("##DynamicSkillAttrCombo", string.IsNullOrEmpty(selectedDynamicAttr) ? noneLabel : selectedDynamicAttr))
@@ -1546,8 +1592,8 @@ namespace Soulstone.Windows
                 int dynAttrBuffBonus = 0;
 
                 if (!string.IsNullOrEmpty(selectedDynamicAttr) &&
-                    currentCharacter.characterAttributes != null &&
-                    currentCharacter.characterAttributes.TryGetValue(selectedDynamicAttr, out var dynAttr) && dynAttr != null)
+                    effectiveAttrs != null &&
+                    effectiveAttrs.TryGetValue(selectedDynamicAttr, out var dynAttr) && dynAttr != null)
                 {
                     dynAttrVal = dynAttr.Value;
                     dynAttrTemp = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? dynAttr.TempBonus : 0;
@@ -1622,7 +1668,7 @@ namespace Soulstone.Windows
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute"));
                 var noneLabel = LocalizationManager.Instance.GetLocalizedString("NoneOption");
-                var attrKeys = currentCharacter.characterAttributes?.Keys.ToList() ?? new List<string>();
+                var attrKeys = currentCharacter.GetEffectiveAttributes(currentDiceSystem)?.Keys.ToList() ?? new List<string>();
                 var attrOptions = new List<string> { "" };
                 attrOptions.AddRange(attrKeys);
                 if (ImGui.BeginCombo("##AbilityLinkedAttrCombo", string.IsNullOrEmpty(selectedAttribute) ? noneLabel : selectedAttribute))
@@ -1640,7 +1686,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewLinkedSkill"));
-                var skillKeysList = currentCharacter.characterSkills?.Keys.ToList() ?? new List<string>();
+                var skillKeysList = currentCharacter.GetEffectiveSkills(currentDiceSystem)?.Keys.ToList() ?? new List<string>();
                 var skillOptions = new List<string> { "" };
                 skillOptions.AddRange(skillKeysList);
                 if (ImGui.BeginCombo("##AbilityLinkedSkillCombo", string.IsNullOrEmpty(selectedSkill) ? noneLabel : selectedSkill))
@@ -1677,6 +1723,17 @@ namespace Soulstone.Windows
                         if (!currentCharacter.characterAbilities.ContainsKey(newAbilityName))
                         {
                             currentCharacter.characterAbilities.Add(newAbilityName, newAbility);
+                            if (currentDiceSystem != null && currentDiceSystem.SystemAbilities != null && currentDiceSystem.SystemAbilities.Count > 0)
+                            {
+                                currentDiceSystem.SystemAbilities[newAbilityName] = new Ability
+                                {
+                                    abilityName = newAbilityName,
+                                    abilityModifier = newAbilityValue,
+                                    linkedAttribute = selectedAttribute,
+                                    linkedSkill = newAbility.linkedSkill,
+                                    abilityDescription = newAbilityDescription
+                                };
+                            }
                             newAbilityName = "";
                             newAbilityValue = 0;
                             newAbilityDescription = "";

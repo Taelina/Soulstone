@@ -72,6 +72,7 @@ namespace Soulstone.Managers
                 if (CharacterSheet != null)
                 {
                     charLoaded = true;
+                    EnsureLinkedDiceSystemLoaded(CharacterSheet);
                 }
                 else
                 {
@@ -95,6 +96,7 @@ namespace Soulstone.Managers
                 if (CharacterSheet != null)
                 {
                     charLoaded = true;
+                    EnsureLinkedDiceSystemLoaded(CharacterSheet);
                     return CharacterSheet;
                 }
                 else
@@ -107,6 +109,29 @@ namespace Soulstone.Managers
                 Plugin.Log?.Error(ex, $"Exception in LoadCharacterData for '{charName}'");
             }
             return null;
+        }
+
+        private void EnsureLinkedDiceSystemLoaded(CharacterSheet sheet)
+        {
+            try
+            {
+                if (!DiceSystemManager.Instance.IsSessionRulesetActive && !string.IsNullOrWhiteSpace(sheet.linkedDiceSystem))
+                {
+                    var activeSys = DiceSystemManager.Instance.CurrentDiceSystem;
+                    if (activeSys == null || !string.Equals(activeSys.systemName, sheet.linkedDiceSystem, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var linkedSys = DiceSystem.LoadDiceSystem(sheet.linkedDiceSystem);
+                        if (linkedSys != null)
+                        {
+                            DiceSystemManager.Instance.SwitchDiceSystem(linkedSys);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Failed to ensure linked dice system loaded for '{sheet.CharacterFullName}'");
+            }
         }
     }
 }

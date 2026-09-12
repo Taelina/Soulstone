@@ -76,12 +76,14 @@ namespace Soulstone.Datamodels
 
         public int successThreshold = 0;
         public int successInterval = 0;
+        public int dicePoolMaxSuccessCount = 1;
 
         public string SystemName { get => systemName; set => systemName = value; }
         public bool DicePoolSystemEnabled { get => dicePoolSystemEnabled; set => dicePoolSystemEnabled = value; }
         public bool RegularDiceSystemEnabled { get => regularDiceSystemEnabled; set => regularDiceSystemEnabled = value; }
         public DiceType DiceType { get => diceType; set => diceType = value; }
         public int SuccessThreshold { get => successThreshold; set => successThreshold = value; }
+        public int DicePoolMaxSuccessCount { get => dicePoolMaxSuccessCount; set => dicePoolMaxSuccessCount = value; }
         public bool DndStyleAttributes { get => dndStyleAttributes; set => dndStyleAttributes = value; }
         public bool SkillLinkedToOneAttribute { get => skillLinkedToOneAttribute; set => skillLinkedToOneAttribute = value; }
         public bool AbilityLinkedToOneAttribute { get => abilityLinkedToOneAttribute; set => abilityLinkedToOneAttribute = value; }

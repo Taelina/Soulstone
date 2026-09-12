@@ -270,9 +270,11 @@ namespace Soulstone.Datamodels
             if (diceSystem != null)
             {
                 var definedResources = diceSystem.GetEffectiveResources();
+                var result = new List<CharacterResource>();
+
                 foreach (var def in definedResources)
                 {
-                    if (!characterResources.ContainsKey(def.Name))
+                    if (!characterResources.TryGetValue(def.Name, out var res))
                     {
                         int initMax = def.DefaultMax;
                         if (!string.IsNullOrWhiteSpace(def.Formula))
@@ -292,21 +294,97 @@ namespace Soulstone.Datamodels
                         {
                             initCur = initMax;
                         }
-                        characterResources[def.Name] = new CharacterResource(def.Name, initCur, initMax, formula: def.Formula, resourceType: def.ResourceType);
+                        res = new CharacterResource(def.Name, initCur, initMax, formula: def.Formula, resourceType: def.ResourceType);
+                        characterResources[def.Name] = res;
                     }
                     else
                     {
-                        var existing = characterResources[def.Name];
-                        if (string.IsNullOrWhiteSpace(existing.Formula) && !string.IsNullOrWhiteSpace(def.Formula))
+                        if (string.IsNullOrWhiteSpace(res.Formula) && !string.IsNullOrWhiteSpace(def.Formula))
                         {
-                            existing.Formula = def.Formula;
+                            res.Formula = def.Formula;
                         }
-                        existing.ResourceType = def.ResourceType;
+                        res.ResourceType = def.ResourceType;
                     }
+                    result.Add(res);
                 }
+
+                return result;
             }
 
             return characterResources.Values.ToList();
+        }
+
+        public Dictionary<string, Attribute> GetEffectiveAttributes(DiceSystem? diceSystem = null)
+        {
+            characterAttributes ??= new Dictionary<string, Attribute>(StringComparer.OrdinalIgnoreCase);
+            if (diceSystem != null && diceSystem.SystemAttributes != null && diceSystem.SystemAttributes.Count > 0)
+            {
+                var result = new Dictionary<string, Attribute>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in diceSystem.SystemAttributes)
+                {
+                    if (!characterAttributes.TryGetValue(kv.Key, out var attr))
+                    {
+                        attr = new Attribute(kv.Value.Name, kv.Value.Value, kv.Value.Description);
+                        characterAttributes[kv.Key] = attr;
+                    }
+                    result[kv.Key] = attr;
+                }
+                return result;
+            }
+            return characterAttributes;
+        }
+
+        public Dictionary<string, Skill> GetEffectiveSkills(DiceSystem? diceSystem = null)
+        {
+            characterSkills ??= new Dictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
+            if (diceSystem != null && diceSystem.SystemSkills != null && diceSystem.SystemSkills.Count > 0)
+            {
+                var result = new Dictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in diceSystem.SystemSkills)
+                {
+                    if (!characterSkills.TryGetValue(kv.Key, out var sk))
+                    {
+                        sk = new Skill
+                        {
+                            skillName = kv.Value.skillName,
+                            linkedAttribute = kv.Value.linkedAttribute,
+                            skillModifier = kv.Value.skillModifier,
+                            skillDescription = kv.Value.skillDescription
+                        };
+                        characterSkills[kv.Key] = sk;
+                    }
+                    result[kv.Key] = sk;
+                }
+                return result;
+            }
+            return characterSkills;
+        }
+
+        public Dictionary<string, Ability> GetEffectiveAbilities(DiceSystem? diceSystem = null)
+        {
+            characterAbilities ??= new Dictionary<string, Ability>(StringComparer.OrdinalIgnoreCase);
+            if (diceSystem != null && diceSystem.SystemAbilities != null && diceSystem.SystemAbilities.Count > 0)
+            {
+                var result = new Dictionary<string, Ability>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in diceSystem.SystemAbilities)
+                {
+                    if (!characterAbilities.TryGetValue(kv.Key, out var ab))
+                    {
+                        ab = new Ability
+                        {
+                            abilityName = kv.Value.abilityName,
+                            linkedAttribute = kv.Value.linkedAttribute,
+                            linkedSkill = kv.Value.linkedSkill,
+                            abilityModifier = kv.Value.abilityModifier,
+                            abilityDescription = kv.Value.abilityDescription
+                        };
+                        characterAbilities[kv.Key] = ab;
+                    }
+                    result[kv.Key] = ab;
+                }
+                return result;
+            }
+            return characterAbilities;
         }
 
         public void AddItem(Item item)

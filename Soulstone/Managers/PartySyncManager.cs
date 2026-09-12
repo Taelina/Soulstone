@@ -760,13 +760,13 @@ namespace Soulstone.Managers
 
                 data.CustomResources.Clear();
                 data.CustomResourceMaxes.Clear();
-                if (sheet.characterResources != null)
+                data.CustomResourceTypes.Clear();
+                var resources = sheet.GetEffectiveResources(diceSys);
+                foreach (var res in resources)
                 {
-                    foreach (var kv in sheet.characterResources)
-                    {
-                        data.CustomResources[kv.Key] = kv.Value.CurrentValue;
-                        data.CustomResourceMaxes[kv.Key] = kv.Value.MaxValue;
-                    }
+                    data.CustomResources[res.Name] = res.CurrentValue;
+                    data.CustomResourceMaxes[res.Name] = res.MaxValue;
+                    data.CustomResourceTypes[res.Name] = (int)res.ResourceType;
                 }
 
                 data.ActiveBuffs = sheet.activeBuffs != null ? new List<Buff>(sheet.activeBuffs) : new List<Buff>();
@@ -838,13 +838,14 @@ namespace Soulstone.Managers
                 ActiveBuffs = sheet?.activeBuffs != null ? new List<Buff>(sheet.activeBuffs) : new List<Buff>()
             };
 
-            if (sheet?.characterResources != null)
+            var resources = sheet?.GetEffectiveResources(diceSys);
+            if (resources != null)
             {
-                foreach (var kv in sheet.characterResources)
+                foreach (var res in resources)
                 {
-                    payload.CustomResources[kv.Key] = kv.Value.CurrentValue;
-                    payload.CustomResourceMaxes[kv.Key] = kv.Value.MaxValue;
-                    payload.CustomResourceTypes[kv.Key] = (int)kv.Value.ResourceType;
+                    payload.CustomResources[res.Name] = res.CurrentValue;
+                    payload.CustomResourceMaxes[res.Name] = res.MaxValue;
+                    payload.CustomResourceTypes[res.Name] = (int)res.ResourceType;
                 }
             }
 
@@ -968,6 +969,7 @@ namespace Soulstone.Managers
             if (!relayClient.IsConnected || IsSessionHost) return;
             var sheet = CharacterManager.Instance.CharacterSheet;
             if (sheet == null) return;
+            var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
             var stats = new PrivateStatsPayload
             {
                 CharacterName = GetLocalPlayerName(),
@@ -975,19 +977,22 @@ namespace Soulstone.Managers
                 Level = sheet.CharacterLevel,
                 ClassName = sheet.CharacterClass
             };
-            if (sheet.CharacterAttributes != null)
+            var attrs = sheet.GetEffectiveAttributes(diceSys);
+            if (attrs != null)
             {
-                foreach (var attribute in sheet.CharacterAttributes)
+                foreach (var attribute in attrs)
                     stats.Attributes[attribute.Key] = sheet.GetEffectiveAttributeValue(attribute.Key);
             }
-            if (sheet.CharacterSkills != null)
+            var skills = sheet.GetEffectiveSkills(diceSys);
+            if (skills != null)
             {
-                foreach (var skill in sheet.CharacterSkills)
-                    stats.Skills[skill.Key] = sheet.GetEffectiveSkillTotal(skill.Key, DiceSystemManager.Instance.CurrentDiceSystem);
+                foreach (var skill in skills)
+                    stats.Skills[skill.Key] = sheet.GetEffectiveSkillTotal(skill.Key, diceSys);
             }
-            if (sheet.CharacterAbilities != null)
+            var abs = sheet.GetEffectiveAbilities(diceSys);
+            if (abs != null)
             {
-                foreach (var ability in sheet.CharacterAbilities)
+                foreach (var ability in abs)
                     stats.Abilities[ability.Key] = sheet.GetEffectiveAbilityModifier(ability.Key);
             }
             SendPacket(SyncEventType.PrivateStats, stats);
@@ -1042,6 +1047,7 @@ namespace Soulstone.Managers
         {
             var sheet = CharacterManager.Instance.CharacterSheet;
             if (sheet == null) return;
+            var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
 
             var payload = new ResourceUpdatePayload
             {
@@ -1052,13 +1058,14 @@ namespace Soulstone.Managers
                 MaxMana = sheet.characterMaxManaPoints > 0 ? sheet.characterMaxManaPoints : 100
             };
 
-            if (sheet.characterResources != null)
+            var resources = sheet.GetEffectiveResources(diceSys);
+            if (resources != null)
             {
-                foreach (var kv in sheet.characterResources)
+                foreach (var res in resources)
                 {
-                    payload.CustomResources[kv.Key] = kv.Value.CurrentValue;
-                    payload.CustomResourceMaxes[kv.Key] = kv.Value.MaxValue;
-                    payload.CustomResourceTypes[kv.Key] = (int)kv.Value.ResourceType;
+                    payload.CustomResources[res.Name] = res.CurrentValue;
+                    payload.CustomResourceMaxes[res.Name] = res.MaxValue;
+                    payload.CustomResourceTypes[res.Name] = (int)res.ResourceType;
                 }
             }
 

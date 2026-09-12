@@ -5,6 +5,28 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-09-12
+
+### Added
+- **Configurable Dice Pool Max Roll Successes**:
+  - Added `DicePoolMaxSuccessCount` setting in `DiceSystem` allowing dice pool rulesets to count multiple successes when rolling the maximum face on a die (e.g. counting 10s as 2 successes).
+  - Added dice pool max success configuration field in `DiceSystemWindow` threshold settings.
+- **Linked Dice System Management**:
+  - Added editable `linkedDiceSystem` configuration to both Character Identity and Character Stat Sheet interfaces.
+  - Automatically activates a character's linked dice system upon loading their sheet (when not participating in an active DM session).
+
+### Fixed
+- **Character Sheet Creation**:
+  - Fixed an issue where the "Create new character sheet" modal failed to open when no character sheet was currently loaded.
+- **Ruleset Resource and Stat Scoping**:
+  - Fixed character stat sheets, party presence sync, and initiative tracker displaying attributes, skills, abilities, and resources from all previously loaded systems by scoping them strictly to the active ruleset.
+
+### Changed
+- **Version Manifests & Metadata**:
+  - Bumped version to `1.0.4.0` across `Soulstone.csproj`, `Soulstone.json`, and `SoulstoneRep.json`.
+
+---
+
 ## [1.0.3] - 2026-09-12
 
 ### Added

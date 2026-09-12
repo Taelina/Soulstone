@@ -985,15 +985,15 @@ namespace Soulstone.Windows
             ImGui.Spacing();
 
             // Custom Resources
-            if (sheet.characterResources != null && sheet.characterResources.Count > 0)
+            var customResources = sheet.GetEffectiveResources(diceSys);
+            if (customResources != null && customResources.Count > 0)
             {
                 ImGui.Separator();
                 ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader"));
                 ImGui.Spacing();
 
-                foreach (var kv in sheet.characterResources)
+                foreach (var res in customResources)
                 {
-                    var res = kv.Value;
                     int curRes = res.CurrentValue;
                     int maxRes = res.MaxValue > 0 ? res.MaxValue : 100;
 
@@ -1034,7 +1034,8 @@ namespace Soulstone.Windows
             ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
             ImGui.Spacing();
 
-            if (sheet.characterAttributes != null && sheet.characterAttributes.Count > 0)
+            var attrs = sheet.GetEffectiveAttributes(diceSys);
+            if (attrs != null && attrs.Count > 0)
             {
                 using var table = ImRaii.Table("##NpcAttrTable", 4, ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp);
                 if (table.Success)
@@ -1045,7 +1046,7 @@ namespace Soulstone.Windows
                     ImGui.TableSetupColumn("Roll", ImGuiTableColumnFlags.WidthFixed, 36.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TableHeadersRow();
 
-                    foreach (var kv in sheet.characterAttributes)
+                    foreach (var kv in attrs)
                     {
                         var attr = kv.Value;
                         ImGui.TableNextRow();
@@ -1097,7 +1098,8 @@ namespace Soulstone.Windows
             ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("SkillLabel"));
             ImGui.Spacing();
 
-            if (sheet.characterSkills != null && sheet.characterSkills.Count > 0)
+            var skills = sheet.GetEffectiveSkills(diceSys);
+            if (skills != null && skills.Count > 0)
             {
                 using var table = ImRaii.Table("##NpcSkillTable", 5, ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp);
                 if (table.Success)
@@ -1109,7 +1111,7 @@ namespace Soulstone.Windows
                     ImGui.TableSetupColumn("Roll", ImGuiTableColumnFlags.WidthFixed, 36.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TableHeadersRow();
 
-                    foreach (var kv in sheet.characterSkills)
+                    foreach (var kv in skills)
                     {
                         var skill = kv.Value;
                         ImGui.TableNextRow();
@@ -1165,7 +1167,8 @@ namespace Soulstone.Windows
 
             var diceIcon = diceSys?.diceType == DiceType.d20 ? FontAwesomeIcon.DiceD20 : FontAwesomeIcon.Dice;
 
-            if (sheet.characterAbilities != null && sheet.characterAbilities.Count > 0)
+            var abils = sheet.GetEffectiveAbilities(diceSys);
+            if (abils != null && abils.Count > 0)
             {
                 using var table = ImRaii.Table("##NpcAbilTable", 4, ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp);
                 if (table.Success)
@@ -1176,7 +1179,7 @@ namespace Soulstone.Windows
                     ImGui.TableSetupColumn("Roll", ImGuiTableColumnFlags.WidthFixed, 36.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TableHeadersRow();
 
-                    foreach (var kv in sheet.characterAbilities)
+                    foreach (var kv in abils)
                     {
                         var abil = kv.Value;
                         ImGui.TableNextRow();
