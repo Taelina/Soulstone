@@ -879,21 +879,13 @@ namespace Soulstone.Datamodels
 
             try
             {
-                var rollMessage = new Dalamud.Game.Text.XivChatEntry
-                {
-                    Message = detailedRoll ? roll.RollDetailedResultString : roll.RollResultString,
-                    Type = Dalamud.Game.Text.XivChatType.Echo
-                };
-                Messages.SendMessage(rollMessage);
-
                 string actor = !string.IsNullOrWhiteSpace(CharacterFullName) ? CharacterFullName : "Character";
-                string rollValue = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue;
-                string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, $"{resourceName} -> {rollValue}");
+                string displayMsg = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue;
                 PartySyncManager.Instance.BroadcastDiceRoll(
                     resourceName,
                     roll.RollResult,
                     string.Join(", ", roll.IndividualRolls),
-                    echoText: echo,
+                    echoText: displayMsg,
                     characterName: actor
                 );
             }

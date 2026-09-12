@@ -92,6 +92,11 @@ namespace Soulstone.Windows
 
             DrawVitalsBanner();
             ImGui.Spacing();
+            if (currentCharacter.GetEffectiveResources(currentDiceSystem).Count > 0)
+            {
+                DrawResourcesSection();
+                ImGui.Spacing();
+            }
             DrawActiveBuffsBanner();
             ImGui.Spacing();
             DrawColumnsSection();
@@ -205,11 +210,11 @@ namespace Soulstone.Windows
         {
             if (currentCharacter == null) return;
 
-            using (var banner = ImRaii.Child("##VitalsBanner", new Vector2(0, 95.0f * ImGuiHelpers.GlobalScale), true))
+            using (var banner = ImRaii.Child("##VitalsBanner", new Vector2(0, 36.0f * ImGuiHelpers.GlobalScale), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
             {
                 if (banner.Success)
                 {
-                    // Top row: Class, Level, XP, System Dice, Edit Toggle, Save
+                    // Class, Level, XP, System Dice, Linked System
                     if (currentDiceSystem == null || currentDiceSystem.systemHasClasses)
                     {
                         ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("ClassLabel"));
@@ -243,6 +248,41 @@ namespace Soulstone.Windows
                         }
                     }
 
+                    // Initiative Quick Roll if configured
+                    if (currentDiceSystem != null && currentDiceSystem.InitiativeStatType != InitiativeStatType.None)
+                    {
+                        int initMod = currentCharacter.GetInitiativeModifier(currentDiceSystem);
+                        ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
+                        string initLabel = $"{LocalizationManager.Instance.GetLocalizedString("InitiativeTab")}: {FormatModifier(initMod)}";
+                        if (UiUtils.IconButton("RollInitStatsBtn", FontAwesomeIcon.Stopwatch, initLabel))
+                        {
+                            var roll = currentCharacter.RollInitiative(currentDiceSystem, advantageRoll, disadvantageRoll, detailedRoll);
+                            InitiativeTrackerManager.Instance.AddOrUpdateCurrentCharacter(currentCharacter, currentDiceSystem, roll.RollResult, initMod);
+                        }
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("InitiativeRollInitiative")} ({currentDiceSystem.InitiativeStatName})");
+                        }
+                    }
+
+                    // Advantage / Disadvantage toggles if enabled
+                    if (currentDiceSystem?.systemHasAdvantageDisadvantage == true)
+                    {
+                        var advLabel = LocalizationManager.Instance.GetLocalizedString("AdvantageRollCheckbox");
+                        var disadvLabel = LocalizationManager.Instance.GetLocalizedString("DisadvantageRollCheckbox");
+
+                        ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
+                        if (ImGui.Checkbox($"{advLabel}###AdvCheck", ref advantageRoll))
+                        {
+                            if (advantageRoll) disadvantageRoll = false;
+                        }
+                        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                        if (ImGui.Checkbox($"{disadvLabel}###DisadvCheck", ref disadvantageRoll))
+                        {
+                            if (disadvantageRoll) advantageRoll = false;
+                        }
+                    }
+
                     // Right side: Edit Stats checkbox & Save button
                     var saveLabel = LocalizationManager.Instance.GetLocalizedString("SaveStatButton");
                     var editLabel = LocalizationManager.Instance.GetLocalizedString("EditStatCheckbox");
@@ -262,230 +302,216 @@ namespace Soulstone.Windows
                     {
                         CharacterSheet.SaveSheet(currentCharacter);
                     }
+                }
+            }
+        }
 
-                    ImGui.Separator();
+        private void DrawResourcesSection()
+        {
+            if (currentCharacter == null) return;
+            var resources = currentCharacter.GetEffectiveResources(currentDiceSystem);
+            if (resources.Count == 0) return;
 
-                    // Bottom row: Dynamic generic resources & advantage/disadvantage
-                    var resources = currentCharacter.GetEffectiveResources(currentDiceSystem);
-                    for (int i = 0; i < resources.Count; i++)
+            float spacing = 8.0f * ImGuiHelpers.GlobalScale;
+            float minCardWidth = 150.0f * ImGuiHelpers.GlobalScale;
+            float cardHeight = (editingStats ? 68.0f : 58.0f) * ImGuiHelpers.GlobalScale;
+            float contentWidth = ImGui.GetContentRegionAvail().X;
+            int maxCols = Math.Max(1, (int)Math.Floor((contentWidth + spacing) / (minCardWidth + spacing)));
+            int columns = Math.Clamp(resources.Count, 1, maxCols);
+            float cardWidth = (contentWidth - (spacing * (columns - 1))) / columns;
+
+            for (int i = 0; i < resources.Count; i++)
+            {
+                var res = resources[i];
+                if (i > 0 && i % columns != 0)
+                {
+                    ImGui.SameLine(0, spacing);
+                }
+
+                DrawResourceCard(res, cardWidth, cardHeight);
+            }
+        }
+
+        private void DrawResourceCard(CharacterResource res, float cardWidth, float cardHeight)
+        {
+            var def = currentDiceSystem?.SystemResources.FirstOrDefault(d => string.Equals(d.Name, res.Name, StringComparison.OrdinalIgnoreCase));
+            var resCol = GetResourceColor(res.Name, def?.ColorHex);
+            string effectiveFormula = !string.IsNullOrWhiteSpace(res.Formula) ? res.Formula : (def?.Formula ?? string.Empty);
+
+            int effectiveMax = currentCharacter!.GetEffectiveResourceMax(res.Name, currentDiceSystem);
+            int gearBonus = currentCharacter.GetGearStatBonus(res.Name) + currentCharacter.GetGearStatBonus($"Max {res.Name}") + currentCharacter.GetGearStatBonus($"Max{res.Name}");
+            int buffBonus = currentCharacter.GetBuffStatBonus(res.Name) + currentCharacter.GetBuffStatBonus($"Max {res.Name}") + currentCharacter.GetBuffStatBonus($"Max{res.Name}");
+
+            using (var card = ImRaii.Child($"##ResCard_{res.Name}", new Vector2(cardWidth, cardHeight), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
+            {
+                if (card.Success)
+                {
+                    // Top line: Name and Recalc button (if editing) or Roll button / Type badge
+                    ImGui.TextColored(resCol, res.Name);
+
+                    if (editingStats)
                     {
-                        var res = resources[i];
-                        if (i > 0)
+                        if (!string.IsNullOrWhiteSpace(effectiveFormula))
                         {
-                            ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
-                        }
-
-                        var def = currentDiceSystem?.SystemResources.FirstOrDefault(d => string.Equals(d.Name, res.Name, StringComparison.OrdinalIgnoreCase));
-                        var resCol = GetResourceColor(res.Name, def?.ColorHex);
-
-                        ImGui.TextColored(resCol, $"{res.Name}:");
-                        ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-
-                        if (editingStats)
-                        {
-                            if (res.ResourceType == ResourceType.FlatNumber)
-                            {
-                                ImGui.SetNextItemWidth(55.0f * ImGuiHelpers.GlobalScale);
-                                int val = res.MaxValue > 0 ? res.MaxValue : res.CurrentValue;
-                                if (ImGui.InputInt($"##ResVal_{res.Name}", ref val, 0))
-                                {
-                                    currentCharacter.SetResourceMax(res.Name, val);
-                                    currentCharacter.SetResourceCurrent(res.Name, val);
-                                }
-                            }
+                            var syncBtnWidth = 20.0f * ImGuiHelpers.GlobalScale;
+                            var rightBtnX = cardWidth - syncBtnWidth - 16.0f * ImGuiHelpers.GlobalScale;
+                            if (ImGui.GetCursorPosX() < rightBtnX)
+                                ImGui.SameLine(rightBtnX);
                             else
-                            {
-                                ImGui.SetNextItemWidth(45.0f * ImGuiHelpers.GlobalScale);
-                                int curVal = res.CurrentValue;
-                                if (ImGui.InputInt($"##ResCur_{res.Name}", ref curVal, 0))
-                                {
-                                    currentCharacter.SetResourceCurrent(res.Name, curVal);
-                                }
-                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                                ImGui.Text("/");
-                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                                ImGui.SetNextItemWidth(45.0f * ImGuiHelpers.GlobalScale);
-                                int maxVal = res.MaxValue;
-                                if (ImGui.InputInt($"##ResMax_{res.Name}", ref maxVal, 0))
-                                {
-                                    currentCharacter.SetResourceMax(res.Name, maxVal);
-                                }
-                            }
-
-                            string effectiveFormula = !string.IsNullOrWhiteSpace(res.Formula) ? res.Formula : (def?.Formula ?? string.Empty);
-                            if (!string.IsNullOrWhiteSpace(effectiveFormula))
-                            {
-                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                                if (UiUtils.IconButton($"RecalcRes_{res.Name}", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("RecalculateResourcesBtn"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
-                                {
-                                    currentCharacter.RecalculateResourceMax(res.Name, currentDiceSystem);
-                                }
-                                if (ImGui.IsItemHovered())
-                                {
-                                    ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("RecalculateResourcesTooltip")}\n({effectiveFormula})");
-                                }
-                            }
-                        }
-                        else
-                        {
-                            int effectiveMax = currentCharacter.GetEffectiveResourceMax(res.Name, currentDiceSystem);
-                            int gearBonus = currentCharacter.GetGearStatBonus(res.Name) + currentCharacter.GetGearStatBonus($"Max {res.Name}") + currentCharacter.GetGearStatBonus($"Max{res.Name}");
-                            int buffBonus = currentCharacter.GetBuffStatBonus(res.Name) + currentCharacter.GetBuffStatBonus($"Max {res.Name}") + currentCharacter.GetBuffStatBonus($"Max{res.Name}");
-                            string effectiveFormula = !string.IsNullOrWhiteSpace(res.Formula) ? res.Formula : (def?.Formula ?? string.Empty);
-
-                            if (res.ResourceType == ResourceType.FlatNumber)
-                            {
-                                string valText = $"{effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}";
-                                UiUtils.Badge(valText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
-                                if (ImGui.IsItemHovered())
-                                {
-                                    ImGui.BeginTooltip();
-                                    ImGui.TextColored(resCol, res.Name);
-                                    ImGui.Separator();
-                                    if (!string.IsNullOrWhiteSpace(effectiveFormula))
-                                    {
-                                        ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
-                                    }
-                                    ImGui.Text($"• Base Value: {res.MaxValue}");
-                                    if (res.TempBonus != 0) ImGui.Text($"• Temp Bonus: {FormatModifier(res.TempBonus)}");
-                                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
-                                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
-                                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective: {effectiveMax}");
-                                    ImGui.Separator();
-                                    ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {res.Name}");
-                                    ImGui.EndTooltip();
-                                }
-
                                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                if (UiUtils.IconButton($"RollRes_{res.Name}", FontAwesomeIcon.DiceD20, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {res.Name}", new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
-                                {
-                                    currentCharacter.RollResource(res.Name, currentDiceSystem, advantageRoll, disadvantageRoll, detailedRoll);
-                                }
-                            }
-                            else if (res.ResourceType == ResourceType.Counter)
+
+                            if (UiUtils.IconButton($"RecalcRes_{res.Name}", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("RecalculateResourcesBtn"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
                             {
-                                if (UiUtils.IconButton($"ResDec_{res.Name}", FontAwesomeIcon.Minus, "-", new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
-                                {
-                                    if (res.CurrentValue > 0)
-                                    {
-                                        currentCharacter.SetResourceCurrent(res.Name, res.CurrentValue - 1);
-                                    }
-                                }
-
-                                ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
-                                float fraction = effectiveMax > 0
-                                    ? Math.Clamp((float)res.CurrentValue / effectiveMax, 0f, 1f)
-                                    : 1f;
-                                string overlay = effectiveMax > 0
-                                    ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}"
-                                    : $"{res.CurrentValue}";
-                                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, resCol);
-                                ImGui.ProgressBar(fraction, new Vector2(80.0f * ImGuiHelpers.GlobalScale, 18.0f * ImGuiHelpers.GlobalScale), overlay);
-                                ImGui.PopStyleColor();
-
-                                if (ImGui.IsItemHovered())
-                                {
-                                    ImGui.BeginTooltip();
-                                    ImGui.TextColored(resCol, $"{res.Name} ({LocalizationManager.Instance.GetLocalizedString("ResourceTypeCounter")})");
-                                    ImGui.Separator();
-                                    ImGui.Text($"• Current: {res.CurrentValue}");
-                                    if (!string.IsNullOrWhiteSpace(effectiveFormula))
-                                    {
-                                        ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
-                                    }
-                                    ImGui.Text($"• Base Max: {res.MaxValue}");
-                                    if (res.TempBonus != 0) ImGui.Text($"• Temp Max: {FormatModifier(res.TempBonus)}");
-                                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
-                                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
-                                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective Max: {effectiveMax}");
-                                    ImGui.EndTooltip();
-                                }
-
-                                ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
-                                if (UiUtils.IconButton($"ResInc_{res.Name}", FontAwesomeIcon.Plus, "+", new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
-                                {
-                                    if (res.CurrentValue < effectiveMax)
-                                    {
-                                        currentCharacter.SetResourceCurrent(res.Name, res.CurrentValue + 1);
-                                    }
-                                }
+                                currentCharacter.RecalculateResourceMax(res.Name, currentDiceSystem);
                             }
-                            else
+                            if (ImGui.IsItemHovered())
                             {
-                                float fraction = effectiveMax > 0
-                                    ? Math.Clamp((float)res.CurrentValue / effectiveMax, 0f, 1f)
-                                    : 1f;
-                                string overlay = effectiveMax > 0
-                                    ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}"
-                                    : $"{res.CurrentValue}";
-                                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, resCol);
-                                ImGui.ProgressBar(fraction, new Vector2(95.0f * ImGuiHelpers.GlobalScale, 18.0f * ImGuiHelpers.GlobalScale), overlay);
-                                ImGui.PopStyleColor();
-
-                                if (ImGui.IsItemHovered())
-                                {
-                                    ImGui.BeginTooltip();
-                                    ImGui.TextColored(resCol, res.Name);
-                                    ImGui.Separator();
-                                    ImGui.Text($"• Current: {res.CurrentValue}");
-                                    if (!string.IsNullOrWhiteSpace(effectiveFormula))
-                                    {
-                                        ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
-                                    }
-                                    ImGui.Text($"• Base Max: {res.MaxValue}");
-                                    if (res.TempBonus != 0) ImGui.Text($"• Temp Max: {FormatModifier(res.TempBonus)}");
-                                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
-                                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
-                                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective Max: {effectiveMax}");
-                                    ImGui.EndTooltip();
-                                }
+                                ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("RecalculateResourcesTooltip")}\n({effectiveFormula})");
                             }
                         }
                     }
 
-                    // Initiative Quick Roll if configured
-                    if (currentDiceSystem != null && currentDiceSystem.InitiativeStatType != InitiativeStatType.None)
+                    // Content row
+                    if (editingStats)
                     {
-                        int initMod = currentCharacter.GetInitiativeModifier(currentDiceSystem);
-                        ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
-                        string initLabel = $"{LocalizationManager.Instance.GetLocalizedString("InitiativeTab")}: {FormatModifier(initMod)}";
-                        if (UiUtils.IconButton("RollInitStatsBtn", FontAwesomeIcon.Stopwatch, initLabel))
+                        if (res.ResourceType == ResourceType.FlatNumber)
                         {
-                            var roll = currentCharacter.RollInitiative(currentDiceSystem, advantageRoll, disadvantageRoll, detailedRoll);
-                            InitiativeTrackerManager.Instance.AddOrUpdateCurrentCharacter(currentCharacter, currentDiceSystem, roll.RollResult, initMod);
+                            ImGui.SetNextItemWidth(-1);
+                            int val = res.MaxValue > 0 ? res.MaxValue : res.CurrentValue;
+                            if (ImGui.InputInt($"##ResVal_{res.Name}", ref val, 0))
+                            {
+                                currentCharacter.SetResourceMax(res.Name, val);
+                                currentCharacter.SetResourceCurrent(res.Name, val);
+                            }
                         }
-                        if (ImGui.IsItemHovered())
-                        {
-                            ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("InitiativeRollInitiative")} ({currentDiceSystem.InitiativeStatName})");
-                        }
-                    }
-
-                    // Advantage / Disadvantage toggles if enabled
-                    if (currentDiceSystem?.systemHasAdvantageDisadvantage == true)
-                    {
-                        var advLabel = LocalizationManager.Instance.GetLocalizedString("AdvantageRollCheckbox");
-                        var disadvLabel = LocalizationManager.Instance.GetLocalizedString("DisadvantageRollCheckbox");
-                        var advWidth = ImGui.CalcTextSize(advLabel).X + 30.0f * ImGuiHelpers.GlobalScale;
-                        var disadvWidth = ImGui.CalcTextSize(disadvLabel).X + 30.0f * ImGuiHelpers.GlobalScale;
-                        var totalAdvWidth = advWidth + disadvWidth + 8.0f * ImGuiHelpers.GlobalScale;
-                        var rightAdvX = ImGui.GetWindowContentRegionMax().X - totalAdvWidth;
-
-                        if (ImGui.GetCursorPosX() < rightAdvX)
-                            ImGui.SameLine(rightAdvX);
                         else
-                            ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
+                        {
+                            float availW = ImGui.GetContentRegionAvail().X;
+                            float sepW = ImGui.CalcTextSize("/").X + 8.0f * ImGuiHelpers.GlobalScale;
+                            float inputW = Math.Max(30.0f * ImGuiHelpers.GlobalScale, (availW - sepW) / 2.0f);
 
-                        if (ImGui.Checkbox($"{advLabel}###AdvCheck", ref advantageRoll))
-                        {
-                            if (advantageRoll) disadvantageRoll = false;
+                            ImGui.SetNextItemWidth(inputW);
+                            int curVal = res.CurrentValue;
+                            if (ImGui.InputInt($"##ResCur_{res.Name}", ref curVal, 0))
+                            {
+                                currentCharacter.SetResourceCurrent(res.Name, curVal);
+                            }
+                            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.Text("/");
+                            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.SetNextItemWidth(inputW);
+                            int maxVal = res.MaxValue;
+                            if (ImGui.InputInt($"##ResMax_{res.Name}", ref maxVal, 0))
+                            {
+                                currentCharacter.SetResourceMax(res.Name, maxVal);
+                            }
                         }
-                        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                        if (ImGui.Checkbox($"{disadvLabel}###DisadvCheck", ref disadvantageRoll))
+                    }
+                    else
+                    {
+                        if (res.ResourceType == ResourceType.FlatNumber)
                         {
-                            if (disadvantageRoll) advantageRoll = false;
+                            string valText = $"{effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}";
+                            UiUtils.Badge(valText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
+
+                            var rollBtnWidth = 24.0f * ImGuiHelpers.GlobalScale;
+                            var rightX = cardWidth - rollBtnWidth - 16.0f * ImGuiHelpers.GlobalScale;
+                            if (ImGui.GetCursorPosX() < rightX)
+                                ImGui.SameLine(rightX);
+                            else
+                                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+
+                            if (UiUtils.IconButton($"RollRes_{res.Name}", FontAwesomeIcon.DiceD20, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {res.Name}", new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                            {
+                                currentCharacter.RollResource(res.Name, currentDiceSystem, advantageRoll, disadvantageRoll, detailedRoll);
+                            }
+                        }
+                        else if (res.ResourceType == ResourceType.Counter)
+                        {
+                            float btnSize = 18.0f * ImGuiHelpers.GlobalScale;
+                            if (UiUtils.IconButton($"ResDec_{res.Name}", FontAwesomeIcon.Minus, "-", new Vector2(btnSize, btnSize)))
+                            {
+                                if (res.CurrentValue > 0)
+                                {
+                                    currentCharacter.SetResourceCurrent(res.Name, res.CurrentValue - 1);
+                                }
+                            }
+
+                            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                            float barW = Math.Max(40.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - btnSize - 6.0f * ImGuiHelpers.GlobalScale);
+
+                            float fraction = effectiveMax > 0
+                                ? Math.Clamp((float)res.CurrentValue / effectiveMax, 0f, 1f)
+                                : 1f;
+                            string overlay = effectiveMax > 0
+                                ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}"
+                                : $"{res.CurrentValue}";
+                            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, resCol);
+                            ImGui.ProgressBar(fraction, new Vector2(barW, 18.0f * ImGuiHelpers.GlobalScale), overlay);
+                            ImGui.PopStyleColor();
+
+                            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                            if (UiUtils.IconButton($"ResInc_{res.Name}", FontAwesomeIcon.Plus, "+", new Vector2(btnSize, btnSize)))
+                            {
+                                if (res.CurrentValue < effectiveMax)
+                                {
+                                    currentCharacter.SetResourceCurrent(res.Name, res.CurrentValue + 1);
+                                }
+                            }
+                        }
+                        else // ResourceType.Bar
+                        {
+                            float fraction = effectiveMax > 0
+                                ? Math.Clamp((float)res.CurrentValue / effectiveMax, 0f, 1f)
+                                : 1f;
+                            string overlay = effectiveMax > 0
+                                ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}"
+                                : $"{res.CurrentValue}";
+                            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, resCol);
+                            ImGui.ProgressBar(fraction, new Vector2(-1, 18.0f * ImGuiHelpers.GlobalScale), overlay);
+                            ImGui.PopStyleColor();
                         }
                     }
                 }
+            }
+
+            // Hover tooltip on the card
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.BeginTooltip();
+                string typeSuffix = res.ResourceType switch
+                {
+                    ResourceType.Counter => $" ({LocalizationManager.Instance.GetLocalizedString("ResourceTypeCounter")})",
+                    ResourceType.FlatNumber => $" ({LocalizationManager.Instance.GetLocalizedString("ResourceTypeFlatNumber")})",
+                    _ => ""
+                };
+                ImGui.TextColored(resCol, $"{res.Name}{typeSuffix}");
+                ImGui.Separator();
+
+                if (res.ResourceType == ResourceType.FlatNumber)
+                {
+                    if (!string.IsNullOrWhiteSpace(effectiveFormula))
+                        ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
+                    ImGui.Text($"• Base Value: {res.MaxValue}");
+                    if (res.TempBonus != 0) ImGui.Text($"• Temp Bonus: {FormatModifier(res.TempBonus)}");
+                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
+                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective: {effectiveMax}");
+                    ImGui.Separator();
+                    ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {res.Name}");
+                }
+                else
+                {
+                    ImGui.Text($"• Current: {res.CurrentValue}");
+                    if (!string.IsNullOrWhiteSpace(effectiveFormula))
+                        ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
+                    ImGui.Text($"• Base Max: {res.MaxValue}");
+                    if (res.TempBonus != 0) ImGui.Text($"• Temp Max: {FormatModifier(res.TempBonus)}");
+                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
+                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective Max: {effectiveMax}");
+                }
+                ImGui.EndTooltip();
             }
         }
 
