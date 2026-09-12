@@ -65,7 +65,9 @@ namespace Soulstone.Tests.Datamodels
             {
                 SystemName = "InitiativeSystem",
                 InitiativeStatType = InitiativeStatType.Skill,
-                InitiativeStatName = "Acrobatics"
+                InitiativeStatName = "Acrobatics",
+                InitiativeFormula = "[Dexterity] / 2 + 5",
+                DynamicSkillAttributeLinking = true
             };
 
             DiceSystem.SaveDiceSystem(original);
@@ -74,6 +76,21 @@ namespace Soulstone.Tests.Datamodels
             loaded.Should().NotBeNull();
             loaded!.InitiativeStatType.Should().Be(InitiativeStatType.Skill);
             loaded.InitiativeStatName.Should().Be("Acrobatics");
+            loaded.InitiativeFormula.Should().Be("[Dexterity] / 2 + 5");
+            loaded.DynamicSkillAttributeLinking.Should().BeTrue();
+        }
+
+        [Fact]
+        public void InitiativeStatType_Formula_PreservedCorrectly()
+        {
+            var system = new DiceSystem
+            {
+                InitiativeStatType = InitiativeStatType.Formula,
+                InitiativeFormula = "10 + [Agility] * 2"
+            };
+
+            system.InitiativeStatType.Should().Be(InitiativeStatType.Formula);
+            system.InitiativeFormula.Should().Be("10 + [Agility] * 2");
         }
     }
 }

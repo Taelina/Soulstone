@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Soulstone.Managers;
+using Soulstone.Utils;
 
 namespace Soulstone.Datamodels
 {
@@ -13,6 +15,8 @@ namespace Soulstone.Datamodels
         public bool IsCurrentCharacter { get; set; } = false;
         public string Notes { get; set; } = string.Empty;
         public List<Buff> Buffs { get; set; } = new();
+        internal CharacterSheet? CharacterSheet { get; set; } = null;
+        public string? SheetFilePath { get; set; } = null;
 
         public InitiativeParticipant() { }
 
@@ -25,6 +29,88 @@ namespace Soulstone.Datamodels
             IsCurrentCharacter = isCurrentCharacter;
             Notes = notes;
             Buffs = buffs != null ? new List<Buff>(buffs) : new List<Buff>();
+        }
+
+        internal InitiativeParticipant(string name, int initiativeValue, int bonusModifier, bool isCurrentCharacter, string notes, List<Buff>? buffs, CharacterSheet? characterSheet, string? sheetFilePath = null)
+        {
+            Id = Guid.NewGuid().ToString();
+            Name = name;
+            InitiativeValue = initiativeValue;
+            BonusModifier = bonusModifier;
+            IsCurrentCharacter = isCurrentCharacter;
+            Notes = notes;
+            Buffs = buffs != null ? new List<Buff>(buffs) : new List<Buff>();
+            CharacterSheet = characterSheet;
+            SheetFilePath = sheetFilePath;
+        }
+
+        internal int GetEffectiveInitiativeModifier(DiceSystem? diceSystem)
+        {
+            if (CharacterSheet != null)
+            {
+                return CharacterSheet.GetInitiativeModifier(diceSystem);
+            }
+            return BonusModifier + GetBuffStatBonus("Initiative");
+        }
+
+        internal DiceRoll RollInitiative(DiceSystem? diceSystem, bool advantage = false, bool disadvantage = false, bool detailedRoll = false)
+        {
+            if (CharacterSheet != null)
+            {
+                var roll = CharacterSheet.RollInitiative(diceSystem, advantage, disadvantage, detailedRoll);
+                InitiativeValue = roll.RollResult;
+                BonusModifier = CharacterSheet.GetInitiativeModifier(diceSystem);
+                return roll;
+            }
+            else
+            {
+                int modifier = GetEffectiveInitiativeModifier(diceSystem);
+                string statInfo = "Initiative";
+                if (diceSystem != null)
+                {
+                    if (diceSystem.InitiativeStatType == InitiativeStatType.Formula && !string.IsNullOrEmpty(diceSystem.InitiativeFormula))
+                    {
+                        statInfo = $"Initiative ({diceSystem.InitiativeFormula})";
+                    }
+                    else if (diceSystem.InitiativeStatType != InitiativeStatType.None && !string.IsNullOrEmpty(diceSystem.InitiativeStatName))
+                    {
+                        statInfo = $"Initiative ({diceSystem.InitiativeStatName})";
+                    }
+                }
+
+                int sides = DiceRoll.GetSystemSides(diceSystem);
+                DiceRoll roll = DiceRoll.RollStatWithSystem(diceSystem, statInfo, modifier, advantage, disadvantage)
+                    ?? DiceRoll.RollDiceRegular(1, sides, modifier, statInfo, advantage, disadvantage);
+
+                InitiativeValue = roll.RollResult;
+
+                try
+                {
+                    var rollMessage = new Dalamud.Game.Text.XivChatEntry
+                    {
+                        Message = detailedRoll ? roll.RollDetailedResultString : roll.RollResultString,
+                        Type = Dalamud.Game.Text.XivChatType.Echo
+                    };
+                    Messages.SendMessage(rollMessage);
+
+                    string actor = !string.IsNullOrWhiteSpace(Name) ? Name : "Combatant";
+                    string rollValue = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue;
+                    string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, rollValue);
+                    PartySyncManager.Instance.BroadcastDiceRoll(
+                        "Initiative",
+                        roll.RollResult,
+                        string.Join(", ", roll.IndividualRolls),
+                        echoText: echo,
+                        characterName: actor
+                    );
+                }
+                catch
+                {
+                    // Ignored in test environment
+                }
+
+                return roll;
+            }
         }
 
         public void AddBuff(Buff buff)

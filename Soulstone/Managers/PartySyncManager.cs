@@ -336,7 +336,7 @@ namespace Soulstone.Managers
                                     ? packet.EchoMessage
                                     : (!string.IsNullOrWhiteSpace(roll.EchoMessage)
                                         ? roll.EchoMessage
-                                        : $"[Soulstone] {roll.CharacterName} rolled {roll.RollName}: {roll.Total} ({roll.Details})");
+                                        : LocalizationManager.Instance.GetLocalizedString("RollEchoDefault", roll.CharacterName, roll.RollName, roll.Total, roll.Details));
                                 Messages.PrintEcho(rollEcho);
                             }
                         }
@@ -622,7 +622,7 @@ namespace Soulstone.Managers
             else
             {
                 string leaderName = GetPartyLeaderName();
-                member.IsPartyLeader = string.Equals(member.CharacterName, leaderName, StringComparison.OrdinalIgnoreCase);
+                member.IsPartyLeader = !string.IsNullOrEmpty(leaderName) && string.Equals(member.CharacterName, leaderName, StringComparison.OrdinalIgnoreCase);
             }
         }
 
@@ -633,7 +633,7 @@ namespace Soulstone.Managers
             try
             {
                 if (Plugin.PartyList == null || Plugin.PartyList.Length <= 1)
-                    return true;
+                    return false;
 
                 int leaderIdx = (int)Plugin.PartyList.PartyLeaderIndex;
                 if (leaderIdx >= 0 && leaderIdx < Plugin.PartyList.Length)
@@ -648,7 +648,7 @@ namespace Soulstone.Managers
             }
             catch { }
 
-            return true;
+            return false;
         }
 
         public string GetPartyLeaderName()
@@ -675,7 +675,7 @@ namespace Soulstone.Managers
             }
             catch { }
 
-            return GetLocalPlayerName();
+            return IsSessionHost ? GetLocalPlayerName() : string.Empty;
         }
 
         public string GetLocalPlayerName()
@@ -862,7 +862,7 @@ namespace Soulstone.Managers
             string actor = string.IsNullOrWhiteSpace(characterName) ? roller : characterName;
             string echo = !string.IsNullOrWhiteSpace(echoText)
                 ? echoText
-                : $"[Soulstone] {actor} rolled {rollName}: {total} ({details})";
+                : LocalizationManager.Instance.GetLocalizedString("RollEchoDefault", actor, rollName, total, details);
 
             var payload = new DiceRollPayload
             {
@@ -897,7 +897,7 @@ namespace Soulstone.Managers
                 Advantage = advantage,
                 Disadvantage = disadvantage
             };
-            SendPacket(SyncEventType.RollRequest, request, $"[Soulstone] Roll requested from {targetName}: {request.RollName} ({request.Formula})");
+            SendPacket(SyncEventType.RollRequest, request, LocalizationManager.Instance.GetLocalizedString("RollRequestedEcho", targetName, request.RollName, request.Formula));
             return true;
         }
 
@@ -917,7 +917,7 @@ namespace Soulstone.Managers
                 UseSystemDice = true,
                 StatValue = statValue
             };
-            SendPacket(SyncEventType.RollRequest, request, $"[Soulstone] Roll requested from {targetName}: {request.RollName} ({request.Formula})");
+            SendPacket(SyncEventType.RollRequest, request, LocalizationManager.Instance.GetLocalizedString("RollRequestedEcho", targetName, request.RollName, request.Formula));
             return true;
         }
 
@@ -927,7 +927,7 @@ namespace Soulstone.Managers
             var roll = DiceRoll.ParseDiceRollString(formula.Replace(" ", string.Empty), advantage, disadvantage);
             if (roll == null) return false;
             string label = string.IsNullOrWhiteSpace(rollName) ? formula : rollName.Trim();
-            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: $"[Soulstone] Rolled for {targetName}: {roll.RollResultString.TextValue}", characterName: targetName);
+            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RolledForMemberEcho", targetName, roll.RollResultString.TextValue), characterName: targetName);
             return true;
         }
 
@@ -940,7 +940,7 @@ namespace Soulstone.Managers
             string label = string.IsNullOrWhiteSpace(rollName) ? DiceRoll.DescribeSystemRoll(diceSystem, statValue) : rollName.Trim();
             var roll = DiceRoll.RollStatWithSystem(diceSystem, label, statValue, advantage, disadvantage, rawSuccesses);
             if (roll == null) return false;
-            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: $"[Soulstone] Rolled for {targetName}: {roll.RollResultString.TextValue}", characterName: targetName);
+            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RolledForMemberEcho", targetName, roll.RollResultString.TextValue), characterName: targetName);
             return true;
         }
 
@@ -951,7 +951,7 @@ namespace Soulstone.Managers
                 ? DiceRoll.RollStatWithSystem(DiceSystemManager.Instance.CurrentDiceSystem, request.RollName, request.StatValue, request.Advantage, request.Disadvantage)
                 : DiceRoll.ParseDiceRollString(request.Formula, request.Advantage, request.Disadvantage);
             if (roll == null) return false;
-            BroadcastDiceRoll(request.RollName, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: $"[Soulstone] {request.RollName}: {roll.RollResultString.TextValue}");
+            BroadcastDiceRoll(request.RollName, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RollEchoResult", request.RollName, roll.RollResultString.TextValue));
             OnPartyRosterUpdated?.Invoke();
             return true;
         }
@@ -1105,7 +1105,7 @@ namespace Soulstone.Managers
                     Abilities = system.systemAbilities
                 };
 
-                SendPacket(SyncEventType.RulesetBroadcast, payload, $"[Soulstone] Party Leader shared ruleset: {system.systemName}");
+                SendPacket(SyncEventType.RulesetBroadcast, payload, LocalizationManager.Instance.GetLocalizedString("RulesetSharedEcho", system.systemName));
             }
             catch (Exception ex)
             {

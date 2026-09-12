@@ -664,7 +664,7 @@ namespace Soulstone.Datamodels
             int skillGearBonus = GetGearStatBonus(skillName);
             int skillBuffBonus = GetBuffStatBonus(skillName);
             int total = skill.skillModifier + skillGearBonus + skillBuffBonus;
-            if (diceSystem?.skillLinkedToOneAttribute != false && !string.IsNullOrEmpty(skill.linkedAttribute))
+            if (diceSystem?.dynamicSkillAttributeLinking != true && diceSystem?.skillLinkedToOneAttribute != false && !string.IsNullOrEmpty(skill.linkedAttribute))
             {
                 total += GetEffectiveAttributeValue(skill.linkedAttribute);
             }
@@ -675,6 +675,10 @@ namespace Soulstone.Datamodels
         {
             int initBuff = GetBuffStatBonus("Initiative");
             if (diceSystem == null) return initBuff;
+            if (diceSystem.InitiativeStatType == InitiativeStatType.Formula && !string.IsNullOrWhiteSpace(diceSystem.InitiativeFormula))
+            {
+                return StatFormulaEvaluator.EvaluateToInt(diceSystem.InitiativeFormula, this, diceSystem, defaultValue: 0) + initBuff;
+            }
             if (diceSystem.InitiativeStatType == InitiativeStatType.Attribute && !string.IsNullOrEmpty(diceSystem.InitiativeStatName))
             {
                 return GetEffectiveAttributeValue(diceSystem.InitiativeStatName) + initBuff;
@@ -689,16 +693,22 @@ namespace Soulstone.Datamodels
         public DiceRoll RollInitiative(DiceSystem? diceSystem, bool advantage = false, bool disadvantage = false, bool detailedRoll = false)
         {
             int modifier = GetInitiativeModifier(diceSystem);
-            string statInfo = diceSystem != null && diceSystem.InitiativeStatType != InitiativeStatType.None && !string.IsNullOrEmpty(diceSystem.InitiativeStatName)
-                ? $"Initiative ({diceSystem.InitiativeStatName})"
-                : "Initiative";
+            string statInfo = "Initiative";
+            if (diceSystem != null)
+            {
+                if (diceSystem.InitiativeStatType == InitiativeStatType.Formula && !string.IsNullOrEmpty(diceSystem.InitiativeFormula))
+                {
+                    statInfo = $"Initiative ({diceSystem.InitiativeFormula})";
+                }
+                else if (diceSystem.InitiativeStatType != InitiativeStatType.None && !string.IsNullOrEmpty(diceSystem.InitiativeStatName))
+                {
+                    statInfo = $"Initiative ({diceSystem.InitiativeStatName})";
+                }
+            }
 
-            DiceType dType = diceSystem?.DiceType ?? DiceType.d20;
-            string dTypeName = Enum.GetName<DiceType>(dType) ?? "d20";
-            string[] parsedType = dTypeName.Split('d');
-            int sides = parsedType.Length > 1 && int.TryParse(parsedType[1], out int parsedSides) ? parsedSides : 20;
-
-            DiceRoll roll = DiceRoll.RollDiceRegular(1, sides, modifier, statInfo, advantage, disadvantage);
+            int sides = DiceRoll.GetSystemSides(diceSystem);
+            DiceRoll roll = DiceRoll.RollStatWithSystem(diceSystem, statInfo, modifier, advantage, disadvantage)
+                ?? DiceRoll.RollDiceRegular(1, sides, modifier, statInfo, advantage, disadvantage);
 
             try
             {
@@ -710,7 +720,8 @@ namespace Soulstone.Datamodels
                 Messages.SendMessage(rollMessage);
 
                 string actor = !string.IsNullOrWhiteSpace(CharacterFullName) ? CharacterFullName : "Character";
-                string echo = $"[Soulstone] {actor} rolled Initiative: {(detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue)}";
+                string rollValue = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue;
+                string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, rollValue);
                 PartySyncManager.Instance.BroadcastDiceRoll(
                     "Initiative",
                     roll.RollResult,

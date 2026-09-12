@@ -1,7 +1,9 @@
 ﻿using Dalamud.Game.Gui.Toast;
 using Soulstone.Datamodels;
+using Soulstone.Utils;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 namespace Soulstone.Managers
@@ -61,7 +63,7 @@ namespace Soulstone.Managers
             if (members == null) return;
 
             var sheet = CharacterManager.Instance.CharacterSheet;
-            var rand = new Random();
+            var sys = system ?? DiceSystemManager.Instance.CurrentDiceSystem;
 
             foreach (var member in members)
             {
@@ -90,12 +92,14 @@ namespace Soulstone.Managers
 
                 if (isMatch && sheet != null)
                 {
-                    bonus = sheet.GetInitiativeModifier(system);
-                    initVal = sheet.RollInitiative(system).RollResult;
+                    bonus = sheet.GetInitiativeModifier(sys);
+                    initVal = sheet.RollInitiative(sys).RollResult;
                 }
                 else
                 {
-                    initVal = rand.Next(1, 21);
+                    var roll = DiceRoll.RollStatWithSystem(sys, "Initiative", bonus)
+                        ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(sys), bonus, "Initiative");
+                    initVal = roll.RollResult;
                 }
 
                 var buffs = member.ActiveBuffs != null ? new List<Buff>(member.ActiveBuffs) : new List<Buff>();
@@ -106,7 +110,7 @@ namespace Soulstone.Managers
             SortParticipants(IsAscendingOrder);
         }
 
-        public InitiativeParticipant AddParticipant(string name, int initiativeValue, int bonusModifier = 0, bool isCurrentChar = false, string notes = "", List<Buff>? buffs = null, bool autoSort = true)
+        public InitiativeParticipant AddParticipant(string name, int initiativeValue, int bonusModifier = 0, bool isCurrentChar = false, string notes = "", List<Buff>? buffs = null, CharacterSheet? characterSheet = null, string? sheetFilePath = null, bool autoSort = true)
         {
             var sheet = CharacterManager.Instance.CharacterSheet;
             bool isMatch = isCurrentChar || (sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName) && string.Equals(sheet.CharacterFullName, name, StringComparison.OrdinalIgnoreCase));
@@ -116,10 +120,119 @@ namespace Soulstone.Managers
             {
                 initialBuffs = new List<Buff>(sheet.ActiveBuffs);
             }
+            else if (characterSheet?.ActiveBuffs != null && characterSheet.ActiveBuffs.Count > 0 && initialBuffs.Count == 0)
+            {
+                initialBuffs = new List<Buff>(characterSheet.ActiveBuffs);
+            }
 
-            var participant = new InitiativeParticipant(name, initiativeValue, bonusModifier, isMatch, notes, initialBuffs);
+            var participant = new InitiativeParticipant(name, initiativeValue, bonusModifier, isMatch, notes, initialBuffs, characterSheet, sheetFilePath);
             AddParticipant(participant, autoSort);
             return participant;
+        }
+
+        public DiceRoll? RerollParticipant(string participantId, DiceSystem? diceSystem = null, bool advantage = false, bool disadvantage = false, bool detailedRoll = false)
+        {
+            var participant = Participants.FirstOrDefault(p => p.Id == participantId);
+            if (participant == null) return null;
+
+            var sys = diceSystem ?? DiceSystemManager.Instance.CurrentDiceSystem;
+            var localSheet = CharacterManager.Instance.CharacterSheet;
+
+            DiceRoll roll;
+            if (participant.IsCurrentCharacter && localSheet != null)
+            {
+                roll = localSheet.RollInitiative(sys, advantage, disadvantage, detailedRoll);
+                participant.InitiativeValue = roll.RollResult;
+                participant.BonusModifier = localSheet.GetInitiativeModifier(sys);
+                if (localSheet.ActiveBuffs != null)
+                {
+                    participant.Buffs = new List<Buff>(localSheet.ActiveBuffs);
+                }
+            }
+            else
+            {
+                roll = participant.RollInitiative(sys, advantage, disadvantage, detailedRoll);
+            }
+
+            SyncParticipantWithCharacterSheet(participant);
+            SortParticipants(IsAscendingOrder);
+
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader() || participant.IsCurrentCharacter))
+            {
+                PartySyncManager.Instance.BroadcastParticipantUpsert(participant);
+            }
+
+            return roll;
+        }
+
+        public void AttachSheetToParticipant(string participantId, CharacterSheet sheet, string? filePath = null)
+        {
+            var participant = Participants.FirstOrDefault(p => p.Id == participantId);
+            if (participant == null || sheet == null) return;
+
+            participant.CharacterSheet = sheet;
+            participant.SheetFilePath = filePath;
+            if (string.IsNullOrWhiteSpace(participant.Name) && !string.IsNullOrWhiteSpace(sheet.CharacterFullName))
+            {
+                participant.Name = sheet.CharacterFullName;
+            }
+
+            var sys = DiceSystemManager.Instance.CurrentDiceSystem;
+            participant.BonusModifier = sheet.GetInitiativeModifier(sys);
+
+            if (sheet.ActiveBuffs != null && sheet.ActiveBuffs.Count > 0)
+            {
+                foreach (var b in sheet.ActiveBuffs)
+                {
+                    if (!participant.Buffs.Any(pb => string.Equals(pb.Name, b.Name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        participant.AddBuff(b);
+                    }
+                }
+            }
+
+            SyncParticipantWithCharacterSheet(participant);
+
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
+            {
+                PartySyncManager.Instance.BroadcastParticipantUpsert(participant);
+            }
+        }
+
+        public void DetachSheetFromParticipant(string participantId)
+        {
+            var participant = Participants.FirstOrDefault(p => p.Id == participantId);
+            if (participant == null) return;
+
+            participant.CharacterSheet = null;
+            participant.SheetFilePath = null;
+
+            if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
+            {
+                PartySyncManager.Instance.BroadcastParticipantUpsert(participant);
+            }
+        }
+
+        public static List<string> GetAvailablePremadeSheetFiles()
+        {
+            var result = new List<string>();
+            try
+            {
+                string dir = $"{Plugin.dataLocation}/sheets";
+                if (Directory.Exists(dir))
+                {
+                    var files = Directory.GetFiles(dir, "*.json");
+                    foreach (var f in files)
+                    {
+                        result.Add(f);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, "Failed to get available sheet files");
+            }
+            return result;
         }
 
         public bool RemoveParticipant(string id)
@@ -220,7 +333,7 @@ namespace Soulstone.Managers
 
             if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
-                string echoMsg = active != null ? $"[Initiative] Round {CurrentRound}, Turn {CurrentTurnNumber}: {active.Name}'s turn!" : "";
+                string echoMsg = active != null ? LocalizationManager.Instance.GetLocalizedString("InitiativeTurnEcho", CurrentRound, CurrentTurnNumber, active.Name) : "";
                 PartySyncManager.Instance.BroadcastInitiativeTurn(CurrentRound, CurrentTurnNumber, active?.Id, echoMsg);
             }
         }
@@ -276,7 +389,7 @@ namespace Soulstone.Managers
 
             if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
-                PartySyncManager.Instance.BroadcastInitiativeReset("[Initiative] Combat turns reset to Round 1");
+                PartySyncManager.Instance.BroadcastInitiativeReset(LocalizationManager.Instance.GetLocalizedString("InitiativeResetEcho"));
             }
         }
 
@@ -288,7 +401,7 @@ namespace Soulstone.Managers
 
             if (!isHandlingRemoteUpdate && (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader()))
             {
-                PartySyncManager.Instance.BroadcastInitiativeReset("[Initiative] Combat encounter cleared");
+                PartySyncManager.Instance.BroadcastInitiativeReset(LocalizationManager.Instance.GetLocalizedString("InitiativeClearedEcho"));
             }
         }
 
@@ -327,6 +440,10 @@ namespace Soulstone.Managers
             {
                 participant.IsCurrentCharacter = true;
                 sheet.ActiveBuffs = new List<Buff>(participant.Buffs ?? new List<Buff>());
+            }
+            else if (participant.CharacterSheet != null)
+            {
+                participant.CharacterSheet.ActiveBuffs = new List<Buff>(participant.Buffs ?? new List<Buff>());
             }
         }
 

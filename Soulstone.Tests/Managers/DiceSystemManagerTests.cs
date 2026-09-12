@@ -77,6 +77,51 @@ namespace Soulstone.Tests.Managers
         }
 
         [Fact]
+        public void Init_WithLastActiveDiceSystemInConfig_LoadsSavedDiceSystem()
+        {
+            // Arrange
+            var customSystem = new DiceSystem
+            {
+                SystemName = "Custom SciFi System",
+                DiceType = DiceType.d100
+            };
+            DiceSystem.SaveDiceSystem(customSystem);
+
+            var config = new Soulstone.Configuration
+            {
+                LastActiveDiceSystem = "Custom SciFi System"
+            };
+
+            // Act
+            DiceSystemManager.Instance.Init(config);
+
+            // Assert
+            DiceSystemManager.Instance.CurrentDiceSystem.Should().NotBeNull();
+            DiceSystemManager.Instance.CurrentDiceSystem!.SystemName.Should().Be("Custom SciFi System");
+        }
+
+        [Fact]
+        public void SwitchDiceSystem_UpdatesConfigurationLastActiveDiceSystem()
+        {
+            // Arrange
+            var customSystem = new DiceSystem
+            {
+                SystemName = "Cyberpunk 2020",
+                DiceType = DiceType.d10
+            };
+            DiceSystem.SaveDiceSystem(customSystem);
+
+            var config = new Soulstone.Configuration();
+            DiceSystemManager.Instance.Init(config);
+
+            // Act
+            DiceSystemManager.Instance.SwitchDiceSystem(customSystem);
+
+            // Assert
+            config.LastActiveDiceSystem.Should().Be("Cyberpunk 2020");
+        }
+
+        [Fact]
         public void LoadDiceSystem_WhenFileIsCorrupted_ReturnsNullAndDoesNotThrow()
         {
             // Arrange

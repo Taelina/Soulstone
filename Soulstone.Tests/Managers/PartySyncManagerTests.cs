@@ -692,5 +692,42 @@ namespace Soulstone.Tests.Managers
             Assert.Equal(19, observedRoll.Total);
             Assert.Equal("Astrology: 19 (1d20+4 -> [15] + 4)", member.LastRollSummary);
         }
+
+        [Fact]
+        public void NonHostMember_IsNotTreatedAsPartyLeaderWhenConnected()
+        {
+            var syncMgr = PartySyncManager.Instance;
+            var config = new Soulstone.Configuration
+            {
+                SyncHostName = "Dungeon Master"
+            };
+            syncMgr.Init(config);
+
+            var hostMember = new PartyMemberSyncData { CharacterName = "Dungeon Master" };
+            var regularMember = new PartyMemberSyncData { CharacterName = "Regular Player" };
+
+            syncMgr.ConnectedPartyMembers["Dungeon Master"] = hostMember;
+            syncMgr.ConnectedPartyMembers["Regular Player"] = regularMember;
+
+            var payloadHost = new PresencePayload { CharacterName = "Dungeon Master" };
+            var payloadRegular = new PresencePayload { CharacterName = "Regular Player" };
+
+            syncMgr.HandleIncomingPacket(new PartySyncPacket
+            {
+                EventType = SyncEventType.Presence,
+                SenderName = "Dungeon Master",
+                PayloadJson = JsonSerializer.Serialize(payloadHost)
+            }, "Dungeon Master");
+
+            syncMgr.HandleIncomingPacket(new PartySyncPacket
+            {
+                EventType = SyncEventType.Presence,
+                SenderName = "Regular Player",
+                PayloadJson = JsonSerializer.Serialize(payloadRegular)
+            }, "Regular Player");
+
+            Assert.True(hostMember.IsPartyLeader);
+            Assert.False(regularMember.IsPartyLeader);
+        }
     }
 }

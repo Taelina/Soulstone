@@ -61,20 +61,21 @@ namespace Soulstone.Utils
             total += addedValue;
             string rollResults = string.Join(", ", rolls);
             diceRoll.rollResult = total;
+            string rollNamePrefix = string.IsNullOrWhiteSpace(rollName) ? string.Empty : $"{rollName} ";
             if (addedValue > 0)
             {
-                diceRoll.RollResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} + {addedValue}:  Total: {total}";
-                diceRoll.RollDetailedResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} + {addedValue}: [{rollResults}] Total: {total}";
+                diceRoll.RollResultString = LocalizationManager.Instance.GetLocalizedString("RollResultRegularPlus", rollNamePrefix, numberOfDice, sidesPerDie, addedValue, total);
+                diceRoll.RollDetailedResultString = LocalizationManager.Instance.GetLocalizedString("RollDetailedRegularPlus", rollNamePrefix, numberOfDice, sidesPerDie, addedValue, rollResults, total);
             }
             else if (addedValue < 0)
             {
-                diceRoll.RollResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} - {Math.Abs(addedValue)}:  Total: {total}";
-                diceRoll.RollDetailedResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} - {Math.Abs(addedValue)}: [{rollResults}] Total: {total}";
+                diceRoll.RollResultString = LocalizationManager.Instance.GetLocalizedString("RollResultRegularMinus", rollNamePrefix, numberOfDice, sidesPerDie, Math.Abs(addedValue), total);
+                diceRoll.RollDetailedResultString = LocalizationManager.Instance.GetLocalizedString("RollDetailedRegularMinus", rollNamePrefix, numberOfDice, sidesPerDie, Math.Abs(addedValue), rollResults, total);
             }
             else
             {
-                diceRoll.RollResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie}: Total: {total}";
-                diceRoll.RollDetailedResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie}: [{rollResults}] Total: {total}";
+                diceRoll.RollResultString = LocalizationManager.Instance.GetLocalizedString("RollResultRegular", rollNamePrefix, numberOfDice, sidesPerDie, total);
+                diceRoll.RollDetailedResultString = LocalizationManager.Instance.GetLocalizedString("RollDetailedRegular", rollNamePrefix, numberOfDice, sidesPerDie, rollResults, total);
             }
             diceRoll.individualRolls = rolls;
             return diceRoll;
@@ -99,15 +100,16 @@ namespace Soulstone.Utils
             int totalSuccesses = successes + rawSuccesses;
             string rollResults = string.Join(", ", rolls);
             diceRoll.rollResult = totalSuccesses;
+            string rollNamePrefix = string.IsNullOrWhiteSpace(rollName) ? string.Empty : $"{rollName} ";
             if (rawSuccesses > 0)
             {
-                diceRoll.RollResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} (Success Threshold: {successThreshold}) + {rawSuccesses} epic bonus: Successes: {totalSuccesses}";
-                diceRoll.RollDetailedResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} (Success Threshold: {successThreshold}) + {rawSuccesses} epic bonus: [{rollResults}] Successes: {totalSuccesses}";
+                diceRoll.RollResultString = LocalizationManager.Instance.GetLocalizedString("RollResultPoolEpic", rollNamePrefix, numberOfDice, sidesPerDie, successThreshold, rawSuccesses, totalSuccesses);
+                diceRoll.RollDetailedResultString = LocalizationManager.Instance.GetLocalizedString("RollDetailedPoolEpic", rollNamePrefix, numberOfDice, sidesPerDie, successThreshold, rawSuccesses, rollResults, totalSuccesses);
             }
             else
             {
-                diceRoll.RollResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} (Success Threshold: {successThreshold}): Successes: {totalSuccesses}";
-                diceRoll.RollDetailedResultString = $"Rolled {rollName} {numberOfDice}d{sidesPerDie} (Success Threshold: {successThreshold}): [{rollResults}] Successes: {totalSuccesses}";
+                diceRoll.RollResultString = LocalizationManager.Instance.GetLocalizedString("RollResultPool", rollNamePrefix, numberOfDice, sidesPerDie, successThreshold, totalSuccesses);
+                diceRoll.RollDetailedResultString = LocalizationManager.Instance.GetLocalizedString("RollDetailedPool", rollNamePrefix, numberOfDice, sidesPerDie, successThreshold, rollResults, totalSuccesses);
             }
             diceRoll.individualRolls = rolls;
             return diceRoll;
@@ -124,9 +126,12 @@ namespace Soulstone.Utils
                 bool success = rollResult <= targetValue;
                 int interval = successInterval > 0 ? successInterval : 10;
                 int successOrFailureBy = Math.Abs(targetValue - rollResult) / interval;
-                string successOrFailureString = success ? $"Sucess by : {successOrFailureBy}" : $"Failure by : {successOrFailureBy}";
+                string successOrFailureString = success
+                    ? LocalizationManager.Instance.GetLocalizedString("RollPercentileSuccessBy", successOrFailureBy)
+                    : LocalizationManager.Instance.GetLocalizedString("RollPercentileFailureBy", successOrFailureBy);
+                string rollNamePrefix = string.IsNullOrWhiteSpace(rollName) ? string.Empty : $"{rollName} ";
                 roll.rollResult = rollResult;
-                roll.rollResultString = $"Rolled {rollName} target : {targetValue} \n Roll : {rollResult} \n {successOrFailureString} ";
+                roll.rollResultString = LocalizationManager.Instance.GetLocalizedString("RollPercentileResultFormat", rollNamePrefix, targetValue, rollResult, successOrFailureString);
                 roll.rollDetailedResultString = roll.rollResultString;
                 rolls.Add(rollResult);
                 roll.individualRolls = rolls;

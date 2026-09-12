@@ -16,6 +16,7 @@ namespace Soulstone.Managers
         private DiceSystem? currentDiceSystem;
         private DiceSystem? localBackupDiceSystem;
         private bool isSessionRulesetActive = false;
+        private Configuration? configuration;
 
         private DiceSystemManager()
         {
@@ -34,7 +35,19 @@ namespace Soulstone.Managers
             }
         }
 
-        internal DiceSystem? CurrentDiceSystem { get => currentDiceSystem; set => currentDiceSystem = value; }
+        internal DiceSystem? CurrentDiceSystem
+        {
+            get => currentDiceSystem;
+            set
+            {
+                currentDiceSystem = value;
+                if (value != null && !string.IsNullOrWhiteSpace(value.systemName) && configuration != null && !isSessionRulesetActive)
+                {
+                    configuration.LastActiveDiceSystem = value.systemName;
+                    configuration.Save();
+                }
+            }
+        }
         internal DiceSystem? LocalBackupDiceSystem { get => localBackupDiceSystem; set => localBackupDiceSystem = value; }
         public bool IsSessionRulesetActive => isSessionRulesetActive;
 
@@ -80,6 +93,12 @@ namespace Soulstone.Managers
                 isSessionRulesetActive = false;
                 localBackupDiceSystem = null;
 
+                if (configuration != null && !string.IsNullOrWhiteSpace(newSystem.systemName))
+                {
+                    configuration.LastActiveDiceSystem = newSystem.systemName;
+                    configuration.Save();
+                }
+
                 var sheet = CharacterManager.Instance.CharacterSheet;
                 if (sheet != null)
                 {
@@ -114,7 +133,7 @@ namespace Soulstone.Managers
                 DiceSystem.SaveDiceSystem(currentDiceSystem);
             }
 
-            string warnMsg = $"[Soulstone] Saved '{charName}' and ruleset '{oldSysName}' before switching to '{newSysName}'.";
+            string warnMsg = LocalizationManager.Instance.GetLocalizedString("DiceSysSwitchSaveEcho", charName, oldSysName, newSysName);
             Messages.PrintEcho(warnMsg);
 
             try
@@ -144,6 +163,12 @@ namespace Soulstone.Managers
                     currentDiceSystem = target;
                     localBackupDiceSystem = null;
 
+                    if (configuration != null && !string.IsNullOrWhiteSpace(target.systemName))
+                    {
+                        configuration.LastActiveDiceSystem = target.systemName;
+                        configuration.Save();
+                    }
+
                     var sheet = CharacterManager.Instance.CharacterSheet;
                     if (sheet != null)
                     {
@@ -160,11 +185,18 @@ namespace Soulstone.Managers
             }
         }
 
-        public void Init()
+        public void Init(Configuration? config = null)
         {
             try
             {
-                currentDiceSystem = DiceSystem.LoadDiceSystem("Standard_Dice_System");
+                configuration = config;
+                string lastSys = config?.LastActiveDiceSystem ?? string.Empty;
+                DiceSystem? loaded = null;
+                if (!string.IsNullOrWhiteSpace(lastSys))
+                {
+                    loaded = DiceSystem.LoadDiceSystem(lastSys);
+                }
+                currentDiceSystem = loaded ?? DiceSystem.LoadDiceSystem("Standard_Dice_System");
                 PartySyncManager.Instance.OnRulesetOffered += OnRulesetOfferedFromParty;
             }
             catch (Exception ex)

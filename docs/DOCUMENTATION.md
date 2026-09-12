@@ -128,9 +128,11 @@ The aggregate root for a player's character data.
   - `inventory`: List of `Item` objects.
   - `equippedGear`: Dictionary mapping `GearSlot` to `Item?`.
   - `augmentations`: List of cybernetic `Item` objects.
-- **Calculations**:
+- **Calculations & Actions**:
   - `GetEffectiveAttributeValue(name)`: Computes base attribute value plus bonuses from active gear, cyberware, and temporary modifiers.
   - `GetEffectiveResourceMax(resourceName, diceSystem)`: Evaluates dynamic formula using effective attribute values.
+  - `GetInitiativeModifier(diceSystem)`: Computes effective initiative bonus based on ruleset configuration (formula, attribute, skill, or direct bonus).
+  - `RollInitiative(diceSystem, advantage, disadvantage, detailedRoll)`: Executes an initiative roll following the ruleset dice type and modifier calculation, broadcasting the result to party/chat.
 
 ### 3.2 `DiceSystem`
 Defines the active tabletop rule engine.
@@ -143,6 +145,10 @@ Defines the active tabletop rule engine.
   - `systemHasAugmentations`: Enables Cyberware/Augmentations tab.
   - `systemHasAdvantage`: Enables Advantage/Disadvantage mechanics.
   - `systemHasThresholds`: Enables Critical/Success/Failure/Fumble tiers.
+  - `dynamicSkillAttributeLinking`: When enabled, skills are not tied to a single static attribute; rolling a skill displays a modal to choose the attribute dynamically.
+  - `initiativeStatType`: `None`, `Attribute`, `Skill`, or `Formula`.
+  - `initiativeStatName`: Target attribute or skill name when initiative is tied to a stat.
+  - `initiativeFormula`: Custom mathematical expression (e.g. `(@DEX + @INT) / 2` or `{DEX} * 2`) evaluated for initiative modifier.
   - `resourceDefinitions`: Default resource pool templates with dynamic formulas.
 
 ### 3.3 `Item` & `GearItem`
@@ -153,11 +159,15 @@ Defines the active tabletop rule engine.
 
 ### 3.4 `CharacterResource` & `ResourceDefinition`
 - Dynamic tracking for resource pools with current, base minimum, base maximum, and optional formula.
-- Formulas support referencing any attribute: e.g. `@CON * 10 + 20`.
+- Formulas support referencing any attribute: e.g. `@CON * 10 + 20` or `{CON} * 10 + 20`.
 
 ### 3.5 `InitiativeParticipant`
-- Represents a combatant in an encounter.
-- Fields: `id`, `name`, `initiativeValue`, `tieBreaker`, `currentHp`, `maxHp`, `armorClass`, `statusEffects`, `isNpc`, `isCurrentTurn`, `isDefeated`.
+- Represents a combatant in an encounter (player character, NPC, companion, or enemy).
+- **Fields**: `id`, `name`, `initiativeValue`, `bonusModifier`, `isCurrentCharacter`, `notes`, `buffs`, `characterSheet`, `sheetFilePath`.
+- **NPC Character Sheets**: Can hold an attached `CharacterSheet` (created blank or loaded from a `.json` file).
+- **Methods**:
+  - `GetEffectiveInitiativeModifier(diceSystem)`: Retrieves the calculated modifier from the attached sheet or participant bonuses/buffs.
+  - `RollInitiative(diceSystem, advantage, disadvantage, detailedRoll)`: Rolls initiative using the active ruleset dice mechanics and echoes the localized roll to chat.
 
 ---
 
@@ -171,14 +181,18 @@ Defines the active tabletop rule engine.
 ### 4.2 `DiceSystemManager`
 - Manages the active `DiceSystem` instance.
 - Loads default D&D 5e / d20 rule system on first start.
+- Persists the active dice system identifier/filename across sessions in plugin `Configuration.LastActiveDiceSystem`, automatically restoring it upon reload.
 - Synchronizes default resources defined in the ruleset into the character sheet.
 
 ### 4.3 `InitiativeTrackerManager`
 - Manages active combat encounter state: participants list, round count, active turn index.
-- Methods:
-  - `AddParticipant(name, initiative, hp, maxHp, isNpc)`
+- Methods & Features:
+  - `AddParticipant(name, initiative, bonusModifier, isCurrentCharacter, notes, buffs, characterSheet, sheetFilePath)`
   - `RemoveParticipant(id)`
   - `SortByInitiative()`
+  - `RerollParticipant(id, advantage, disadvantage, detailedRoll)`: Re-rolls a single participant using the active ruleset formula or stat modifier.
+  - `AttachSheet(participantId, characterSheet, filePath)` / `DetachSheet(participantId)`: Binds or unbinds full character sheets to/from participants.
+  - `GetAvailablePremadeSheetFiles()`: Scans the sheets storage directory for `.json` files to use as templates.
   - `NextTurn()` / `PreviousTurn()`
   - `ResetCombat()`
 
@@ -188,9 +202,11 @@ Defines the active tabletop rule engine.
 - Supports hot-loading external community translation files from `<DataLocation>/Localizations/*.json`.
 - Supports instant language switching between English and French without requiring plugin restart.
 - Thread-safe dictionary lookups with automatic fallback to English if a key is missing in French, and fallback to key name if missing entirely.
+- Used across all UI windows, modals, tooltips, and echoed chat logs.
 
 ### 4.5 `PartySyncManager` & Relay Transport
 - Connects separate Soulstone instances through the standalone `Soulstone.SyncServer` WebSocket relay.
+- Robust leader/DM resolution: checks host configuration status to ensure non-host and non-leader members are never misidentified as the DM.
 - Synchronization payloads are never sent through FFXIV chat. The relay forwards opaque encrypted envelopes and does not persist session data.
 - Group messages use AES-256-GCM authenticated encryption. DM commands are signed with the session host's RSA key so members reject forged ruleset, initiative, and roll-request events.
 - Private stat snapshots use a random per-message AES key wrapped with the DM's RSA public key and are routed only to host connections. Other members cannot decrypt them.
@@ -216,14 +232,14 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 | :--- | :--- |
 | `MainWindow` | Tab coordinator providing top bar status, navigation tabs, and system indicators. |
 | `CharacterWindow` | Identity, appearance, background lore, customizable quick looks, and categorized relationship manager. |
-| `CharStatsWindow` | Dynamic resource bars, attribute cards, skill tree, and ability cards with click-to-roll buttons. |
+| `CharStatsWindow` | Dynamic resource bars, attribute cards, skill tree, dynamic skill attribute linking modal, and ability cards with click-to-roll buttons. |
 | `InventoryWindow` | Searchable item list, rarity badges, category filtering, weight/value summary, and item detail/editor modals. |
 | `GearWindow` | Interactive equipment paper doll loadout, equip slot selectors, and passive modifier summary. |
-| `AugmentationsWindow` | Cyberware body slot layout, installed cybernetics inspector, and essence/humanity tracker. |
-| `InitiativeTrackerWindow` | Combat tracker with initiative sorting, turn cycling, quick damage/heal buttons, and condition badges. |
+| `AugmentationsWindow` | Cyberware body slot layout with icon action buttons (install, change, remove), installed cybernetics inspector, and essence/humanity tracker. |
+| `InitiativeTrackerWindow` | Combat tracker with initiative sorting, turn cycling, individual re-rolls, NPC sheet loader, sheet inspector modal, and condition badges. |
 | `GroupWindow` | Encrypted relay session setup, party resource roster, DM roll controls, and private stat inspection. |
-| `DiceWindow` | Freeform dice expression calculator, advantage toggles, and chat output broadcast. |
-| `DiceSystemWindow` | Rule engine editor for system type, thresholds, dice types, and dynamic resource definitions. |
+| `DiceWindow` | Freeform dice expression calculator, initiative quick-card with ruleset notation/source, advantage toggles, and chat output broadcast. |
+| `DiceSystemWindow` | Rule engine editor for system type, dynamic skill linking, formula initiative, thresholds, dice types, and dynamic resource definitions. |
 | `ConfigWindow` | Settings window for language selection, chat channels, detailed roll output, and UI options. |
 | `ImGuiFileWindow` | Standalone modal file picker with drive navigation, bookmarks, and extension filtering. |
 
@@ -235,9 +251,10 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 - Robust recursive-descent math parser supporting:
   - Binary operators: `+`, `-`, `*`, `/`, `^`, `%`.
   - Parentheses: `( ... )`.
-  - Variables: `@ATTRIBUTE_NAME` (case-insensitive lookup from attribute dictionaries).
+  - Variables: `@ATTRIBUTE_NAME` and `{ATTRIBUTE_NAME}` (case-insensitive lookup from attribute dictionaries and stat maps).
   - Unary operators: `+`, `-`.
 - Gracefully handles division by zero (returns `0`) and malformed expressions (returns `0` with safe error handling).
+- Used for dynamic resource max calculations, dynamic ability damage/healing formulas, and formula-based combat initiative modifiers.
 
 ### 6.2 `DiceRoll`
 - Evaluates tabletop dice expressions such as `1d20+5`, `3d6`, `2d8-1`.
@@ -246,12 +263,13 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
   - Advantage & Disadvantage mechanics (`2d20kh1`, `2d20kl1`).
   - Dice Pool success counting against target thresholds.
   - Percentile d100 roll-under with degree of success levels (Critical Success, Extreme, Hard, Regular, Failure, Critical Fumble).
+  - Ruleset stat rolls via `RollStatWithSystem(diceSystem, statName, modifier, advantage, disadvantage)`.
 
 ### 6.3 `UiUtils`
 - Standardized UI widgets:
   - `Card`: Renders modern framed cards with background color and border rounding.
   - `Badge`: Renders colored status badges.
-  - `IconButton`: Renders FontAwesome icon buttons with proper spacing.
+  - `IconButton`: Renders FontAwesome icon buttons with proper spacing and tooltips.
   - `ConfirmationModal`: Modal confirmation dialogs for destructive actions.
 
 ### 6.4 `ImageHelper`
@@ -260,6 +278,7 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 
 ### 6.5 `Messages`
 - Injects formatted roll results directly into Final Fantasy XIV chat channels (`/say`, `/party`, or standard chat log).
+- Supports fully localized echo messages for dice rolls, initiative announcements, and ruleset notifications.
 
 ---
 

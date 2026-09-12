@@ -31,7 +31,8 @@ namespace Soulstone.Datamodels
     {
         None = 0,
         Attribute = 1,
-        Skill = 2
+        Skill = 2,
+        Formula = 3
     }
 
     internal class DiceSystem
@@ -67,6 +68,8 @@ namespace Soulstone.Datamodels
 
         public InitiativeStatType initiativeStatType = InitiativeStatType.None;
         public string initiativeStatName = string.Empty;
+        public string initiativeFormula = string.Empty;
+        public bool dynamicSkillAttributeLinking = false;
 
         public DiceType diceType = DiceType.d20;
         public SystemType systemType = SystemType.DnDSystem;
@@ -104,6 +107,8 @@ namespace Soulstone.Datamodels
         public Dictionary<string, Ability> SystemAbilities { get => systemAbilities; set => systemAbilities = value; }
         public InitiativeStatType InitiativeStatType { get => initiativeStatType; set => initiativeStatType = value; }
         public string InitiativeStatName { get => initiativeStatName; set => initiativeStatName = value; }
+        public string InitiativeFormula { get => initiativeFormula; set => initiativeFormula = value; }
+        public bool DynamicSkillAttributeLinking { get => dynamicSkillAttributeLinking; set => dynamicSkillAttributeLinking = value; }
 
         public void CaptureTemplateFromSheet(CharacterSheet sheet)
         {
@@ -239,7 +244,13 @@ namespace Soulstone.Datamodels
 
         public static DiceSystem? LoadDiceSystem(string systemName, bool isFullPath = false)
         {
-            string path = isFullPath ? systemName : $"{Plugin.dataLocation}/diceSystem/{systemName}.json";
+            string sanitized = systemName.Replace(" ", "_").ToLower();
+            string path = isFullPath ? systemName : $"{Plugin.dataLocation}/diceSystem/{sanitized}.json";
+            if (!isFullPath && !File.Exists(path) && File.Exists($"{Plugin.dataLocation}/diceSystem/{systemName}.json"))
+            {
+                path = $"{Plugin.dataLocation}/diceSystem/{systemName}.json";
+            }
+
             try
             {
                 if (File.Exists(path))

@@ -196,37 +196,34 @@ namespace Soulstone.Windows
                 {
                     ImGui.TextDisabled(item.Rarity);
                 }
+            }
+            else
+            {
+                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAugmentationsEquipped"));
+            }
 
-                // Right action buttons
-                var btnHeight = 22.0f * ImGuiHelpers.GlobalScale;
-                var unequipLabel = LocalizationManager.Instance.GetLocalizedString("UninstallButton");
-                var unequipBtnWidth = ImGui.CalcTextSize(unequipLabel).X + 16.0f * ImGuiHelpers.GlobalScale;
-                var changeLabel = LocalizationManager.Instance.GetLocalizedString("ChooseGearTitle");
-                var changeBtnWidth = ImGui.CalcTextSize(changeLabel).X + 16.0f * ImGuiHelpers.GlobalScale;
-                var deleteLabel = LocalizationManager.Instance.GetLocalizedString("DeleteButton");
-                var deleteBtnWidth = ImGui.CalcTextSize(deleteLabel).X + 16.0f * ImGuiHelpers.GlobalScale;
+            // Right action buttons
+            float rightButtonsWidth = item != null ? (92.0f * ImGuiHelpers.GlobalScale) : (60.0f * ImGuiHelpers.GlobalScale);
+            var rightBtnX = pos.X + width - rightButtonsWidth;
+            ImGui.SetCursorScreenPos(new Vector2(rightBtnX, pos.Y + 10.0f * ImGuiHelpers.GlobalScale));
 
-                var rightStartX = pos.X + width - unequipBtnWidth - changeBtnWidth - deleteBtnWidth - 20.0f * ImGuiHelpers.GlobalScale;
-                if (ImGui.GetCursorScreenPos().X < rightStartX)
-                {
-                    ImGui.SetCursorScreenPos(new Vector2(rightStartX, pos.Y + 14.0f * ImGuiHelpers.GlobalScale));
-                }
-
-                if (ImGui.Button($"{changeLabel}###ChangeAug_{slot}", new Vector2(changeBtnWidth, btnHeight)))
-                {
-                    equipModalSlot = slot;
-                    showEquipModal = true;
-                }
-
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{unequipLabel}###UnequipAug_{slot}", new Vector2(unequipBtnWidth, btnHeight)))
+            if (item != null)
+            {
+                if (UiUtils.IconButton($"UnequipAug_{slot}", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("UninstallButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     sheet.UnequipAugmentation(slot);
                     CharacterSheet.SaveSheet(sheet);
                 }
 
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{deleteLabel}###DeleteAug_{slot}", new Vector2(deleteBtnWidth, btnHeight)))
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.IconButton($"ChangeAug_{slot}", FontAwesomeIcon.ExchangeAlt, LocalizationManager.Instance.GetLocalizedString("ChooseGearTitle"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
+                {
+                    equipModalSlot = slot;
+                    showEquipModal = true;
+                }
+
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.IconButton($"DeleteAug_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     sheet.RemoveItem(item.Id);
                     CharacterSheet.SaveSheet(sheet);
@@ -234,21 +231,18 @@ namespace Soulstone.Windows
             }
             else
             {
-                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAugmentationsEquipped"));
-
-                var installLabel = LocalizationManager.Instance.GetLocalizedString("InstallButton");
-                var installBtnWidth = ImGui.CalcTextSize(installLabel).X + 20.0f * ImGuiHelpers.GlobalScale;
-                var rightStartX = pos.X + width - installBtnWidth - 8.0f * ImGuiHelpers.GlobalScale;
-                if (ImGui.GetCursorScreenPos().X < rightStartX)
-                {
-                    ImGui.SetCursorScreenPos(new Vector2(rightStartX, pos.Y + 14.0f * ImGuiHelpers.GlobalScale));
-                }
-
-                if (ImGui.Button($"{installLabel}###InstallAug_{slot}", new Vector2(installBtnWidth, 22.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconButton($"InstallAug_{slot}", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("InstallButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     equipModalSlot = slot;
                     showEquipModal = true;
                 }
+            }
+
+            // Card click to select slot
+            ImGui.SetCursorScreenPos(pos);
+            if (ImGui.InvisibleButton($"##SelectAugSlot_{slot}", cardSize))
+            {
+                selectedSlot = slot;
             }
 
             ImGui.PopID();

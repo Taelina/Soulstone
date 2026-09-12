@@ -161,7 +161,7 @@ namespace Soulstone.Windows
                     currentSystem.CaptureTemplateFromSheet(sheet);
                     DiceSystem.SaveDiceSystem(currentSystem);
                     CharacterSheet.SaveSheet(sheet);
-                    string msg = $"[Soulstone] Character '{sheet.CharacterFullName}' saved as template for '{currentSystem.systemName}'.";
+                    string msg = LocalizationManager.Instance.GetLocalizedString("DiceSysSavedTemplateEcho", sheet.CharacterFullName, currentSystem.systemName);
                     Messages.PrintEcho(msg);
                     try
                     {
@@ -288,7 +288,7 @@ namespace Soulstone.Windows
                             currentSystem.CaptureTemplateFromSheet(sheet);
                             DiceSystem.SaveDiceSystem(currentSystem);
                             CharacterSheet.SaveSheet(sheet);
-                            string msg = $"[Soulstone] Character '{sheet.CharacterFullName}' saved as template for '{currentSystem.systemName}'.";
+                            string msg = LocalizationManager.Instance.GetLocalizedString("DiceSysSavedTemplateEcho", sheet.CharacterFullName, currentSystem.systemName);
                             Messages.PrintEcho(msg);
                             try
                             {
@@ -339,7 +339,8 @@ namespace Soulstone.Windows
                     {
                         LocalizationManager.Instance.GetLocalizedString("InitiativeNone"),
                         LocalizationManager.Instance.GetLocalizedString("InitiativeAttribute"),
-                        LocalizationManager.Instance.GetLocalizedString("InitiativeSkill")
+                        LocalizationManager.Instance.GetLocalizedString("InitiativeSkill"),
+                        LocalizationManager.Instance.GetLocalizedString("InitiativeFormula")
                     };
 
                     int currentTypeIndex = (int)currentSystem.initiativeStatType;
@@ -350,7 +351,36 @@ namespace Soulstone.Windows
                     }
 
                     // Stat selector based on current initiativeStatType
-                    if (currentSystem.initiativeStatType != InitiativeStatType.None)
+                    if (currentSystem.initiativeStatType == InitiativeStatType.Formula)
+                    {
+                        ImGui.TableNextRow();
+                        ImGui.TableNextColumn();
+                        ImGui.AlignTextToFramePadding();
+                        ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaLabel"));
+                        ImGui.TableNextColumn();
+
+                        ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.InputTextWithHint("##InitiativeFormulaInput", "e.g. 10 + [Dexterity] / 2", ref currentSystem.initiativeFormula, 100);
+                        if (ImGui.IsItemHovered())
+                        {
+                            ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaTooltip"));
+                        }
+
+                        var sheet = CharacterManager.Instance.CharacterSheet;
+                        if (sheet != null)
+                        {
+                            int mod = sheet.GetInitiativeModifier(currentSystem);
+                            ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
+                            UiUtils.Badge(mod >= 0 ? $"+{mod}" : $"{mod}", new Vector4(0.14f, 0.38f, 0.20f, 0.85f), ImGuiColors.ParsedGreen);
+
+                            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                            if (UiUtils.IconButton("RollInitPreviewBtn", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("InitiativeRollInitiative")))
+                            {
+                                sheet.RollInitiative(currentSystem);
+                            }
+                        }
+                    }
+                    else if (currentSystem.initiativeStatType != InitiativeStatType.None)
                     {
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
@@ -870,6 +900,17 @@ namespace Soulstone.Windows
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
                     ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("SystemInventoryLimitCheckbox"), ref currentSystem.systemHasInventoryLimit);
+
+                    ImGui.TableNextRow();
+                    ImGui.TableNextColumn();
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("DynamicSkillAttributeLinkingCheckbox"), ref currentSystem.dynamicSkillAttributeLinking);
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DynamicSkillAttributeLinkingTooltip"));
+                    }
+
+                    ImGui.TableNextColumn();
                 }
             }
         }

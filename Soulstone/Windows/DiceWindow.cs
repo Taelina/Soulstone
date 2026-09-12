@@ -60,9 +60,34 @@ namespace Soulstone.Windows
         {
             var sheet = CharacterManager.Instance.CharacterSheet;
             int mod = sheet?.GetInitiativeModifier(currentSystem) ?? 0;
-            string statName = currentSystem != null && currentSystem.initiativeStatType != InitiativeStatType.None && !string.IsNullOrEmpty(currentSystem.initiativeStatName)
-                ? currentSystem.initiativeStatName
-                : LocalizationManager.Instance.GetLocalizedString("InitiativeNone");
+            string statSource;
+            if (currentSystem == null || currentSystem.initiativeStatType == InitiativeStatType.None)
+            {
+                statSource = LocalizationManager.Instance.GetLocalizedString("InitiativeNone");
+            }
+            else if (currentSystem.initiativeStatType == InitiativeStatType.Formula)
+            {
+                statSource = !string.IsNullOrWhiteSpace(currentSystem.initiativeFormula)
+                    ? $"{LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {currentSystem.initiativeFormula}"
+                    : LocalizationManager.Instance.GetLocalizedString("InitiativeNone");
+            }
+            else if (currentSystem.initiativeStatType == InitiativeStatType.Attribute)
+            {
+                string attrLabel = LocalizationManager.Instance.GetLocalizedString("AttributeLabel").TrimEnd(' ', ':');
+                statSource = $"{attrLabel}: {currentSystem.initiativeStatName}";
+            }
+            else if (currentSystem.initiativeStatType == InitiativeStatType.Skill)
+            {
+                string skillLabel = LocalizationManager.Instance.GetLocalizedString("SkillLabel").TrimEnd(' ', ':');
+                statSource = $"{skillLabel}: {currentSystem.initiativeStatName}";
+            }
+            else
+            {
+                statSource = currentSystem.initiativeStatName;
+            }
+
+            string diceNotation = currentSystem != null ? $"1d{DiceRoll.GetSystemSides(currentSystem)}" : "1d20";
+            var diceIcon = currentSystem?.diceType == DiceType.d20 ? FontAwesomeIcon.DiceD20 : FontAwesomeIcon.Dice;
 
             using (var card = ImRaii.Child("##InitiativeQuickCard", new Vector2(0, 42.0f * ImGuiHelpers.GlobalScale), true))
             {
@@ -77,15 +102,27 @@ namespace Soulstone.Windows
                     ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("InitiativeTab"));
                     ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
-                    UiUtils.Badge($"{statName} ({(mod >= 0 ? $"+{mod}" : $"{mod}")})", new Vector4(0.14f, 0.38f, 0.20f, 0.85f), ImGuiColors.ParsedGreen);
+                    string badgeText = $"{diceNotation} | {statSource} ({(mod >= 0 ? $"+{mod}" : $"{mod}")})";
+                    UiUtils.Badge(badgeText, new Vector4(0.14f, 0.38f, 0.20f, 0.85f), ImGuiColors.ParsedGreen);
 
                     ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.IconButton("RollInitDiceTabBtn", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("InitiativeRollInitiative")))
+                    string rollBtnLabel = LocalizationManager.Instance.GetLocalizedString("InitiativeRollInitiative");
+                    if (UiUtils.IconButton("RollInitDiceTabBtn", diceIcon, rollBtnLabel))
                     {
                         if (sheet != null)
                         {
                             var roll = sheet.RollInitiative(currentSystem, advantage, disadvantage, detailedRoll);
                             InitiativeTrackerManager.Instance.AddOrUpdateCurrentCharacter(sheet, currentSystem, roll.RollResult, mod);
+                            rollHistory.Insert(0, new RollHistoryEntry
+                            {
+                                Timestamp = DateTime.Now,
+                                Formula = $"Initiative ({diceNotation} + {statSource})",
+                                ResultText = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue
+                            });
+                            if (rollHistory.Count > MaxHistoryCount)
+                            {
+                                rollHistory.RemoveAt(rollHistory.Count - 1);
+                            }
                         }
                     }
 
@@ -282,7 +319,7 @@ namespace Soulstone.Windows
                         rollInputText,
                         DR.RollResult,
                         string.Join(", ", DR.IndividualRolls),
-                        echoText: $"[Soulstone] {rollInputText}: {resultSeString.TextValue}");
+                        echoText: LocalizationManager.Instance.GetLocalizedString("RollEchoResult", rollInputText, resultSeString.TextValue));
 
                     rollHistory.Add(new RollHistoryEntry
                     {

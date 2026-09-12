@@ -159,7 +159,7 @@ namespace Soulstone.Utils
             if (string.IsNullOrWhiteSpace(statName))
                 return 0;
 
-            string cleanName = statName.Trim(' ', '[', ']', '\'', '"');
+            string cleanName = statName.Trim(' ', '[', ']', '{', '}', '\'', '"');
 
             if (customVariables != null && customVariables.TryGetValue(cleanName, out double customVal))
             {
@@ -324,9 +324,9 @@ namespace Soulstone.Utils
                 else if (c == '(') { tokens.Add(new Token { Type = TokenType.LParen, Text = "(" }); i++; }
                 else if (c == ')') { tokens.Add(new Token { Type = TokenType.RParen, Text = ")" }); i++; }
                 else if (c == ',') { tokens.Add(new Token { Type = TokenType.Comma, Text = "," }); i++; }
-                else if (c == '[' || c == '\'' || c == '"')
+                else if (c == '[' || c == '{' || c == '\'' || c == '"')
                 {
-                    char closeChar = c == '[' ? ']' : c;
+                    char closeChar = c == '[' ? ']' : (c == '{' ? '}' : c);
                     int start = ++i;
                     while (i < len && input[i] != closeChar) i++;
                     string id = input.Substring(start, i - start);

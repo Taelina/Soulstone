@@ -23,6 +23,9 @@ namespace Soulstone.Windows
         private bool showSkillPopup = false;
         private bool showAttributesPopup = false;
         private bool showBuffPopup = false;
+        private bool showDynamicSkillModal = false;
+        private Skill? dynamicSkillRollSkill = null;
+        private string selectedDynamicAttr = "";
 
         private CharacterSheet? currentCharacter = null;
         private DiceSystem? currentDiceSystem = null;
@@ -787,7 +790,8 @@ namespace Soulstone.Windows
                             int attributePerm = 0;
                             int rawSuccesses = 0;
                             Datamodels.Attribute? linkedAttr = null;
-                            bool hasLinkedAttr = !string.IsNullOrEmpty(skill.Value.linkedAttribute) &&
+                            bool hasLinkedAttr = (currentDiceSystem?.dynamicSkillAttributeLinking != true) &&
+                                                 !string.IsNullOrEmpty(skill.Value.linkedAttribute) &&
                                                  currentCharacter.characterAttributes != null &&
                                                  currentCharacter.characterAttributes.TryGetValue(skill.Value.linkedAttribute, out linkedAttr);
                             if (hasLinkedAttr && linkedAttr != null)
@@ -814,7 +818,7 @@ namespace Soulstone.Windows
 
                                 ImGui.AlignTextToFramePadding();
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, skill.Value.skillName);
-                                if (!string.IsNullOrEmpty(skill.Value.linkedAttribute))
+                                if (currentDiceSystem?.dynamicSkillAttributeLinking != true && !string.IsNullOrEmpty(skill.Value.linkedAttribute))
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                                     UiUtils.Badge(skill.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
@@ -833,7 +837,7 @@ namespace Soulstone.Windows
                                 ImGui.AlignTextToFramePadding();
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, skill.Value.skillName);
 
-                                if (!string.IsNullOrEmpty(skill.Value.linkedAttribute))
+                                if (currentDiceSystem?.dynamicSkillAttributeLinking != true && !string.IsNullOrEmpty(skill.Value.linkedAttribute))
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                                     UiUtils.Badge(skill.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
@@ -900,9 +904,18 @@ namespace Soulstone.Windows
                                 {
                                     if (currentDiceSystem != null)
                                     {
-                                        int totalDice = totalModifier;
-                                        int totalTarget = totalModifier;
-                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, skill.Value.skillName, detailedRoll, totalTarget, rawSuccesses);
+                                        if (currentDiceSystem.dynamicSkillAttributeLinking && currentCharacter.characterAttributes != null && currentCharacter.characterAttributes.Count > 0)
+                                        {
+                                            dynamicSkillRollSkill = skill.Value;
+                                            selectedDynamicAttr = currentCharacter.characterAttributes.Keys.FirstOrDefault() ?? "";
+                                            showDynamicSkillModal = true;
+                                        }
+                                        else
+                                        {
+                                            int totalDice = totalModifier;
+                                            int totalTarget = totalModifier;
+                                            DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, skill.Value.skillName, detailedRoll, totalTarget, rawSuccesses);
+                                        }
                                     }
                                 }
 
@@ -1331,6 +1344,99 @@ namespace Soulstone.Windows
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
                 {
                     showSkillPopup = false;
+                }
+
+                ImGui.EndPopup();
+            }
+
+            // Dynamic Skill Roll Modal
+            if (showDynamicSkillModal && dynamicSkillRollSkill != null)
+            {
+                ImGui.OpenPopup("DynamicSkillRollModal");
+            }
+            if (ImGui.BeginPopupModal("DynamicSkillRollModal", ref showDynamicSkillModal, ImGuiWindowFlags.AlwaysAutoResize))
+            {
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.TextColored(ImGuiColors.ParsedGreen, FontAwesomeIcon.DiceD20.ToIconString());
+                ImGui.PopFont();
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                string skillName = dynamicSkillRollSkill?.skillName ?? "Skill";
+                ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("DynamicSkillModalTitle", skillName));
+                ImGui.Separator();
+                ImGui.Spacing();
+
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("SelectLinkedAttributePrompt"));
+                var noneLabel = LocalizationManager.Instance.GetLocalizedString("NoneOption");
+                var attrKeys = currentCharacter.characterAttributes?.Keys.ToList() ?? new List<string>();
+                var attrOptions = new List<string> { "" };
+                attrOptions.AddRange(attrKeys);
+                if (ImGui.BeginCombo("##DynamicSkillAttrCombo", string.IsNullOrEmpty(selectedDynamicAttr) ? noneLabel : selectedDynamicAttr))
+                {
+                    foreach (var key in attrOptions)
+                    {
+                        bool isSelected = selectedDynamicAttr == key;
+                        if (ImGui.Selectable(string.IsNullOrEmpty(key) ? noneLabel : key, isSelected))
+                        {
+                            selectedDynamicAttr = key;
+                        }
+                        if (isSelected) ImGui.SetItemDefaultFocus();
+                    }
+                    ImGui.EndCombo();
+                }
+
+                int dynAttrVal = 0;
+                int dynAttrTemp = 0;
+                int dynAttrPerm = 0;
+                int dynRawSuccesses = 0;
+                int dynAttrGearBonus = 0;
+                int dynAttrBuffBonus = 0;
+
+                if (!string.IsNullOrEmpty(selectedDynamicAttr) &&
+                    currentCharacter.characterAttributes != null &&
+                    currentCharacter.characterAttributes.TryGetValue(selectedDynamicAttr, out var dynAttr) && dynAttr != null)
+                {
+                    dynAttrVal = dynAttr.Value;
+                    dynAttrTemp = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? dynAttr.TempBonus : 0;
+                    dynAttrPerm = (currentDiceSystem == null || currentDiceSystem.systemHasBonusPerm) ? dynAttr.PermBonus : 0;
+                    dynRawSuccesses = (currentDiceSystem != null ? currentDiceSystem.systemHasEpicAttributes : configuration.showEpicBonus) ? dynAttr.EpicBonus : 0;
+                    dynAttrGearBonus = currentCharacter.GetGearStatBonus(selectedDynamicAttr);
+                    dynAttrBuffBonus = currentCharacter.GetBuffStatBonus(selectedDynamicAttr);
+                }
+
+                int skillBaseMod = dynamicSkillRollSkill?.skillModifier ?? 0;
+                int skillGear = dynamicSkillRollSkill != null ? currentCharacter.GetGearStatBonus(dynamicSkillRollSkill.skillName) : 0;
+                int skillBuff = dynamicSkillRollSkill != null ? currentCharacter.GetBuffStatBonus(dynamicSkillRollSkill.skillName) : 0;
+                int totalAttrMod = dynAttrVal + dynAttrTemp + dynAttrPerm + dynAttrGearBonus + dynAttrBuffBonus;
+                int dynTotalMod = skillBaseMod + skillGear + skillBuff + totalAttrMod;
+
+                ImGui.Spacing();
+                ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}: {FormatModifier(skillBaseMod)}");
+                if (skillGear != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(skillGear)}");
+                if (skillBuff != 0) ImGui.TextDisabled($"Buff: {FormatModifier(skillBuff)}");
+                if (!string.IsNullOrEmpty(selectedDynamicAttr))
+                {
+                    ImGui.TextDisabled($"{selectedDynamicAttr}: {FormatModifier(totalAttrMod)}");
+                }
+                ImGui.TextColored(ImGuiColors.ParsedGreen, $"{LocalizationManager.Instance.GetLocalizedString("TotalModifierLabel")}: {FormatModifier(dynTotalMod)}");
+
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
+
+                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")}###DynSkillRollBtn", new Vector2(100, 0) * ImGuiHelpers.GlobalScale))
+                {
+                    string rollLabel = !string.IsNullOrEmpty(selectedDynamicAttr)
+                        ? $"{dynamicSkillRollSkill?.skillName} ({selectedDynamicAttr})"
+                        : (dynamicSkillRollSkill?.skillName ?? "Skill");
+                    int totalDice = dynTotalMod;
+                    int totalTarget = dynTotalMod;
+                    DiceRoll.RollDice(totalDice, dynTotalMod, advantageRoll, disadvantageRoll, rollLabel, detailedRoll, totalTarget, dynRawSuccesses);
+                    showDynamicSkillModal = false;
+                }
+                ImGui.SameLine();
+                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
+                {
+                    showDynamicSkillModal = false;
                 }
 
                 ImGui.EndPopup();

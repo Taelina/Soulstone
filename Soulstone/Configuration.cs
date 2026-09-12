@@ -21,6 +21,8 @@ public class Configuration : IPluginConfiguration
 
     public Language Language { get; set; } = Language.Français;
 
+    public string LastActiveDiceSystem { get; set; } = string.Empty;
+
     public string SyncServerUrl { get; set; } = "http://127.0.0.1:5077";
     public string SyncSessionId { get; set; } = string.Empty;
     public string SyncHostToken { get; set; } = string.Empty;

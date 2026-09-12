@@ -220,7 +220,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             Log?.Information("Initializing managers on main thread...");
             CharacterManager.Instance.Init();
-            DiceSystemManager.Instance.Init();
+            DiceSystemManager.Instance.Init(Configuration);
             PartySyncManager.Instance.Init(Configuration);
             LocalizationManager.Instance.InitLoc(this);
             fileBrowserWindow?.SetCurrentDirectory(dataLocation);

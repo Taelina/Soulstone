@@ -36,10 +36,10 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 ### 📊 Dynamic Stats, Attributes & Abilities
 - **Custom Attributes**: Define core attributes (e.g. Strength, Dexterity, Intelligence) with base values and bonuses.
 - **Hierarchical Skills & Abilities**:
-  - Create **Skills** linked directly to primary attributes.
+  - Create **Skills** linked directly to primary attributes, or enable **Dynamic Skill Attribute Linking** in rulesets to prompt for the linked attribute on a roll-by-roll basis.
   - Create **Abilities** linked to specific skills and attributes with custom dice formulas and modifier calculations.
-- **Stat Formula Evaluator**: Evaluate mathematical stat expressions dynamically referencing attributes (e.g. `@STR * 2 + @DEX / 2`).
-- **Interactive Stat Rolls**: Single-click rolling for any attribute, skill, or ability with automatic modifiers and chat output.
+- **Stat Formula Evaluator**: Evaluate mathematical stat expressions dynamically referencing attributes (e.g. `@STR * 2 + @DEX / 2` or `{STR} * 2`).
+- **Interactive Stat Rolls**: Single-click rolling for any attribute, skill, or ability with automatic modifiers, roll breakdown, and chat output.
 
 ### 🧪 Custom Dynamic Resource Pools
 - **Configurable Resource Definitions**: Create arbitrary resource pools (HP, MP, Stamina, Resolve, Sanity, Ki, Spell Slots, Ammo, etc.).
@@ -48,15 +48,16 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 - **Dice System Resource Templates**: Custom dice systems can define default resources that automatically synchronize with character sheets.
 
 ### ⚔️ Initiative & Combat Tracker
-- **Encounter Management**: Track initiative order for players, companions, NPCs, and enemies.
-- **Turn & Round Cycling**: Step through combat rounds with next/previous turn controls and current turn indicators.
-- **In-Tracker Stats**: View and update participant HP, MP, resources, armor class, and status conditions directly from the tracker window.
-- **One-Click Initiative Rolling**: Roll initiative using character attributes/skills with automatic list re-sorting.
-- **Fast Participant Addition**: Quickly add existing characters or create ad-hoc monsters/NPCs on the fly.
+- **Encounter Management**: Track initiative order for players, companions, NPCs, and enemies with automatic sorting and turn cycling.
+- **Ruleset Initiative Integration**: Initiative rolls respect the active dice system's dice type, stat source (Formula, Attribute, Skill, or None), and modifier calculations.
+- **Individual & Quick Re-rolls**: Single-click individual participant re-roll and bulk rolling with instant tie-breaking and broadcast updates.
+- **Integrated NPC Character Sheets**: Attach full character sheets to any combatant—create blank sheets on the fly or load premade JSON templates from disk, with an in-tracker inspector modal for vitals, attributes, skills, and buffs.
+- **In-Tracker Stats & Effects**: Manage participant HP, temporary buffs, status conditions, and notes directly from the tracker window.
 
 ### 🔐 Encrypted Group Synchronization
-- **Out-of-Game Transport**: Soulstone synchronization uses its standalone WebSocket relay.
+- **Out-of-Game Transport**: Soulstone synchronization uses its standalone WebSocket relay (`Soulstone.SyncServer`).
 - **Private Group Sessions**: The DM creates a session and shares one short invite link outside the game. Its 16-character validation code unlocks an opaque, in-memory invite on that relay; incoming identities are checked against the local FFXIV party roster.
+- **Accurate Role Resolution**: Explicit DM / Party Leader detection ensures non-host members are never misidentified as DM.
 - **DM Coordination**: The DM can request rolls, roll for players, distribute rulesets, and control shared initiative state.
 - **Scoped Data Sharing**: Resource bars and roll results are shared with the session, while full character stats are encrypted specifically for the DM.
 - **Self-Hosted Relay**: `Soulstone.SyncServer` runs unattended as a .NET application, single-file executable, service, or container. See [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
@@ -77,6 +78,7 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 - **Body Part Slots**: Neural, Ocular, Cranial, Torso, Arms, Legs, Subdermal, and Internal systems.
 - **Essence / Humanity / Cost Tracking**: Balance powerful cybernetic upgrades against character resource constraints.
 - **Active & Passive Buffs**: Augmentations can grant custom abilities, stat multipliers, and resistance perks.
+- **Intuitive Management**: Quick install, swap, inspect, and remove action icons matching the gear loadout interface.
 
 ### 🎲 Tabletop Dice Systems & Rule Engine
 - **Multiple Tabletop Resolution Systems**:
@@ -84,12 +86,14 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
   - **Dice Pool System**: Roll multiple dice against a configurable success threshold (e.g. Shadowrun, World of Darkness).
   - **Percentile System (d100)**: Roll-under target system with degree of success/failure calculations based on intervals (e.g. Call of Cthulhu).
 - **Supported Dice Types**: d4, d6, d8, d10, d12, d20, d100, and arbitrary multi-dice expressions (e.g. `4d6k3`, `2d8+5`).
-- **Customizable System Rules**: Configure Advantage/Disadvantage, temporary & permanent bonuses, epic attributes, and success thresholds.
+- **Customizable System Rules**: Configure Advantage/Disadvantage, temporary & permanent bonuses, epic attributes, dynamic skill linking, formula initiative, and success thresholds.
+- **System Persistence**: Automatically persists and restores the last active dice system across plugin restarts.
 
 ### 💬 Chat Integration & Broadcasting
 - **In-Game Chat Broadcast**: Automatically outputs formatted roll results, calculations, and ability descriptions to the in-game `/say`, `/party`, or custom chat channels.
 - **Detailed Roll Breakdown**: Optional mode to display individual dice rolls, modifiers, and step-by-step arithmetic.
 - **Advantage & Disadvantage**: Full native support for advantage, disadvantage, and keep-highest/lowest mechanics.
+- **Localized Echoes**: Roll notifications, initiative announcements, and combat resets are fully localized in English and French.
 
 ### 📁 Profile Management & Data Persistence
 - **Modern ImGui File Browser**: Custom-built, fully localized file picker with quick-access bookmarks (Documents, Desktop, Game folder), drive selection, path navigation, file creation, and deletion.
@@ -123,8 +127,9 @@ You can also access Soulstone windows, configuration, and tools through the **Da
 | **Inventory (`InventoryWindow`)** | Item management, categories, weight, value, search, and item inspection. |
 | **Gear (`GearWindow`)** | Equipment slots, equipped items, and passive stat bonuses. |
 | **Augmentations (`AugmentationsWindow`)** | Cyberware and magitek installations, slot allocations, and essence tracking. |
-| **Initiative Tracker (`InitiativeTrackerWindow`)** | Turn-based combat tracking, rounds, health management, and order sorting. |
-| **Dice Rolling (`DiceWindow`)** | Quick dice roller with expression evaluator, advantage toggles, and chat broadcast. |
+| **Initiative Tracker (`InitiativeTrackerWindow`)** | Turn-based combat tracking, rounds, health management, order sorting, and attached NPC sheets. |
+| **Group Sync (`GroupWindow`)** | Encrypted WebSocket party synchronization, shared resources, DM controls, and private sheet inspection. |
+| **Dice Rolling (`DiceWindow`)** | Quick dice roller with expression evaluator, advantage toggles, initiative quick-card, and chat broadcast. |
 | **Dice System (`DiceSystemWindow`)** | Tabletop RPG rule engine configuration, thresholds, and default resource setups. |
 | **Settings (`ConfigWindow`)** | Plugin preferences, localization selection, and chat formatting options. |
 

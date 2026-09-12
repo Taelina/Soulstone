@@ -11,6 +11,7 @@ namespace Soulstone.Tests
             {
                 Plugin.Log = new Mock<IPluginLog>().Object;
             }
+            Soulstone.Managers.LocalizationManager.Instance.InitLoc(new Soulstone.Configuration { Language = Soulstone.Localizations.Language.English });
         }
     }
 }

@@ -269,5 +269,36 @@ namespace Soulstone.Tests.Datamodels
             string expectedPath = Path.Combine(tempDirectory, "sheets", "new_adventurer.json");
             File.Exists(expectedPath).Should().BeTrue();
         }
+
+        [Fact]
+        public void GetEffectiveSkillTotal_WithDynamicSkillAttributeLinking_DoesNotIncludeStaticLinkedAttribute()
+        {
+            var sheet = new CharacterSheet();
+            sheet.CharacterAttributes["Dexterity"] = new Attribute("Dexterity", 5);
+            sheet.CharacterSkills["Stealth"] = new Skill
+            {
+                SkillName = "Stealth",
+                SkillModifier = 3,
+                LinkedAttribute = "Dexterity"
+            };
+
+            var standardDiceSys = new DiceSystem
+            {
+                DynamicSkillAttributeLinking = false,
+                SkillLinkedToOneAttribute = true
+            };
+
+            var dynamicDiceSys = new DiceSystem
+            {
+                DynamicSkillAttributeLinking = true,
+                SkillLinkedToOneAttribute = true
+            };
+
+            // Standard: 3 (Skill) + 5 (Dex) = 8
+            sheet.GetEffectiveSkillTotal("Stealth", standardDiceSys).Should().Be(8);
+
+            // Dynamic: 3 (Skill only, attribute chosen at roll time) = 3
+            sheet.GetEffectiveSkillTotal("Stealth", dynamicDiceSys).Should().Be(3);
+        }
     }
 }

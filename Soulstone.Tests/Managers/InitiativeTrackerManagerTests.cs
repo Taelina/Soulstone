@@ -230,5 +230,63 @@ namespace Soulstone.Tests.Managers
             manager.Participants.Should().HaveCount(1);
             manager.Participants[0].InitiativeValue.Should().Be(24);
         }
+
+        [Fact]
+        public void RerollParticipant_WithDiceSystem_UpdatesValueAndModifier()
+        {
+            var diceSys = new DiceSystem
+            {
+                InitiativeStatType = InitiativeStatType.Formula,
+                InitiativeFormula = "{DEX} + 2"
+            };
+
+            var sheet = new CharacterSheet { CharacterFullName = "NPC Boss" };
+            sheet.CharacterAttributes["DEX"] = new Soulstone.Datamodels.Attribute("DEX", 4);
+
+            var participant = manager.AddParticipant("NPC Boss", 10, 0, false, "", null, sheet);
+            participant.CharacterSheet.Should().NotBeNull();
+
+            var roll = manager.RerollParticipant(participant.Id, diceSys);
+            roll.Should().NotBeNull();
+            participant.BonusModifier.Should().Be(6); // 4 + 2
+            participant.InitiativeValue.Should().Be(roll!.RollResult);
+        }
+
+        [Fact]
+        public void AttachAndDetachSheetToParticipant_WorksCorrectly()
+        {
+            var p = manager.AddParticipant("Goblin Minion", 12, 1);
+            p.CharacterSheet.Should().BeNull();
+
+            var sheet = new CharacterSheet { CharacterFullName = "Goblin Minion" };
+            sheet.CharacterHealthPoints = 30;
+            sheet.CharacterMaxHealthPoints = 30;
+
+            manager.AttachSheetToParticipant(p.Id, sheet);
+            p.CharacterSheet.Should().BeSameAs(sheet);
+
+            manager.DetachSheetFromParticipant(p.Id);
+            p.CharacterSheet.Should().BeNull();
+        }
+
+        [Fact]
+        public void ImportPartyMembers_WithDiceSystem_RollsInitiative()
+        {
+            var diceSys = new DiceSystem
+            {
+                DiceType = DiceType.d20,
+                InitiativeStatType = InitiativeStatType.None
+            };
+
+            var members = new[]
+            {
+                new PartyMemberSyncData { CharacterName = "Ally 1", JobName = "Paladin" },
+                new PartyMemberSyncData { CharacterName = "Ally 2", JobName = "White Mage" }
+            };
+
+            manager.ImportPartyMembers(members, diceSys);
+            manager.Participants.Should().HaveCount(2);
+            manager.Participants.All(p => p.InitiativeValue >= 1 && p.InitiativeValue <= 20).Should().BeTrue();
+        }
     }
 }
