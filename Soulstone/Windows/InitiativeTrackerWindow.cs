@@ -25,6 +25,8 @@ namespace Soulstone.Windows
         private int newParticipantInit = 10;
         private int newParticipantBonus = 0;
         private string newParticipantNotes = string.Empty;
+        private bool newParticipantIsNpc = false;
+        private int participantFilterIndex = 0; // 0: All, 1: PCs, 2: NPCs
         private CharacterSheet? newParticipantSheet = null;
         private string newParticipantSheetPath = string.Empty;
         private int selectedPremadeSheetIndex = 0;
@@ -184,6 +186,35 @@ namespace Soulstone.Windows
             {
                 plugin.ToggleGroupUi();
             }
+
+            // PC / NPC Filters & Counts
+            int totalCount = manager.Participants.Count;
+            int pcCount = manager.Participants.Count(p => !p.IsNpc);
+            int npcCount = manager.Participants.Count(p => p.IsNpc);
+
+            ImGui.SameLine(0, 14.0f * ImGuiHelpers.GlobalScale);
+            DrawFilterChip(0, $"{LocalizationManager.Instance.GetLocalizedString("InitiativeFilterAll")} ({totalCount})");
+            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+            DrawFilterChip(1, $"{LocalizationManager.Instance.GetLocalizedString("InitiativeFilterPc")} ({pcCount})");
+            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+            DrawFilterChip(2, $"{LocalizationManager.Instance.GetLocalizedString("InitiativeFilterNpc")} ({npcCount})");
+        }
+
+        private void DrawFilterChip(int index, string label)
+        {
+            bool isSelected = participantFilterIndex == index;
+            var bgCol = isSelected ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f);
+            var textCol = isSelected ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey;
+
+            using (ImRaii.PushColor(ImGuiCol.Button, bgCol))
+            using (ImRaii.PushColor(ImGuiCol.Text, textCol))
+            using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 10.0f * ImGuiHelpers.GlobalScale))
+            {
+                if (ImGui.SmallButton(label))
+                {
+                    participantFilterIndex = index;
+                }
+            }
         }
 
         private void DrawAddParticipantBar()
@@ -221,6 +252,7 @@ namespace Soulstone.Windows
                 {
                     newParticipantSheet = null;
                     newParticipantSheetPath = string.Empty;
+                    newParticipantIsNpc = false;
                 }
                 else if (selectedPremadeSheetIndex == 1)
                 {
@@ -232,6 +264,7 @@ namespace Soulstone.Windows
                     }
                     newParticipantSheetPath = string.Empty;
                     newParticipantBonus = newParticipantSheet.GetInitiativeModifier(diceSys);
+                    newParticipantIsNpc = true;
                 }
                 else
                 {
@@ -249,6 +282,7 @@ namespace Soulstone.Windows
                                 newParticipantName = loaded.CharacterFullName;
                             }
                             newParticipantBonus = loaded.GetInitiativeModifier(diceSys);
+                            newParticipantIsNpc = true;
                         }
                     }
                 }
@@ -291,6 +325,14 @@ namespace Soulstone.Windows
             ImGui.SetNextItemWidth(45.0f * ImGuiHelpers.GlobalScale);
             ImGui.InputInt("##NewInitBonus", ref newParticipantBonus, 0);
 
+            // NPC Checkbox
+            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+            ImGui.Checkbox("NPC##NewInitIsNpc", ref newParticipantIsNpc);
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeIsNpcTooltip"));
+            }
+
             // Add button
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
             if (UiUtils.IconButton("AddInitParticipantBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton")))
@@ -300,12 +342,13 @@ namespace Soulstone.Windows
                 {
                     newParticipantSheet.CharacterFullName = name;
                 }
-                manager.AddParticipant(name, newParticipantInit, newParticipantBonus, false, newParticipantNotes, null, newParticipantSheet, newParticipantSheetPath);
+                manager.AddParticipant(name, newParticipantInit, newParticipantBonus, false, newParticipantNotes, null, newParticipantSheet, newParticipantSheetPath, autoSort: true, isNpc: newParticipantIsNpc);
                 newParticipantName = string.Empty;
                 newParticipantNotes = string.Empty;
                 newParticipantSheet = null;
                 newParticipantSheetPath = string.Empty;
                 selectedPremadeSheetIndex = 0;
+                newParticipantIsNpc = false;
             }
         }
 
@@ -438,6 +481,9 @@ namespace Soulstone.Windows
                 for (int i = 0; i < manager.Participants.Count; i++)
                 {
                     var p = manager.Participants[i];
+                    if (participantFilterIndex == 1 && p.IsNpc) continue;
+                    if (participantFilterIndex == 2 && !p.IsNpc) continue;
+
                     bool isActive = (i == manager.ActiveParticipantIndex);
 
                     ImGui.PushID($"InitRow_{p.Id}");
@@ -458,18 +504,59 @@ namespace Soulstone.Windows
                     }
                     else
                     {
-                        if (UiUtils.IconButton($"SetActive_{p.Id}", FontAwesomeIcon.Circle, "Set Active", new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                        var roleIcon = p.IsNpc ? FontAwesomeIcon.Skull : FontAwesomeIcon.User;
+                        if (UiUtils.IconButton($"SetActive_{p.Id}", roleIcon, LocalizationManager.Instance.GetLocalizedString("InitiativeSetActiveTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
                         {
                             manager.SetActiveIndex(i);
                             manager.AnnounceTurn(p.Name, manager.CurrentRound);
                         }
                     }
 
-                    // Column 2: Name + Sheet badge/indicator
+                    // Column 2: Name + Sheet badge/indicator + PC/NPC badge
                     ImGui.TableNextColumn();
+
+                    // PC / NPC badge button (clickable to toggle between PC and NPC)
+                    if (p.IsNpc)
+                    {
+                        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.48f, 0.18f, 0.18f, 0.9f)))
+                        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed))
+                        using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 6.0f * ImGuiHelpers.GlobalScale))
+                        {
+                            if (ImGui.SmallButton($"NPC##ToggleNpc_{p.Id}"))
+                            {
+                                p.IsNpc = false;
+                                manager.SyncParticipantWithCharacterSheet(p);
+                                if (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader())
+                                {
+                                    PartySyncManager.Instance.BroadcastParticipantUpsert(p);
+                                }
+                            }
+                        }
+                        if (ImGui.IsItemHovered()) ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeToggleToPcTooltip"));
+                    }
+                    else
+                    {
+                        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.18f, 0.32f, 0.48f, 0.9f)))
+                        using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedBlue))
+                        using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 6.0f * ImGuiHelpers.GlobalScale))
+                        {
+                            if (ImGui.SmallButton($"PC##ToggleNpc_{p.Id}"))
+                            {
+                                p.IsNpc = true;
+                                manager.SyncParticipantWithCharacterSheet(p);
+                                if (PartySyncManager.Instance.IsSessionHost || PartySyncManager.Instance.IsLocalPlayerPartyLeader())
+                                {
+                                    PartySyncManager.Instance.BroadcastParticipantUpsert(p);
+                                }
+                            }
+                        }
+                        if (ImGui.IsItemHovered()) ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeToggleToNpcTooltip"));
+                    }
+
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                     string nameVal = p.Name;
                     float nameInputWidth = (p.CharacterSheet != null || p.IsCurrentCharacter) 
-                        ? Math.Max(60.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 26.0f * ImGuiHelpers.GlobalScale) 
+                        ? Math.Max(50.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 26.0f * ImGuiHelpers.GlobalScale) 
                         : -1;
                     ImGui.SetNextItemWidth(nameInputWidth);
                     if (ImGui.InputText($"##Name_{p.Id}", ref nameVal, 50))

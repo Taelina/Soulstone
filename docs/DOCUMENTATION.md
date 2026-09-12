@@ -251,10 +251,14 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 - Robust recursive-descent math parser supporting:
   - Binary operators: `+`, `-`, `*`, `/`, `^`, `%`.
   - Parentheses: `( ... )`.
-  - Variables: `@ATTRIBUTE_NAME` and `{ATTRIBUTE_NAME}` (case-insensitive lookup from attribute dictionaries and stat maps).
+  - Variables: `@ATTRIBUTE_NAME`, `{ATTRIBUTE_NAME}`, `[ATTRIBUTE_NAME]`, and raw identifier syntax (case-insensitive lookup across attributes, skills, abilities, resources, level, XP, inventory stats, gear/buff bonuses, and reflection properties).
+  - Dot-property accessors: `Strength.Mod`, `Health.Current`, `Health.Max`, `Gear.Strength`, `Buff.Strength`, `Athletics.Total`.
+  - Mathematical functions: `min`, `max`, `clamp`, `floor`, `ceil`, `round`, `trunc`, `abs`, `sqrt`, `mod`, `pow`, `exp`, `log`, `log10`, `sign`, `dndmod`, `if`.
+  - Tabletop dice notation: `1d20`, `2d6`, `d100`.
   - Unary operators: `+`, `-`.
-- Gracefully handles division by zero (returns `0`) and malformed expressions (returns `0` with safe error handling).
-- Used for dynamic resource max calculations, dynamic ability damage/healing formulas, and formula-based combat initiative modifiers.
+- Gracefully handles division by zero and malformed expressions with safe fallbacks and detailed error reporting.
+- Used for dynamic resource max calculations, dynamic ability damage/healing formulas, flat-number resource rolls, and formula-based combat initiative modifiers.
+- Detailed reference and user guide: [`docs/FORMULA_SOLVER.md`](FORMULA_SOLVER.md).
 
 ### 6.2 `DiceRoll`
 - Evaluates tabletop dice expressions such as `1d20+5`, `3d6`, `2d8-1`.

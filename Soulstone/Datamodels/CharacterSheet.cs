@@ -280,18 +280,28 @@ namespace Soulstone.Datamodels
                             initMax = StatFormulaEvaluator.EvaluateToInt(def.Formula, this, diceSystem, defaultValue: def.DefaultMax);
                         }
                         int initCur = def.DefaultCurrent;
-                        if (!string.IsNullOrWhiteSpace(def.Formula) && def.DefaultCurrent == def.DefaultMax)
+                        if (def.ResourceType == ResourceType.Counter)
+                        {
+                            initCur = (def.DefaultCurrent != 100) ? def.DefaultCurrent : 0;
+                        }
+                        else if (def.ResourceType == ResourceType.FlatNumber)
                         {
                             initCur = initMax;
                         }
-                        characterResources[def.Name] = new CharacterResource(def.Name, initCur, initMax, formula: def.Formula);
+                        else if (!string.IsNullOrWhiteSpace(def.Formula) && def.DefaultCurrent == def.DefaultMax)
+                        {
+                            initCur = initMax;
+                        }
+                        characterResources[def.Name] = new CharacterResource(def.Name, initCur, initMax, formula: def.Formula, resourceType: def.ResourceType);
                     }
                     else
                     {
-                        if (string.IsNullOrWhiteSpace(characterResources[def.Name].Formula) && !string.IsNullOrWhiteSpace(def.Formula))
+                        var existing = characterResources[def.Name];
+                        if (string.IsNullOrWhiteSpace(existing.Formula) && !string.IsNullOrWhiteSpace(def.Formula))
                         {
-                            characterResources[def.Name].Formula = def.Formula;
+                            existing.Formula = def.Formula;
                         }
+                        existing.ResourceType = def.ResourceType;
                     }
                 }
             }
@@ -851,6 +861,50 @@ namespace Soulstone.Datamodels
             }
         }
 
+        public DiceRoll? RollResource(string resourceName, DiceSystem? diceSystem = null, bool advantage = false, bool disadvantage = false, bool detailedRoll = false)
+        {
+            var sys = diceSystem ?? DiceSystemManager.Instance.CurrentDiceSystem;
+            int effectiveVal = GetEffectiveResourceMax(resourceName, sys);
+            if (characterResources != null && characterResources.TryGetValue(resourceName, out var res))
+            {
+                if (res.ResourceType == ResourceType.Counter || res.ResourceType == ResourceType.Bar)
+                {
+                    effectiveVal = res.CurrentValue;
+                }
+            }
+
+            int sides = DiceRoll.GetSystemSides(sys);
+            DiceRoll roll = DiceRoll.RollStatWithSystem(sys, resourceName, effectiveVal, advantage, disadvantage)
+                ?? DiceRoll.RollDiceRegular(1, sides, effectiveVal, resourceName, advantage, disadvantage);
+
+            try
+            {
+                var rollMessage = new Dalamud.Game.Text.XivChatEntry
+                {
+                    Message = detailedRoll ? roll.RollDetailedResultString : roll.RollResultString,
+                    Type = Dalamud.Game.Text.XivChatType.Echo
+                };
+                Messages.SendMessage(rollMessage);
+
+                string actor = !string.IsNullOrWhiteSpace(CharacterFullName) ? CharacterFullName : "Character";
+                string rollValue = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue;
+                string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, $"{resourceName} -> {rollValue}");
+                PartySyncManager.Instance.BroadcastDiceRoll(
+                    resourceName,
+                    roll.RollResult,
+                    string.Join(", ", roll.IndividualRolls),
+                    echoText: echo,
+                    characterName: actor
+                );
+            }
+            catch
+            {
+                // Ignored in test environment
+            }
+
+            return roll;
+        }
+
         public int GetEffectiveInventoryCapacity(DiceSystem? diceSystem = null)
         {
             if (customInventoryCapacity > 0)
@@ -877,7 +931,7 @@ namespace Soulstone.Datamodels
                 {
                     if (!characterAttributes.ContainsKey(kv.Key))
                     {
-                        characterAttributes[kv.Key] = new Attribute(kv.Value.Name, kv.Value.Value);
+                        characterAttributes[kv.Key] = new Attribute(kv.Value.Name, kv.Value.Value, kv.Value.Description);
                     }
                 }
             }
@@ -893,7 +947,8 @@ namespace Soulstone.Datamodels
                         {
                             skillName = kv.Value.skillName,
                             linkedAttribute = kv.Value.linkedAttribute,
-                            skillModifier = kv.Value.skillModifier
+                            skillModifier = kv.Value.skillModifier,
+                            skillDescription = kv.Value.skillDescription
                         };
                     }
                 }
@@ -923,7 +978,16 @@ namespace Soulstone.Datamodels
             {
                 if (!characterResources.ContainsKey(resDef.Name))
                 {
-                    characterResources[resDef.Name] = new CharacterResource(resDef.Name, resDef.DefaultCurrent, resDef.DefaultMax, 0, resDef.Formula);
+                    int initCur = resDef.DefaultCurrent;
+                    if (resDef.ResourceType == ResourceType.Counter && resDef.DefaultCurrent == 100)
+                    {
+                        initCur = 0;
+                    }
+                    characterResources[resDef.Name] = new CharacterResource(resDef.Name, initCur, resDef.DefaultMax, 0, resDef.Formula, resDef.ResourceType);
+                }
+                else
+                {
+                    characterResources[resDef.Name].ResourceType = resDef.ResourceType;
                 }
             }
 

@@ -53,6 +53,7 @@ namespace Soulstone.Datamodels
         public int MaxMana { get; set; }
         public Dictionary<string, int> CustomResources { get; set; } = new();
         public Dictionary<string, int> CustomResourceMaxes { get; set; } = new();
+        public Dictionary<string, int> CustomResourceTypes { get; set; } = new();
         public List<Buff> ActiveBuffs { get; set; } = new();
         public string LastRollSummary { get; set; } = string.Empty;
     }
@@ -94,6 +95,7 @@ namespace Soulstone.Datamodels
         public int MaxMana { get; set; }
         public Dictionary<string, int> CustomResources { get; set; } = new();
         public Dictionary<string, int> CustomResourceMaxes { get; set; } = new();
+        public Dictionary<string, int> CustomResourceTypes { get; set; } = new();
     }
 
     public class RulesetBroadcastPayload

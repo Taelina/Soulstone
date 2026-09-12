@@ -751,14 +751,24 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
                 foreach (var kv in member.CustomResources)
                 {
-                    int resMax = member.CustomResourceMaxes.TryGetValue(kv.Key, out int mVal) && mVal > 0 ? mVal : 100;
-                    float fraction = Math.Clamp((float)kv.Value / resMax, 0.0f, 1.0f);
-                    string overlay = $"{kv.Key}: {kv.Value} / {resMax}";
-
-                    using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.60f, 0.35f, 0.75f, 0.9f)))
-                    using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
+                    int resType = member.CustomResourceTypes.TryGetValue(kv.Key, out int tVal) ? tVal : (int)ResourceType.Bar;
+                    if (resType == (int)ResourceType.FlatNumber)
                     {
-                        ImGui.ProgressBar(fraction, new Vector2(-1.0f, 14.0f * ImGuiHelpers.GlobalScale), overlay);
+                        string flatLabel = $"{kv.Key}: {kv.Value}";
+                        UiUtils.Badge(flatLabel, new Vector4(0.30f, 0.18f, 0.38f, 0.85f), ImGuiColors.DalamudViolet);
+                        ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                    }
+                    else
+                    {
+                        int resMax = member.CustomResourceMaxes.TryGetValue(kv.Key, out int mVal) && mVal > 0 ? mVal : 100;
+                        float fraction = Math.Clamp((float)kv.Value / resMax, 0.0f, 1.0f);
+                        string overlay = $"{kv.Key}: {kv.Value} / {resMax}";
+
+                        using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.60f, 0.35f, 0.75f, 0.9f)))
+                        using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
+                        {
+                            ImGui.ProgressBar(fraction, new Vector2(-1.0f, 14.0f * ImGuiHelpers.GlobalScale), overlay);
+                        }
                     }
                 }
             }

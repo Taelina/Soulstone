@@ -13,6 +13,7 @@ namespace Soulstone.Datamodels
         public int InitiativeValue { get; set; } = 0;
         public int BonusModifier { get; set; } = 0;
         public bool IsCurrentCharacter { get; set; } = false;
+        public bool IsNpc { get; set; } = false;
         public string Notes { get; set; } = string.Empty;
         public List<Buff> Buffs { get; set; } = new();
         internal CharacterSheet? CharacterSheet { get; set; } = null;
@@ -20,24 +21,26 @@ namespace Soulstone.Datamodels
 
         public InitiativeParticipant() { }
 
-        public InitiativeParticipant(string name, int initiativeValue, int bonusModifier = 0, bool isCurrentCharacter = false, string notes = "", List<Buff>? buffs = null)
+        public InitiativeParticipant(string name, int initiativeValue, int bonusModifier = 0, bool isCurrentCharacter = false, string notes = "", List<Buff>? buffs = null, bool isNpc = false)
         {
             Id = Guid.NewGuid().ToString();
             Name = name;
             InitiativeValue = initiativeValue;
             BonusModifier = bonusModifier;
             IsCurrentCharacter = isCurrentCharacter;
+            IsNpc = isNpc;
             Notes = notes;
             Buffs = buffs != null ? new List<Buff>(buffs) : new List<Buff>();
         }
 
-        internal InitiativeParticipant(string name, int initiativeValue, int bonusModifier, bool isCurrentCharacter, string notes, List<Buff>? buffs, CharacterSheet? characterSheet, string? sheetFilePath = null)
+        internal InitiativeParticipant(string name, int initiativeValue, int bonusModifier, bool isCurrentCharacter, string notes, List<Buff>? buffs, CharacterSheet? characterSheet, string? sheetFilePath = null, bool isNpc = false)
         {
             Id = Guid.NewGuid().ToString();
             Name = name;
             InitiativeValue = initiativeValue;
             BonusModifier = bonusModifier;
             IsCurrentCharacter = isCurrentCharacter;
+            IsNpc = isNpc;
             Notes = notes;
             Buffs = buffs != null ? new List<Buff>(buffs) : new List<Buff>();
             CharacterSheet = characterSheet;

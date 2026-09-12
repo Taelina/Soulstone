@@ -22,5 +22,26 @@ namespace Soulstone.Datamodels
 
         public Skill()
         { }
+
+        public Skill(string name, int modifier = 0, string linkedAttribute = "", string description = "", int id = 0)
+        {
+            this.skillName = name;
+            this.skillModifier = modifier;
+            this.linkedAttribute = linkedAttribute;
+            this.skillDescription = description;
+            this.id = id;
+        }
+
+        public Skill Clone()
+        {
+            return new Skill
+            {
+                id = this.id,
+                skillName = this.skillName,
+                skillDescription = this.skillDescription,
+                linkedAttribute = this.linkedAttribute,
+                skillModifier = this.skillModifier
+            };
+        }
     }
 }

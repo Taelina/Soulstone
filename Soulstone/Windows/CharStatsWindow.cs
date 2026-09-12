@@ -34,14 +34,17 @@ namespace Soulstone.Windows
 
         private string newAttributeName = "";
         private int newAttributeValue = 0;
+        private string newAttributeDescription = "";
 
         private string newSkillName = "";
         private int newSkillValue = 0;
+        private string newSkillDescription = "";
         private string selectedAttribute = "";
         private Skill? newSkill = null;
 
         private string newAbilityName = "";
         private int newAbilityValue = 0;
+        private string newAbilityDescription = "";
         private string selectedSkill = "";
         private Ability? newAbility = null;
 
@@ -280,20 +283,33 @@ namespace Soulstone.Windows
 
                         if (editingStats)
                         {
-                            ImGui.SetNextItemWidth(45.0f * ImGuiHelpers.GlobalScale);
-                            int curVal = res.CurrentValue;
-                            if (ImGui.InputInt($"##ResCur_{res.Name}", ref curVal, 0))
+                            if (res.ResourceType == ResourceType.FlatNumber)
                             {
-                                currentCharacter.SetResourceCurrent(res.Name, curVal);
+                                ImGui.SetNextItemWidth(55.0f * ImGuiHelpers.GlobalScale);
+                                int val = res.MaxValue > 0 ? res.MaxValue : res.CurrentValue;
+                                if (ImGui.InputInt($"##ResVal_{res.Name}", ref val, 0))
+                                {
+                                    currentCharacter.SetResourceMax(res.Name, val);
+                                    currentCharacter.SetResourceCurrent(res.Name, val);
+                                }
                             }
-                            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                            ImGui.Text("/");
-                            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                            ImGui.SetNextItemWidth(45.0f * ImGuiHelpers.GlobalScale);
-                            int maxVal = res.MaxValue;
-                            if (ImGui.InputInt($"##ResMax_{res.Name}", ref maxVal, 0))
+                            else
                             {
-                                currentCharacter.SetResourceMax(res.Name, maxVal);
+                                ImGui.SetNextItemWidth(45.0f * ImGuiHelpers.GlobalScale);
+                                int curVal = res.CurrentValue;
+                                if (ImGui.InputInt($"##ResCur_{res.Name}", ref curVal, 0))
+                                {
+                                    currentCharacter.SetResourceCurrent(res.Name, curVal);
+                                }
+                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                ImGui.Text("/");
+                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                ImGui.SetNextItemWidth(45.0f * ImGuiHelpers.GlobalScale);
+                                int maxVal = res.MaxValue;
+                                if (ImGui.InputInt($"##ResMax_{res.Name}", ref maxVal, 0))
+                                {
+                                    currentCharacter.SetResourceMax(res.Name, maxVal);
+                                }
                             }
 
                             string effectiveFormula = !string.IsNullOrWhiteSpace(res.Formula) ? res.Formula : (def?.Formula ?? string.Empty);
@@ -314,32 +330,115 @@ namespace Soulstone.Windows
                         {
                             int effectiveMax = currentCharacter.GetEffectiveResourceMax(res.Name, currentDiceSystem);
                             int gearBonus = currentCharacter.GetGearStatBonus(res.Name) + currentCharacter.GetGearStatBonus($"Max {res.Name}") + currentCharacter.GetGearStatBonus($"Max{res.Name}");
-                            float fraction = effectiveMax > 0
-                                ? Math.Clamp((float)res.CurrentValue / effectiveMax, 0f, 1f)
-                                : 1f;
-                            string overlay = effectiveMax > 0
-                                ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}"
-                                : $"{res.CurrentValue}";
-                            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, resCol);
-                            ImGui.ProgressBar(fraction, new Vector2(95.0f * ImGuiHelpers.GlobalScale, 18.0f * ImGuiHelpers.GlobalScale), overlay);
-                            ImGui.PopStyleColor();
+                            int buffBonus = currentCharacter.GetBuffStatBonus(res.Name) + currentCharacter.GetBuffStatBonus($"Max {res.Name}") + currentCharacter.GetBuffStatBonus($"Max{res.Name}");
+                            string effectiveFormula = !string.IsNullOrWhiteSpace(res.Formula) ? res.Formula : (def?.Formula ?? string.Empty);
 
-                            if (ImGui.IsItemHovered())
+                            if (res.ResourceType == ResourceType.FlatNumber)
                             {
-                                string effectiveFormula = !string.IsNullOrWhiteSpace(res.Formula) ? res.Formula : (def?.Formula ?? string.Empty);
-                                ImGui.BeginTooltip();
-                                ImGui.TextColored(resCol, res.Name);
-                                ImGui.Separator();
-                                ImGui.Text($"• Current: {res.CurrentValue}");
-                                if (!string.IsNullOrWhiteSpace(effectiveFormula))
+                                string valText = $"{effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}";
+                                UiUtils.Badge(valText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
+                                if (ImGui.IsItemHovered())
                                 {
-                                    ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
+                                    ImGui.BeginTooltip();
+                                    ImGui.TextColored(resCol, res.Name);
+                                    ImGui.Separator();
+                                    if (!string.IsNullOrWhiteSpace(effectiveFormula))
+                                    {
+                                        ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
+                                    }
+                                    ImGui.Text($"• Base Value: {res.MaxValue}");
+                                    if (res.TempBonus != 0) ImGui.Text($"• Temp Bonus: {FormatModifier(res.TempBonus)}");
+                                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
+                                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective: {effectiveMax}");
+                                    ImGui.Separator();
+                                    ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {res.Name}");
+                                    ImGui.EndTooltip();
                                 }
-                                ImGui.Text($"• Base Max: {res.MaxValue}");
-                                if (res.TempBonus != 0) ImGui.Text($"• Temp Max: {FormatModifier(res.TempBonus)}");
-                                if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
-                                ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective Max: {effectiveMax}");
-                                ImGui.EndTooltip();
+
+                                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                if (UiUtils.IconButton($"RollRes_{res.Name}", FontAwesomeIcon.DiceD20, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {res.Name}", new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                                {
+                                    currentCharacter.RollResource(res.Name, currentDiceSystem, advantageRoll, disadvantageRoll, detailedRoll);
+                                }
+                            }
+                            else if (res.ResourceType == ResourceType.Counter)
+                            {
+                                if (UiUtils.IconButton($"ResDec_{res.Name}", FontAwesomeIcon.Minus, "-", new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                {
+                                    if (res.CurrentValue > 0)
+                                    {
+                                        currentCharacter.SetResourceCurrent(res.Name, res.CurrentValue - 1);
+                                    }
+                                }
+
+                                ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
+                                float fraction = effectiveMax > 0
+                                    ? Math.Clamp((float)res.CurrentValue / effectiveMax, 0f, 1f)
+                                    : 1f;
+                                string overlay = effectiveMax > 0
+                                    ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}"
+                                    : $"{res.CurrentValue}";
+                                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, resCol);
+                                ImGui.ProgressBar(fraction, new Vector2(80.0f * ImGuiHelpers.GlobalScale, 18.0f * ImGuiHelpers.GlobalScale), overlay);
+                                ImGui.PopStyleColor();
+
+                                if (ImGui.IsItemHovered())
+                                {
+                                    ImGui.BeginTooltip();
+                                    ImGui.TextColored(resCol, $"{res.Name} ({LocalizationManager.Instance.GetLocalizedString("ResourceTypeCounter")})");
+                                    ImGui.Separator();
+                                    ImGui.Text($"• Current: {res.CurrentValue}");
+                                    if (!string.IsNullOrWhiteSpace(effectiveFormula))
+                                    {
+                                        ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
+                                    }
+                                    ImGui.Text($"• Base Max: {res.MaxValue}");
+                                    if (res.TempBonus != 0) ImGui.Text($"• Temp Max: {FormatModifier(res.TempBonus)}");
+                                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
+                                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective Max: {effectiveMax}");
+                                    ImGui.EndTooltip();
+                                }
+
+                                ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
+                                if (UiUtils.IconButton($"ResInc_{res.Name}", FontAwesomeIcon.Plus, "+", new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                {
+                                    if (res.CurrentValue < effectiveMax)
+                                    {
+                                        currentCharacter.SetResourceCurrent(res.Name, res.CurrentValue + 1);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                float fraction = effectiveMax > 0
+                                    ? Math.Clamp((float)res.CurrentValue / effectiveMax, 0f, 1f)
+                                    : 1f;
+                                string overlay = effectiveMax > 0
+                                    ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}"
+                                    : $"{res.CurrentValue}";
+                                ImGui.PushStyleColor(ImGuiCol.PlotHistogram, resCol);
+                                ImGui.ProgressBar(fraction, new Vector2(95.0f * ImGuiHelpers.GlobalScale, 18.0f * ImGuiHelpers.GlobalScale), overlay);
+                                ImGui.PopStyleColor();
+
+                                if (ImGui.IsItemHovered())
+                                {
+                                    ImGui.BeginTooltip();
+                                    ImGui.TextColored(resCol, res.Name);
+                                    ImGui.Separator();
+                                    ImGui.Text($"• Current: {res.CurrentValue}");
+                                    if (!string.IsNullOrWhiteSpace(effectiveFormula))
+                                    {
+                                        ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
+                                    }
+                                    ImGui.Text($"• Base Max: {res.MaxValue}");
+                                    if (res.TempBonus != 0) ImGui.Text($"• Temp Max: {FormatModifier(res.TempBonus)}");
+                                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
+                                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective Max: {effectiveMax}");
+                                    ImGui.EndTooltip();
+                                }
                             }
                         }
                     }
@@ -687,6 +786,12 @@ namespace Soulstone.Windows
                                 {
                                     ImGui.BeginTooltip();
                                     ImGui.TextColored(ImGuiColors.ParsedGold, attribute.Key);
+                                    if (!string.IsNullOrWhiteSpace(attribute.Value.Description))
+                                    {
+                                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                                        ImGui.TextWrapped(attribute.Value.Description);
+                                        ImGui.PopStyleColor();
+                                    }
                                     ImGui.Separator();
                                     ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("StatValueTooltip")}: {baseVal}");
                                     if (tempVal != 0)
@@ -923,6 +1028,12 @@ namespace Soulstone.Windows
                                 {
                                     ImGui.BeginTooltip();
                                     ImGui.TextColored(ImGuiColors.ParsedGreen, skill.Value.skillName);
+                                    if (!string.IsNullOrWhiteSpace(skill.Value.skillDescription))
+                                    {
+                                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                                        ImGui.TextWrapped(skill.Value.skillDescription);
+                                        ImGui.PopStyleColor();
+                                    }
                                     ImGui.Separator();
                                     ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}: {baseModText}");
                                     if (skillGearBonus != 0)
@@ -1180,6 +1291,12 @@ namespace Soulstone.Windows
                                 {
                                     ImGui.BeginTooltip();
                                     ImGui.TextColored(ImGuiColors.TankBlue, ability.Value.abilityName);
+                                    if (!string.IsNullOrWhiteSpace(ability.Value.abilityDescription))
+                                    {
+                                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                                        ImGui.TextWrapped(ability.Value.abilityDescription);
+                                        ImGui.PopStyleColor();
+                                    }
                                     ImGui.Separator();
                                     ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}: {baseModText}");
                                     if (abilityGearBonus != 0)
@@ -1247,6 +1364,9 @@ namespace Soulstone.Windows
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAttributeValueLabel"));
                 ImGui.InputInt("##NewAttrVal", ref newAttributeValue, 1);
 
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAttributeDescription"));
+                ImGui.InputText("##NewAttrDesc", ref newAttributeDescription, 200);
+
                 ImGui.Spacing();
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(100, 0) * ImGuiHelpers.GlobalScale))
                 {
@@ -1255,9 +1375,10 @@ namespace Soulstone.Windows
                         currentCharacter.characterAttributes ??= new Dictionary<string, Datamodels.Attribute>();
                         if (!currentCharacter.characterAttributes.ContainsKey(newAttributeName))
                         {
-                            currentCharacter.characterAttributes.Add(newAttributeName, new Datamodels.Attribute(newAttributeName, newAttributeValue));
+                            currentCharacter.characterAttributes.Add(newAttributeName, new Datamodels.Attribute(newAttributeName, newAttributeValue, newAttributeDescription));
                             newAttributeName = "";
                             newAttributeValue = 0;
+                            newAttributeDescription = "";
                             showAttributesPopup = false;
                         }
                     }
@@ -1265,6 +1386,7 @@ namespace Soulstone.Windows
                 ImGui.SameLine();
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
                 {
+                    newAttributeDescription = "";
                     showAttributesPopup = false;
                 }
 
@@ -1291,6 +1413,9 @@ namespace Soulstone.Windows
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewSkillValue"));
                 ImGui.InputInt("##NewSkillVal", ref newSkillValue, 1);
+
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewSkillDescription"));
+                ImGui.InputText("##NewSkillDesc", ref newSkillDescription, 200);
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute"));
                 var attrKeys = currentCharacter.characterAttributes?.Keys.ToList() ?? new List<string>();
@@ -1327,7 +1452,8 @@ namespace Soulstone.Windows
                         {
                             skillName = newSkillName,
                             skillModifier = newSkillValue,
-                            linkedAttribute = selectedAttribute
+                            linkedAttribute = selectedAttribute,
+                            skillDescription = newSkillDescription
                         };
                         currentCharacter.characterSkills ??= new Dictionary<string, Skill>();
                         if (!currentCharacter.characterSkills.ContainsKey(newSkillName))
@@ -1335,6 +1461,7 @@ namespace Soulstone.Windows
                             currentCharacter.characterSkills.Add(newSkillName, newSkill);
                             newSkillName = "";
                             newSkillValue = 0;
+                            newSkillDescription = "";
                             selectedAttribute = "";
                             showSkillPopup = false;
                         }
@@ -1343,6 +1470,7 @@ namespace Soulstone.Windows
                 ImGui.SameLine();
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
                 {
+                    newSkillDescription = "";
                     showSkillPopup = false;
                 }
 
@@ -1463,6 +1591,9 @@ namespace Soulstone.Windows
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAbilityValue"));
                 ImGui.InputInt("##NewAbilityVal", ref newAbilityValue, 1);
 
+                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAbilityDescription"));
+                ImGui.InputText("##NewAbilityDesc", ref newAbilityDescription, 200);
+
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute"));
                 var noneLabel = LocalizationManager.Instance.GetLocalizedString("NoneOption");
                 var attrKeys = currentCharacter.characterAttributes?.Keys.ToList() ?? new List<string>();
@@ -1509,7 +1640,8 @@ namespace Soulstone.Windows
                         {
                             abilityName = newAbilityName,
                             abilityModifier = newAbilityValue,
-                            linkedAttribute = selectedAttribute
+                            linkedAttribute = selectedAttribute,
+                            abilityDescription = newAbilityDescription
                         };
                         if (currentCharacter.characterSkills != null && !string.IsNullOrEmpty(selectedSkill))
                         {
@@ -1521,6 +1653,7 @@ namespace Soulstone.Windows
                             currentCharacter.characterAbilities.Add(newAbilityName, newAbility);
                             newAbilityName = "";
                             newAbilityValue = 0;
+                            newAbilityDescription = "";
                             selectedAttribute = "";
                             selectedSkill = "";
                             showAbilitiesPopup = false;
@@ -1530,6 +1663,7 @@ namespace Soulstone.Windows
                 ImGui.SameLine();
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
                 {
+                    newAbilityDescription = "";
                     showAbilitiesPopup = false;
                 }
 

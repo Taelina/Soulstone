@@ -230,5 +230,152 @@ namespace Soulstone.Tests.Datamodels
             deserializedRes.Should().NotBeNull();
             deserializedRes!.Formula.Should().Be("Agility * 5 + 50");
         }
+
+        [Fact]
+        public void StatFormulaEvaluator_NewMathFunctionsAndHelpers_EvaluatesCorrectly()
+        {
+            StatFormulaEvaluator.Evaluate("pow(2, 4)").Should().Be(16);
+            StatFormulaEvaluator.Evaluate("exp(0)").Should().Be(1);
+            StatFormulaEvaluator.Evaluate("log10(1000)").Should().Be(3);
+            StatFormulaEvaluator.Evaluate("log(e, e)", null, null, new Dictionary<string, double> { { "e", Math.E } }).Should().BeApproximately(1, 0.001);
+            StatFormulaEvaluator.Evaluate("sign(-42)").Should().Be(-1);
+            StatFormulaEvaluator.Evaluate("sign(42)").Should().Be(1);
+            StatFormulaEvaluator.Evaluate("sign(0)").Should().Be(0);
+            StatFormulaEvaluator.Evaluate("trunc(15.75)").Should().Be(15);
+            StatFormulaEvaluator.Evaluate("dndmod(16)").Should().Be(3);
+            StatFormulaEvaluator.Evaluate("statmod(9)").Should().Be(-1);
+            StatFormulaEvaluator.Evaluate("if(1, 100, 200)").Should().Be(100);
+            StatFormulaEvaluator.Evaluate("if(0, 100, 200)").Should().Be(200);
+            StatFormulaEvaluator.Evaluate("cond(5 > 2, 42, 99)", null, null, new Dictionary<string, double> { { "5 > 2", 1 } }).Should().Be(42);
+        }
+
+        [Fact]
+        public void StatFormulaEvaluator_DotNotationAndUniversalSheetProperties_EvaluatesCorrectly()
+        {
+            var sheet = new CharacterSheet
+            {
+                CharacterLevel = 6,
+                CharacterExperiencePoints = 12500,
+                characterAge = "24",
+                characterHeight = "178",
+                CharacterAttributes = new Dictionary<string, Attribute>
+                {
+                    { "Strength", new Attribute("Strength", 16, "Physical power") { TempBonus = 2 } }, // Base 16, Total 18
+                    { "Dexterity", new Attribute("Dexterity", 14, "Agility and speed") }
+                },
+                CharacterSkills = new Dictionary<string, Skill>
+                {
+                    { "Athletics", new Skill("Athletics", 4, "Strength", "Physical feats") }
+                },
+                CharacterAbilities = new Dictionary<string, Ability>
+                {
+                    { "PowerStrike", new Ability("PowerStrike", 5, "Strength", null, "A crushing strike") }
+                },
+                CharacterResources = new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { "Health", new CharacterResource("Health", 75, 100) },
+                    { "Mana", new CharacterResource("Mana", 30, 50) }
+                }
+            };
+
+            // Add gear bonus
+            var sword = new GearItem("Iron Sword", "Main Hand");
+            sword.SetStatModifier("Strength", 2);
+            sheet.AddItem(sword);
+            sheet.EquipGear(sword);
+
+            // Add buff
+            var buff = new Buff("Battle Shout", 3, "Strength", 2);
+            sheet.AddBuff(buff);
+
+            // Level & Experience
+            StatFormulaEvaluator.Evaluate("Level", sheet).Should().Be(6);
+            StatFormulaEvaluator.Evaluate("Lvl", sheet).Should().Be(6);
+            StatFormulaEvaluator.Evaluate("XP", sheet).Should().Be(12500);
+
+            // Attribute dot notation
+            StatFormulaEvaluator.Evaluate("Strength.Base", sheet).Should().Be(16);
+            StatFormulaEvaluator.Evaluate("Strength.Temp", sheet).Should().Be(2);
+            StatFormulaEvaluator.Evaluate("Strength.Gear", sheet).Should().Be(2);
+            StatFormulaEvaluator.Evaluate("Strength.Buff", sheet).Should().Be(2);
+            StatFormulaEvaluator.Evaluate("Strength.Effective", sheet).Should().Be(22); // 16 + 2 + 2 + 2 = 22
+            StatFormulaEvaluator.Evaluate("Strength.Mod", sheet).Should().Be(6); // floor((22 - 10) / 2) = 6
+            StatFormulaEvaluator.Evaluate("STR_Mod", sheet).Should().Be(6);
+            StatFormulaEvaluator.Evaluate("STR.Mod", sheet).Should().Be(6);
+
+            // Resource dot notation
+            StatFormulaEvaluator.Evaluate("Health.Current", sheet).Should().Be(75);
+            StatFormulaEvaluator.Evaluate("Health.Max", sheet).Should().Be(100);
+            StatFormulaEvaluator.Evaluate("CurrentHealth", sheet).Should().Be(75);
+            StatFormulaEvaluator.Evaluate("MaxHealth", sheet).Should().Be(100);
+
+            // Gear and Buff direct prefixes
+            StatFormulaEvaluator.Evaluate("Gear.Strength", sheet).Should().Be(2);
+            StatFormulaEvaluator.Evaluate("Buff.Strength", sheet).Should().Be(2);
+
+            // Inventory and collection counters
+            StatFormulaEvaluator.Evaluate("InventoryCount", sheet).Should().Be(1);
+            StatFormulaEvaluator.Evaluate("BuffCount", sheet).Should().Be(1);
+            StatFormulaEvaluator.Evaluate("GearCount", sheet).Should().Be(1);
+
+            // String numbers reflection fallback
+            StatFormulaEvaluator.Evaluate("characterAge", sheet).Should().Be(24);
+            StatFormulaEvaluator.Evaluate("characterHeight", sheet).Should().Be(178);
+
+            // Variable syntax with @ and brackets
+            StatFormulaEvaluator.Evaluate("@Strength + 10", sheet).Should().Be(32);
+            StatFormulaEvaluator.Evaluate("[Strength] + 10", sheet).Should().Be(32);
+            StatFormulaEvaluator.Evaluate("{Strength} + 10", sheet).Should().Be(32);
+        }
+
+        [Fact]
+        public void Attribute_Skill_Ability_DescriptionsAndCloning_PreservesDescriptions()
+        {
+            var attr = new Attribute("Strength", 18, "Raw brute muscle");
+            attr.Description.Should().Be("Raw brute muscle");
+            var clonedAttr = attr.Clone();
+            clonedAttr.Name.Should().Be("Strength");
+            clonedAttr.Value.Should().Be(18);
+            clonedAttr.Description.Should().Be("Raw brute muscle");
+
+            var skill = new Skill("Stealth", 5, "Dexterity", "Moving unseen in shadows");
+            skill.SkillDescription.Should().Be("Moving unseen in shadows");
+            var clonedSkill = skill.Clone();
+            clonedSkill.SkillName.Should().Be("Stealth");
+            clonedSkill.SkillModifier.Should().Be(5);
+            clonedSkill.LinkedAttribute.Should().Be("Dexterity");
+            clonedSkill.SkillDescription.Should().Be("Moving unseen in shadows");
+
+            var ability = new Ability("Sneak Attack", 6, "Dexterity", skill, "Deals bonus damage when unseen");
+            ability.AbilityDescription.Should().Be("Deals bonus damage when unseen");
+            var clonedAbility = ability.Clone();
+            clonedAbility.AbilityName.Should().Be("Sneak Attack");
+            clonedAbility.AbilityModifier.Should().Be(6);
+            clonedAbility.AbilityDescription.Should().Be("Deals bonus damage when unseen");
+            clonedAbility.LinkedSkill.Should().NotBeNull();
+            clonedAbility.LinkedSkill!.SkillDescription.Should().Be("Moving unseen in shadows");
+
+            // Apply template to CharacterSheet
+            var system = new DiceSystem();
+            system.SystemAttributes = new Dictionary<string, Attribute>
+            {
+                { "Wisdom", new Attribute("Wisdom", 15, "Perception and insight") }
+            };
+            system.SystemSkills = new Dictionary<string, Skill>
+            {
+                { "Insight", new Skill("Insight", 3, "Wisdom", "Reading motives") }
+            };
+            system.SystemAbilities = new Dictionary<string, Ability>
+            {
+                { "SenseMotive", new Ability("SenseMotive", 2, "Wisdom", null, "Sense danger") }
+            };
+
+            var sheet = new CharacterSheet();
+            sheet.ApplyRulesetTemplate(system);
+
+            sheet.CharacterAttributes["Wisdom"].Description.Should().Be("Perception and insight");
+            sheet.CharacterSkills["Insight"].SkillDescription.Should().Be("Reading motives");
+            sheet.CharacterAbilities["SenseMotive"].AbilityDescription.Should().Be("Sense danger");
+        }
     }
 }

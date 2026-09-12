@@ -10,6 +10,8 @@ namespace Soulstone.Datamodels
         [JsonInclude]
         public string Name = "";
         [JsonInclude]
+        public string Description = "";
+        [JsonInclude]
         public int Value = 0;
         [JsonInclude]
         public int TempBonus = 0;
@@ -23,14 +25,26 @@ namespace Soulstone.Datamodels
         {
         }
 
-        public Attribute(string name, int value)
+        public Attribute(string name, int value, string description = "")
         {
             Name = name;
             Value = value;
+            Description = description;
             TempBonus = 0;
             PermBonus = 0;
             EpicBonus = 0;
         }
+
+        public Attribute Clone()
+        {
+            return new Attribute(Name, Value, Description)
+            {
+                TempBonus = this.TempBonus,
+                PermBonus = this.PermBonus,
+                EpicBonus = this.EpicBonus
+            };
+        }
+
         public int TotalValue => Value + TempBonus + PermBonus;
     }
 }

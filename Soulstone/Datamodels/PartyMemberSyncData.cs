@@ -18,6 +18,7 @@ namespace Soulstone.Datamodels
         public int MaxMana { get; set; }
         public Dictionary<string, int> CustomResources { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> CustomResourceMaxes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> CustomResourceTypes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public List<Buff> ActiveBuffs { get; set; } = new();
         public string LastRollSummary { get; set; } = string.Empty;
         public DateTime LastSeen { get; set; } = DateTime.UtcNow;
@@ -58,6 +59,10 @@ namespace Soulstone.Datamodels
             {
                 CustomResourceMaxes = new Dictionary<string, int>(payload.CustomResourceMaxes, StringComparer.OrdinalIgnoreCase);
             }
+            if (payload.CustomResourceTypes != null)
+            {
+                CustomResourceTypes = new Dictionary<string, int>(payload.CustomResourceTypes, StringComparer.OrdinalIgnoreCase);
+            }
             if (payload.ActiveBuffs != null)
             {
                 ActiveBuffs = new List<Buff>(payload.ActiveBuffs);
@@ -86,6 +91,10 @@ namespace Soulstone.Datamodels
             if (payload.CustomResourceMaxes != null)
             {
                 CustomResourceMaxes = new Dictionary<string, int>(payload.CustomResourceMaxes, StringComparer.OrdinalIgnoreCase);
+            }
+            if (payload.CustomResourceTypes != null)
+            {
+                CustomResourceTypes = new Dictionary<string, int>(payload.CustomResourceTypes, StringComparer.OrdinalIgnoreCase);
             }
         }
 

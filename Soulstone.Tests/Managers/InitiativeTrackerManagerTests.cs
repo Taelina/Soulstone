@@ -287,6 +287,28 @@ namespace Soulstone.Tests.Managers
             manager.ImportPartyMembers(members, diceSys);
             manager.Participants.Should().HaveCount(2);
             manager.Participants.All(p => p.InitiativeValue >= 1 && p.InitiativeValue <= 20).Should().BeTrue();
+            manager.Participants.All(p => !p.IsNpc).Should().BeTrue();
+        }
+
+        [Fact]
+        public void AddParticipant_WithIsNpc_DistinguishesNpcAndPc()
+        {
+            var p1 = manager.AddParticipant("Player 1", 15, isNpc: false);
+            var p2 = manager.AddParticipant("Goblin 1", 12, isNpc: true);
+            var p3 = manager.AddParticipant("Goblin Boss", 18, isNpc: true);
+
+            manager.Participants.Should().HaveCount(3);
+            manager.Participants.Count(p => p.IsNpc).Should().Be(2);
+            manager.Participants.Count(p => !p.IsNpc).Should().Be(1);
+
+            p1.IsNpc.Should().BeFalse();
+            p2.IsNpc.Should().BeTrue();
+            p3.IsNpc.Should().BeTrue();
+
+            // Toggle p2 to PC
+            p2.IsNpc = false;
+            manager.Participants.Count(p => p.IsNpc).Should().Be(1);
+            manager.Participants.Count(p => !p.IsNpc).Should().Be(2);
         }
     }
 }

@@ -50,5 +50,23 @@ namespace Soulstone.Tests.Datamodels
             deserialized.IsCurrentCharacter.Should().BeFalse();
             deserialized.Notes.Should().Be("Minion #1");
         }
+
+        [Fact]
+        public void IsNpc_PropertyAndConstructors_WorkCorrectly()
+        {
+            var pDefault = new InitiativeParticipant();
+            pDefault.IsNpc.Should().BeFalse();
+
+            var pc = new InitiativeParticipant("Warrior", 15, 2, true, "", null, isNpc: false);
+            pc.IsNpc.Should().BeFalse();
+
+            var npc = new InitiativeParticipant("Goblin Boss", 14, 3, false, "Boss", null, isNpc: true);
+            npc.IsNpc.Should().BeTrue();
+
+            var json = JsonSerializer.Serialize(npc);
+            var deserialized = JsonSerializer.Deserialize<InitiativeParticipant>(json);
+            deserialized.Should().NotBeNull();
+            deserialized!.IsNpc.Should().BeTrue();
+        }
     }
 }

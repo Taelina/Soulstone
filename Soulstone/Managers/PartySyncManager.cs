@@ -844,6 +844,7 @@ namespace Soulstone.Managers
                 {
                     payload.CustomResources[kv.Key] = kv.Value.CurrentValue;
                     payload.CustomResourceMaxes[kv.Key] = kv.Value.MaxValue;
+                    payload.CustomResourceTypes[kv.Key] = (int)kv.Value.ResourceType;
                 }
             }
 
@@ -1057,6 +1058,7 @@ namespace Soulstone.Managers
                 {
                     payload.CustomResources[kv.Key] = kv.Value.CurrentValue;
                     payload.CustomResourceMaxes[kv.Key] = kv.Value.MaxValue;
+                    payload.CustomResourceTypes[kv.Key] = (int)kv.Value.ResourceType;
                 }
             }
 

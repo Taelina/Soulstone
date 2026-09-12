@@ -174,5 +174,80 @@ namespace Soulstone.Tests.Datamodels
             deserialized.GetGearStatBonus("Mana").Should().Be(30);
             deserialized.GetEffectiveResourceMax("Mana").Should().Be(180); // 150 + 30
         }
+
+        [Fact]
+        public void ResourceType_Counter_InitializesFromZeroUpToCalculatedMax()
+        {
+            var system = new DiceSystem();
+            system.AddResource(new ResourceDefinition(
+                name: "ComboPoints",
+                defaultMax: 5,
+                defaultCurrent: 100, // Even if default is 100, Counter should start at 0
+                colorHex: "#e74c3c",
+                description: "Combo counter",
+                isRequired: false,
+                formula: "5",
+                resourceType: ResourceType.Counter
+            ));
+
+            var sheet = new CharacterSheet { CharacterFullName = "Rogue" };
+            var resources = sheet.GetEffectiveResources(system);
+
+            var comboRes = resources.Find(r => r.Name == "ComboPoints");
+            comboRes.Should().NotBeNull();
+            comboRes!.ResourceType.Should().Be(ResourceType.Counter);
+            comboRes.CurrentValue.Should().Be(0);
+            comboRes.MaxValue.Should().Be(5);
+        }
+
+        [Fact]
+        public void ResourceType_FlatNumber_EvaluatesFormulaAndAllowsRolling()
+        {
+            var system = new DiceSystem();
+            system.SystemAttributes["Strength"] = new Soulstone.Datamodels.Attribute("Strength", 16);
+            system.AddResource(new ResourceDefinition(
+                name: "PassivePerception",
+                defaultMax: 10,
+                defaultCurrent: 10,
+                colorHex: "#9b59b6",
+                description: "Passive Perception",
+                isRequired: false,
+                formula: "10 + Strength / 2",
+                resourceType: ResourceType.FlatNumber
+            ));
+
+            var sheet = new CharacterSheet { CharacterFullName = "Tracker" };
+            sheet.ApplyRulesetTemplate(system);
+
+            var resources = sheet.GetEffectiveResources(system);
+            var passiveRes = resources.Find(r => r.Name == "PassivePerception");
+            passiveRes.Should().NotBeNull();
+            passiveRes!.ResourceType.Should().Be(ResourceType.FlatNumber);
+
+            int effective = sheet.GetEffectiveResourceMax("PassivePerception", system);
+            effective.Should().Be(18); // 10 + 16/2 = 18
+
+            // Roll the resource
+            var roll = sheet.RollResource("PassivePerception", system);
+            roll.Should().NotBeNull();
+            roll!.RollResult.Should().BeGreaterThan(0);
+        }
+
+        [Fact]
+        public void JsonSerialization_PreservesResourceType()
+        {
+            var sheet = new CharacterSheet { CharacterFullName = "Paladin" };
+            sheet.CharacterResources["HolyPower"] = new CharacterResource("HolyPower", 2, 5, 0, "", ResourceType.Counter);
+            sheet.CharacterResources["SpellDC"] = new CharacterResource("SpellDC", 15, 15, 0, "", ResourceType.FlatNumber);
+            sheet.CharacterResources["Shield"] = new CharacterResource("Shield", 100, 100, 0, "", ResourceType.Bar);
+
+            var json = JsonSerializer.Serialize(sheet);
+            var deserialized = JsonSerializer.Deserialize<CharacterSheet>(json);
+
+            deserialized.Should().NotBeNull();
+            deserialized!.CharacterResources["HolyPower"].ResourceType.Should().Be(ResourceType.Counter);
+            deserialized.CharacterResources["SpellDC"].ResourceType.Should().Be(ResourceType.FlatNumber);
+            deserialized.CharacterResources["Shield"].ResourceType.Should().Be(ResourceType.Bar);
+        }
     }
 }

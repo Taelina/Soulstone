@@ -9,23 +9,26 @@ namespace Soulstone.Datamodels
         public int maxValue = 0;
         public int tempBonus = 0;
         public string formula = string.Empty;
+        public ResourceType resourceType = ResourceType.Bar;
 
         public string Name { get => name; set => name = value; }
         public int CurrentValue { get => currentValue; set => currentValue = value; }
         public int MaxValue { get => maxValue; set => maxValue = value; }
         public int TempBonus { get => tempBonus; set => tempBonus = value; }
         public string Formula { get => formula; set => formula = value; }
+        public ResourceType ResourceType { get => resourceType; set => resourceType = value; }
         public int TotalMaxValue => MaxValue + TempBonus;
 
         public CharacterResource() { }
 
-        public CharacterResource(string name, int currentValue, int maxValue, int tempBonus = 0, string formula = "")
+        public CharacterResource(string name, int currentValue, int maxValue, int tempBonus = 0, string formula = "", ResourceType resourceType = ResourceType.Bar)
         {
             this.name = name;
             this.currentValue = currentValue;
             this.maxValue = maxValue;
             this.tempBonus = tempBonus;
             this.formula = formula;
+            this.resourceType = resourceType;
         }
 
         public CharacterResource Clone()
@@ -36,7 +39,8 @@ namespace Soulstone.Datamodels
                 CurrentValue = this.CurrentValue,
                 MaxValue = this.MaxValue,
                 TempBonus = this.TempBonus,
-                Formula = this.Formula
+                Formula = this.Formula,
+                ResourceType = this.ResourceType
             };
         }
     }

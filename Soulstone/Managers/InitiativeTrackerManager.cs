@@ -103,14 +103,14 @@ namespace Soulstone.Managers
                 }
 
                 var buffs = member.ActiveBuffs != null ? new List<Buff>(member.ActiveBuffs) : new List<Buff>();
-                var participant = new InitiativeParticipant(member.CharacterName, initVal, bonus, isMatch, member.JobName ?? "", buffs);
+                var participant = new InitiativeParticipant(member.CharacterName, initVal, bonus, isMatch, member.JobName ?? "", buffs, isNpc: false);
                 AddParticipant(participant, false);
             }
 
             SortParticipants(IsAscendingOrder);
         }
 
-        public InitiativeParticipant AddParticipant(string name, int initiativeValue, int bonusModifier = 0, bool isCurrentChar = false, string notes = "", List<Buff>? buffs = null, CharacterSheet? characterSheet = null, string? sheetFilePath = null, bool autoSort = true)
+        public InitiativeParticipant AddParticipant(string name, int initiativeValue, int bonusModifier = 0, bool isCurrentChar = false, string notes = "", List<Buff>? buffs = null, CharacterSheet? characterSheet = null, string? sheetFilePath = null, bool autoSort = true, bool isNpc = false)
         {
             var sheet = CharacterManager.Instance.CharacterSheet;
             bool isMatch = isCurrentChar || (sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName) && string.Equals(sheet.CharacterFullName, name, StringComparison.OrdinalIgnoreCase));
@@ -125,7 +125,7 @@ namespace Soulstone.Managers
                 initialBuffs = new List<Buff>(characterSheet.ActiveBuffs);
             }
 
-            var participant = new InitiativeParticipant(name, initiativeValue, bonusModifier, isMatch, notes, initialBuffs, characterSheet, sheetFilePath);
+            var participant = new InitiativeParticipant(name, initiativeValue, bonusModifier, isMatch, notes, initialBuffs, characterSheet, sheetFilePath, isNpc);
             AddParticipant(participant, autoSort);
             return participant;
         }
@@ -550,7 +550,7 @@ namespace Soulstone.Managers
             }
             else
             {
-                p = new InitiativeParticipant(charName, rolledTotal, bonus, true);
+                p = new InitiativeParticipant(charName, rolledTotal, bonus, true, isNpc: false);
                 if (sheet.ActiveBuffs != null)
                 {
                     p.Buffs = new List<Buff>(sheet.ActiveBuffs);

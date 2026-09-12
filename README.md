@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://discord.gg/6hkvbXbPRF"><img src="https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://github.com/Taelina/Soulstone"><img src="https://img.shields.io/badge/GitHub-Repository-181717?logo=github&logoColor=white" alt="GitHub"></a>
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
+  <a href="LICENSE.md"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License"></a>
   <img src="https://img.shields.io/badge/.NET-10.0--windows-512BD4?logo=dotnet&logoColor=white" alt=".NET 10.0">
 </p>
 
@@ -161,4 +161,4 @@ Join the community Discord for discussion, feature requests, sharing custom char
 
 ## 📄 License
 
-This project is licensed under the terms of the [MIT License](LICENSE.md).
+This project is licensed under the terms of the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE.md).

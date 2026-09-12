@@ -33,6 +33,7 @@ namespace Soulstone.Windows
         private Vector3 modalResourceColorVec = new(0.18f, 0.80f, 0.44f);
         private string modalResourceDesc = string.Empty;
         private bool modalResourceIsRequired = false;
+        private int modalResourceTypeIndex = 0;
         private string modalErrorMessage = string.Empty;
 
         private static readonly (string Name, string Hex, Vector3 Color)[] ColorPresets = new[]
@@ -473,14 +474,15 @@ namespace Soulstone.Windows
                     string? resToRemove = null;
                     ResourceDefinition? resToEdit = null;
 
-                    using (var table = ImRaii.Table("##ResourcesTableNew", 5, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
+                    using (var table = ImRaii.Table("##ResourcesTableNew", 6, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
                     {
                         if (table.Success)
                         {
                             ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceColor"), ImGuiTableColumnFlags.WidthFixed, 45.0f * ImGuiHelpers.GlobalScale);
-                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceName"), ImGuiTableColumnFlags.WidthStretch, 0.35f);
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceName"), ImGuiTableColumnFlags.WidthStretch, 0.30f);
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("ResourceTypeLabel"), ImGuiTableColumnFlags.WidthStretch, 0.20f);
                             ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceMax"), ImGuiTableColumnFlags.WidthStretch, 0.25f);
-                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"), ImGuiTableColumnFlags.WidthStretch, 0.40f);
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"), ImGuiTableColumnFlags.WidthStretch, 0.35f);
                             ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 65.0f * ImGuiHelpers.GlobalScale);
                             ImGui.TableHeadersRow();
 
@@ -503,6 +505,29 @@ namespace Soulstone.Windows
                                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                                     UiUtils.Badge("Core", new Vector4(0.35f, 0.28f, 0.12f, 0.7f), ImGuiColors.ParsedGold);
                                 }
+
+                                // Type
+                                ImGui.TableNextColumn();
+                                ImGui.AlignTextToFramePadding();
+                                string typeLabel = res.ResourceType switch
+                                {
+                                    ResourceType.Counter => LocalizationManager.Instance.GetLocalizedString("ResourceTypeCounter"),
+                                    ResourceType.FlatNumber => LocalizationManager.Instance.GetLocalizedString("ResourceTypeFlatNumber"),
+                                    _ => LocalizationManager.Instance.GetLocalizedString("ResourceTypeBar")
+                                };
+                                Vector4 typeBg = res.ResourceType switch
+                                {
+                                    ResourceType.Counter => new Vector4(0.35f, 0.25f, 0.12f, 0.7f),
+                                    ResourceType.FlatNumber => new Vector4(0.30f, 0.18f, 0.38f, 0.7f),
+                                    _ => new Vector4(0.15f, 0.28f, 0.38f, 0.7f)
+                                };
+                                Vector4 typeCol = res.ResourceType switch
+                                {
+                                    ResourceType.Counter => ImGuiColors.ParsedOrange,
+                                    ResourceType.FlatNumber => ImGuiColors.DalamudViolet,
+                                    _ => ImGuiColors.ParsedBlue
+                                };
+                                UiUtils.Badge(typeLabel, typeBg, typeCol);
 
                                 // Max / Formula
                                 ImGui.TableNextColumn();
@@ -577,6 +602,7 @@ namespace Soulstone.Windows
             modalResourceColorVec = HexToVector3(modalResourceColorHex);
             modalResourceDesc = string.Empty;
             modalResourceIsRequired = false;
+            modalResourceTypeIndex = 0;
             modalErrorMessage = string.Empty;
             showResourceModal = true;
         }
@@ -592,6 +618,7 @@ namespace Soulstone.Windows
             modalResourceColorVec = HexToVector3(modalResourceColorHex);
             modalResourceDesc = res.Description ?? string.Empty;
             modalResourceIsRequired = res.IsRequired;
+            modalResourceTypeIndex = (int)res.ResourceType;
             modalErrorMessage = string.Empty;
             showResourceModal = true;
         }
@@ -627,6 +654,15 @@ namespace Soulstone.Windows
                 ImGui.TextUnformatted(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceName"));
                 ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
                 ImGui.InputText("##ModalResName", ref modalResourceName, 50);
+
+                // Resource Type
+                ImGui.Spacing();
+                ImGui.TextUnformatted(LocalizationManager.Instance.GetLocalizedString("ResourceTypeLabel"));
+                if (ImGui.RadioButton(LocalizationManager.Instance.GetLocalizedString("ResourceTypeBar"), modalResourceTypeIndex == 0)) { modalResourceTypeIndex = 0; }
+                ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
+                if (ImGui.RadioButton(LocalizationManager.Instance.GetLocalizedString("ResourceTypeCounter"), modalResourceTypeIndex == 1)) { modalResourceTypeIndex = 1; }
+                ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
+                if (ImGui.RadioButton(LocalizationManager.Instance.GetLocalizedString("ResourceTypeFlatNumber"), modalResourceTypeIndex == 2)) { modalResourceTypeIndex = 2; }
 
                 // Formula
                 ImGui.Spacing();
@@ -710,14 +746,22 @@ namespace Soulstone.Windows
                             currentSystem.RemoveResource(originalResourceName);
                         }
 
+                        var resType = (ResourceType)modalResourceTypeIndex;
+                        int defaultCur = modalResourceMax;
+                        if (resType == ResourceType.Counter)
+                        {
+                            defaultCur = 0;
+                        }
+
                         currentSystem.AddResource(new ResourceDefinition(
                             trimmedName,
                             modalResourceMax,
-                            modalResourceMax,
+                            defaultCur,
                             modalResourceColorHex.Trim(),
                             modalResourceDesc.Trim(),
                             modalResourceIsRequired,
-                            modalResourceFormula.Trim()
+                            modalResourceFormula.Trim(),
+                            resType
                         ));
 
                         showResourceModal = false;
