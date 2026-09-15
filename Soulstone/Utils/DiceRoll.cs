@@ -252,7 +252,7 @@ namespace Soulstone.Utils
             }
         }
 
-        public static void RollDice(int numberOfDice, int addedValue = 0, bool advantage = false, bool disadvantage = false, string rollName = "", bool detailedRoll = false, int target = 0, int rawSuccesses = 0)
+        public static void RollDice(int numberOfDice, int addedValue = 0, bool advantage = false, bool disadvantage = false, string rollName = "", bool detailedRoll = false, int target = 0, int rawSuccesses = 0, bool isPrivate = false)
         {
             try
             {
@@ -268,7 +268,8 @@ namespace Soulstone.Utils
                         string.Join(", ", roll.IndividualRolls),
                         false,
                         false,
-                        displayMsg
+                        displayMsg,
+                        isPrivate: isPrivate
                     );
                 }
             }

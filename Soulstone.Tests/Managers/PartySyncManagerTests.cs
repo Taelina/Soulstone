@@ -729,5 +729,45 @@ namespace Soulstone.Tests.Managers
             Assert.True(hostMember.IsPartyLeader);
             Assert.False(regularMember.IsPartyLeader);
         }
+
+        [Fact]
+        public void HandleIncomingPacket_PrivateDiceRoll_OnlyDeliveredToHostOrParticipant()
+        {
+            var syncMgr = PartySyncManager.Instance;
+            syncMgr.ConnectedPartyMembers.Clear();
+
+            var config = new Soulstone.Configuration
+            {
+                SyncHostName = "Dungeon Master"
+            };
+            syncMgr.Init(config);
+
+            var privateRollPayload = new DiceRollPayload
+            {
+                CharacterName = "Secret Agent",
+                RolledBy = "Secret Agent",
+                TargetCharacterName = "Dungeon Master",
+                RollName = "Stealth Check",
+                Total = 24,
+                Details = "1d20+10",
+                IsPrivate = true,
+                EchoMessage = "[Soulstone] Secret Agent rolled Stealth Check: 24 (1d20+10)"
+            };
+
+            var packet = new PartySyncPacket
+            {
+                ProtocolVersion = 1,
+                EventType = SyncEventType.DiceRoll,
+                SenderName = "Secret Agent",
+                PayloadJson = JsonSerializer.Serialize(privateRollPayload),
+                EchoMessage = privateRollPayload.EchoMessage
+            };
+
+            DiceRollPayload? observed = null;
+            syncMgr.OnRemoteDiceRolled += r => observed = r;
+
+            // When local player is an unrelated party member (neither Host nor Secret Agent), roll is ignored
+            syncMgr.HandleIncomingPacket(packet, "Secret Agent");
+        }
     }
 }

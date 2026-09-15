@@ -33,6 +33,7 @@ namespace Soulstone.Windows
         private Vector3 modalResourceColorVec = new(0.18f, 0.80f, 0.44f);
         private string modalResourceDesc = string.Empty;
         private bool modalResourceIsRequired = false;
+        private bool modalResourceIsRollable = true;
         private int modalResourceTypeIndex = 0;
         private string modalErrorMessage = string.Empty;
 
@@ -95,124 +96,159 @@ namespace Soulstone.Windows
 
         private void DrawTopBar(DiceSystem currentSystem)
         {
+            var scale = ImGuiHelpers.GlobalScale;
+            var pos = ImGui.GetCursorScreenPos();
+            var availWidth = ImGui.GetContentRegionAvail().X;
+            var bannerHeight = 56.0f * scale;
+            var drawList = ImGui.GetWindowDrawList();
+
+            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.11f, 0.14f, 0.95f));
+            var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.55f, 0.42f, 0.18f, 0.75f));
+            var accentCol = ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold);
+
+            drawList.AddRectFilled(pos, pos + new Vector2(availWidth, bannerHeight), bgCol, 8.0f * scale);
+            drawList.AddRect(pos, pos + new Vector2(availWidth, bannerHeight), borderCol, 8.0f * scale, ImDrawFlags.None, 1.2f);
+
+            // Left gold trim
+            drawList.AddRectFilled(
+                pos + new Vector2(2.5f * scale, 5.0f * scale),
+                pos + new Vector2(6.0f * scale, bannerHeight - 5.0f * scale),
+                accentCol,
+                2.0f * scale);
+
+            // Framed Dice Emblem Box
+            var emblemSize = 36.0f * scale;
+            var emblemPos = pos + new Vector2(10.0f * scale, (bannerHeight - emblemSize) * 0.5f);
+            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.16f, 0.10f, 0.95f)), 6.0f * scale);
+            drawList.AddRect(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), accentCol, 6.0f * scale, ImDrawFlags.None, 1.2f);
+
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20.ToIconString());
+            var iconStr = FontAwesomeIcon.DiceD20.ToIconString();
+            var iconSize = ImGui.CalcTextSize(iconStr);
+            drawList.AddText(emblemPos + new Vector2((emblemSize - iconSize.X) * 0.5f, (emblemSize - iconSize.Y) * 0.5f), accentCol, iconStr);
             ImGui.PopFont();
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
-            ImGui.TextColored(ImGuiColors.DalamudWhite, currentSystem.systemName);
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+            ImGui.SetCursorScreenPos(pos + new Vector2(emblemSize + 18.0f * scale, 8.0f * scale));
 
-            UiUtils.Badge(Enum.GetName<SystemType>(currentSystem.systemType) ?? "Standard", new Vector4(0.2f, 0.4f, 0.6f, 0.7f), ImGuiColors.ParsedBlue);
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-
-            string diceLabel = Enum.GetName<DiceType>(currentSystem.diceType) ?? "d20";
-            UiUtils.Badge(diceLabel, new Vector4(0.35f, 0.25f, 0.5f, 0.7f), ImGuiColors.DalamudViolet);
-
-            if (currentSystem.systemHasAugmentations)
+            ImGui.BeginGroup();
             {
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                UiUtils.Badge("Cyberware Active", new Vector4(0.15f, 0.35f, 0.25f, 0.7f), ImGuiColors.ParsedGreen);
-            }
+                ImGui.TextColored(ImGuiColors.DalamudWhite, currentSystem.systemName);
+                ImGui.SameLine(0, 8.0f * scale);
 
-            if (DiceSystemManager.Instance.IsSessionRulesetActive)
-            {
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupSyncedFromDM"), new Vector4(0.14f, 0.38f, 0.20f, 0.85f), ImGuiColors.ParsedGreen);
+                UiUtils.PillBadge(Enum.GetName<SystemType>(currentSystem.systemType) ?? "Standard", new Vector4(0.18f, 0.32f, 0.50f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.Cogs);
+                ImGui.SameLine(0, 6.0f * scale);
+
+                string diceLabel = Enum.GetName<DiceType>(currentSystem.diceType) ?? "d20";
+                UiUtils.PillBadge(diceLabel, new Vector4(0.30f, 0.18f, 0.45f, 0.85f), ImGuiColors.DalamudViolet, FontAwesomeIcon.Dice);
+
+                if (currentSystem.systemHasAugmentations)
+                {
+                    ImGui.SameLine(0, 6.0f * scale);
+                    UiUtils.PillBadge("Cyberware Active", new Vector4(0.15f, 0.35f, 0.22f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Microchip);
+                }
+
+                if (DiceSystemManager.Instance.IsSessionRulesetActive)
+                {
+                    ImGui.SameLine(0, 6.0f * scale);
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupSyncedFromDM"), new Vector4(0.14f, 0.38f, 0.20f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Link);
+                }
             }
+            ImGui.EndGroup();
 
             var saveLabel = LocalizationManager.Instance.GetLocalizedString("DiceSystemSaveButton");
             var chooseLabel = LocalizationManager.Instance.GetLocalizedString("DiceSystemChoose");
             var revertLabel = LocalizationManager.Instance.GetLocalizedString("GroupRevertRuleset");
             var templateTooltip = LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateTooltip");
 
-            float btnWidth = 28.0f * ImGuiHelpers.GlobalScale;
-            float spacing = 6.0f * ImGuiHelpers.GlobalScale;
+            float btnWidth = 32.0f * scale;
+            float spacing = 6.0f * scale;
             int buttonCount = (DiceSystemManager.Instance.IsSessionRulesetActive ? 1 : 0) + 3;
             float totalButtonsWidth = buttonCount * btnWidth + (buttonCount - 1) * spacing;
 
-            float avail = ImGui.GetContentRegionAvail().X;
-            if (avail >= totalButtonsWidth)
+            float rightStartX = pos.X + availWidth - totalButtonsWidth - 10.0f * scale;
+            if (rightStartX > pos.X + emblemSize + 20.0f * scale)
             {
-                ImGui.SameLine(ImGui.GetCursorPosX() + avail - totalButtonsWidth);
+                ImGui.SetCursorScreenPos(new Vector2(rightStartX, pos.Y + 12.0f * scale));
             }
             else
             {
-                float nextAvail = ImGui.GetContentRegionAvail().X;
-                if (nextAvail > totalButtonsWidth)
-                {
-                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + nextAvail - totalButtonsWidth);
-                }
+                ImGui.SameLine(0, 8.0f * scale);
             }
 
-            if (DiceSystemManager.Instance.IsSessionRulesetActive)
+            ImGui.BeginGroup();
             {
-                if (UiUtils.IconButton("RevertDiceSysBtn", FontAwesomeIcon.Undo, revertLabel, new Vector2(btnWidth, 0)))
+                if (DiceSystemManager.Instance.IsSessionRulesetActive)
                 {
-                    DiceSystemManager.Instance.RevertToLocalRuleset();
-                }
-                ImGui.SameLine(0, spacing);
-            }
-
-            if (UiUtils.IconButton("MakeSheetTemplateTopBtn", FontAwesomeIcon.FileSignature, templateTooltip, new Vector2(btnWidth, 0)))
-            {
-                var sheet = CharacterManager.Instance.CharacterSheet;
-                if (sheet != null)
-                {
-                    currentSystem.CaptureTemplateFromSheet(sheet);
-                    DiceSystem.SaveDiceSystem(currentSystem);
-                    CharacterSheet.SaveSheet(sheet);
-                    string msg = LocalizationManager.Instance.GetLocalizedString("DiceSysSavedTemplateEcho", sheet.CharacterFullName, currentSystem.systemName);
-                    Messages.PrintEcho(msg);
-                    try
+                    if (UiUtils.IconButton("RevertDiceSysBtn", FontAwesomeIcon.Undo, revertLabel, new Vector2(btnWidth, 24.0f * scale)))
                     {
-                        if (Plugin.ToastGui != null)
+                        DiceSystemManager.Instance.RevertToLocalRuleset();
+                    }
+                    ImGui.SameLine(0, spacing);
+                }
+
+                if (UiUtils.IconButton("MakeSheetTemplateTopBtn", FontAwesomeIcon.FileSignature, templateTooltip, new Vector2(btnWidth, 24.0f * scale)))
+                {
+                    var sheet = CharacterManager.Instance.CharacterSheet;
+                    if (sheet != null)
+                    {
+                        currentSystem.CaptureTemplateFromSheet(sheet);
+                        DiceSystem.SaveDiceSystem(currentSystem);
+                        CharacterSheet.SaveSheet(sheet);
+                        string msg = LocalizationManager.Instance.GetLocalizedString("DiceSysSavedTemplateEcho", sheet.CharacterFullName, currentSystem.systemName);
+                        Messages.PrintEcho(msg);
+                        try
                         {
-                            var toastOptions = new Dalamud.Game.Gui.Toast.QuestToastOptions
+                            if (Plugin.ToastGui != null)
                             {
-                                PlaySound = true,
-                                DisplayCheckmark = true,
-                                IconId = 0
-                            };
-                            Plugin.ToastGui.ShowQuest(msg, toastOptions);
+                                var toastOptions = new Dalamud.Game.Gui.Toast.QuestToastOptions
+                                {
+                                    PlaySound = true,
+                                    DisplayCheckmark = true,
+                                    IconId = 0
+                                };
+                                Plugin.ToastGui.ShowQuest(msg, toastOptions);
+                            }
                         }
+                        catch { }
                     }
-                    catch { }
+                }
+
+                ImGui.SameLine(0, spacing);
+                if (UiUtils.IconButton("SaveDiceSysBtn", FontAwesomeIcon.Save, saveLabel, new Vector2(btnWidth, 24.0f * scale)))
+                {
+                    DiceSystem.SaveDiceSystem(currentSystem);
+                }
+
+                ImGui.SameLine(0, spacing);
+                if (UiUtils.IconButton("ChooseDiceSysBtn", FontAwesomeIcon.FolderOpen, chooseLabel, new Vector2(btnWidth, 24.0f * scale)))
+                {
+                    plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("ChooseDiceSysPickerTitle"), ".json", (path) =>
+                    {
+                        try
+                        {
+                            Plugin.Log?.Information($"Selected file: {path}");
+                            DiceSystem? loadedSystem = DiceSystem.LoadDiceSystem(path, true);
+                            if (loadedSystem != null)
+                            {
+                                DiceSystemManager.Instance.SwitchDiceSystem(loadedSystem);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Plugin.Log?.Error(ex, $"Failed to load dice system from '{path}' in file picker callback");
+                        }
+                    });
                 }
             }
+            ImGui.EndGroup();
 
-            ImGui.SameLine(0, spacing);
-            if (UiUtils.IconButton("SaveDiceSysBtn", FontAwesomeIcon.Save, saveLabel, new Vector2(btnWidth, 0)))
-            {
-                DiceSystem.SaveDiceSystem(currentSystem);
-            }
-
-            ImGui.SameLine(0, spacing);
-            if (UiUtils.IconButton("ChooseDiceSysBtn", FontAwesomeIcon.FolderOpen, chooseLabel, new Vector2(btnWidth, 0)))
-            {
-                plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("ChooseDiceSysPickerTitle"), ".json", (path) =>
-                {
-                    try
-                    {
-                        Plugin.Log?.Information($"Selected file: {path}");
-                        DiceSystem? loadedSystem = DiceSystem.LoadDiceSystem(path, true);
-                        if (loadedSystem != null)
-                        {
-                            DiceSystemManager.Instance.SwitchDiceSystem(loadedSystem);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Plugin.Log?.Error(ex, $"Failed to load dice system from '{path}' in file picker callback");
-                    }
-                });
-            }
+            ImGui.SetCursorScreenPos(pos);
+            ImGui.Dummy(new Vector2(availWidth, bannerHeight));
         }
 
         private void DrawGeneralSettings(DiceSystem currentSystem)
         {
-            var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
-            if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("DiceSysGeneralConfigHeader")}###GeneralConfigHeader", flags))
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysGeneralConfigHeader"), defaultOpen: true, icon: FontAwesomeIcon.Cogs, accentColor: ImGuiColors.ParsedGold))
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysGeneralSubtitle"));
                 ImGui.Spacing();
@@ -229,8 +265,7 @@ namespace Soulstone.Windows
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("DiceSystemNameLabel"));
                     ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(300.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.InputText("##DiceSystemName", ref currentSystem.systemName, 100);
+                    UiUtils.StyledInputText("DiceSystemName", ref currentSystem.systemName, 100, width: 300.0f);
 
                     // System Type
                     ImGui.TableNextRow();
@@ -238,8 +273,7 @@ namespace Soulstone.Windows
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("SystemTypeCombo"));
                     ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(220.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Combo("##DiceSystemTypeCombo", ref selectedSystemTypeIndex, Enum.GetNames<SystemType>()))
+                    if (UiUtils.StyledCombo("##DiceSystemTypeCombo", ref selectedSystemTypeIndex, Enum.GetNames<SystemType>(), icon: FontAwesomeIcon.Cogs, width: 220.0f))
                     {
                         currentSystem.systemType = (SystemType)selectedSystemTypeIndex;
                     }
@@ -250,8 +284,7 @@ namespace Soulstone.Windows
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("DiceTypeCombo"));
                     ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(140.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Combo("##DiceTypeCombo", ref selectedDiceTypeIndex, Enum.GetNames<DiceType>()))
+                    if (UiUtils.StyledCombo("##DiceTypeCombo", ref selectedDiceTypeIndex, Enum.GetNames<DiceType>(), icon: FontAwesomeIcon.DiceD20, width: 140.0f))
                     {
                         currentSystem.diceType = (DiceType)selectedDiceTypeIndex;
                     }
@@ -270,9 +303,7 @@ namespace Soulstone.Windows
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextUnformatted(LocalizationManager.Instance.GetLocalizedString("SystemInventorySlotsLabel"));
                         ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.SetNextItemWidth(90.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.InputInt("##SystemInventoryMaxSlotsGen", ref currentSystem.inventoryMaxSlots, 5);
-                        if (currentSystem.inventoryMaxSlots < 1) currentSystem.inventoryMaxSlots = 1;
+                        UiUtils.StyledInputInt("SystemInventoryMaxSlotsGen", ref currentSystem.inventoryMaxSlots, step: 5, width: 90.0f, min: 1);
                     }
 
                     // Make Current Sheet a Template Row
@@ -317,8 +348,7 @@ namespace Soulstone.Windows
 
         private void DrawInitiativeCard(DiceSystem currentSystem)
         {
-            var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
-            if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("InitiativeConfigHeader")}###InitiativeConfigHeader", flags))
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("InitiativeConfigHeader"), defaultOpen: true, icon: FontAwesomeIcon.Stopwatch, accentColor: ImGuiColors.ParsedBlue))
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("InitiativeConfigSubtitle"));
                 ImGui.Spacing();
@@ -345,8 +375,7 @@ namespace Soulstone.Windows
                     };
 
                     int currentTypeIndex = (int)currentSystem.initiativeStatType;
-                    ImGui.SetNextItemWidth(200.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Combo("##InitiativeTypeCombo", ref currentTypeIndex, typeOptions, typeOptions.Length))
+                    if (UiUtils.StyledCombo("##InitiativeTypeCombo", ref currentTypeIndex, typeOptions, icon: FontAwesomeIcon.Stopwatch, width: 200.0f))
                     {
                         currentSystem.initiativeStatType = (InitiativeStatType)currentTypeIndex;
                     }
@@ -360,8 +389,7 @@ namespace Soulstone.Windows
                         ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaLabel"));
                         ImGui.TableNextColumn();
 
-                        ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.InputTextWithHint("##InitiativeFormulaInput", "e.g. 10 + [Dexterity] / 2", ref currentSystem.initiativeFormula, 100);
+                        UiUtils.StyledInputText("InitiativeFormulaInput", ref currentSystem.initiativeFormula, 100, width: 260.0f, hint: "e.g. 10 + [Dexterity] / 2");
                         if (ImGui.IsItemHovered())
                         {
                             ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaTooltip"));
@@ -423,16 +451,14 @@ namespace Soulstone.Windows
                             int selectedIdx = options.IndexOf(currentSystem.initiativeStatName);
                             if (selectedIdx < 0) selectedIdx = 0;
 
-                            ImGui.SetNextItemWidth(220.0f * ImGuiHelpers.GlobalScale);
-                            if (ImGui.Combo("##InitiativeStatCombo", ref selectedIdx, options.ToArray(), options.Count))
+                            if (UiUtils.StyledCombo("##InitiativeStatCombo", ref selectedIdx, options.ToArray(), icon: FontAwesomeIcon.Tag, width: 220.0f))
                             {
                                 currentSystem.initiativeStatName = options[selectedIdx];
                             }
                         }
                         else
                         {
-                            ImGui.SetNextItemWidth(220.0f * ImGuiHelpers.GlobalScale);
-                            ImGui.InputTextWithHint("##InitiativeStatInput", "Stat name...", ref currentSystem.initiativeStatName, 50);
+                            UiUtils.StyledInputText("InitiativeStatInput", ref currentSystem.initiativeStatName, 50, width: 220.0f, hint: "Stat name...");
                         }
 
                         // Preview / Test Roll if sheet is loaded
@@ -455,8 +481,7 @@ namespace Soulstone.Windows
 
         private void DrawResourcesCard(DiceSystem currentSystem)
         {
-            var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
-            if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader")}###ResourcesHeader", flags))
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader"), defaultOpen: true, icon: FontAwesomeIcon.Heart, accentColor: ImGuiColors.ParsedGreen))
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesSubtitle"));
                 ImGui.Spacing();
@@ -464,7 +489,7 @@ namespace Soulstone.Windows
                 var resources = currentSystem.GetEffectiveResources();
 
                 // Add Resource Button
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("DiceSysAddResourceBtn")}###OpenAddResModalBtn"))
+                if (UiUtils.IconTextButton("OpenAddResModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("DiceSysAddResourceBtn")))
                 {
                     OpenAddResourceModal();
                 }
@@ -489,7 +514,7 @@ namespace Soulstone.Windows
                             ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("ResourceTypeLabel"), ImGuiTableColumnFlags.WidthStretch, 0.20f);
                             ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceMax"), ImGuiTableColumnFlags.WidthStretch, 0.25f);
                             ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"), ImGuiTableColumnFlags.WidthStretch, 0.35f);
-                            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 115.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                             ImGui.TableHeadersRow();
 
                             for (int i = 0; i < resources.Count; i++)
@@ -501,7 +526,7 @@ namespace Soulstone.Windows
                                 // Color swatch
                                 ImGui.TableNextColumn();
                                 Vector4 colVec = HexToVector4(res.ColorHex);
-                                ImGui.ColorButton($"##ResColorBtn_{res.Name}", colVec, ImGuiColorEditFlags.NoTooltip | ImGuiColorEditFlags.NoPicker, new Vector2(24, 20) * ImGuiHelpers.GlobalScale);
+                                ImGui.ColorButton($"##ResColorBtn_{res.Name}", colVec, ImGuiColorEditFlags.NoTooltip | ImGuiColorEditFlags.NoPicker, new Vector2(24, 22) * ImGuiHelpers.GlobalScale);
 
                                 // Name
                                 ImGui.TableNextColumn();
@@ -568,7 +593,7 @@ namespace Soulstone.Windows
                                 ImGui.TableNextColumn();
                                 if (i > 0)
                                 {
-                                    if (UiUtils.IconButton($"MoveUpRes_{res.Name}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                                    if (UiUtils.IconButton($"MoveUpRes_{res.Name}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                                     {
                                         currentSystem.MoveResource(res.Name, -1);
                                     }
@@ -576,20 +601,20 @@ namespace Soulstone.Windows
                                 }
                                 if (i < resources.Count - 1)
                                 {
-                                    if (UiUtils.IconButton($"MoveDownRes_{res.Name}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                                    if (UiUtils.IconButton($"MoveDownRes_{res.Name}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                                     {
                                         currentSystem.MoveResource(res.Name, 1);
                                     }
                                     ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
                                 }
 
-                                if (UiUtils.IconButton($"EditRes_{res.Name}", FontAwesomeIcon.Edit, LocalizationManager.Instance.GetLocalizedString("DiceSysEditResource"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                                if (UiUtils.IconButton($"EditRes_{res.Name}", FontAwesomeIcon.Edit, LocalizationManager.Instance.GetLocalizedString("DiceSysEditResource"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                                 {
                                     resToEdit = res;
                                 }
 
                                 ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
-                                if (UiUtils.IconButton($"DelRes_{res.Name}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DiceSysDeleteResource"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                                if (UiUtils.IconButton($"DelRes_{res.Name}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DiceSysDeleteResource"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                                 {
                                     resToRemove = res.Name;
                                 }
@@ -623,6 +648,7 @@ namespace Soulstone.Windows
             modalResourceColorVec = HexToVector3(modalResourceColorHex);
             modalResourceDesc = string.Empty;
             modalResourceIsRequired = false;
+            modalResourceIsRollable = true;
             modalResourceTypeIndex = 0;
             modalErrorMessage = string.Empty;
             showResourceModal = true;
@@ -639,6 +665,7 @@ namespace Soulstone.Windows
             modalResourceColorVec = HexToVector3(modalResourceColorHex);
             modalResourceDesc = res.Description ?? string.Empty;
             modalResourceIsRequired = res.IsRequired;
+            modalResourceIsRollable = res.IsRollable;
             modalResourceTypeIndex = (int)res.ResourceType;
             modalErrorMessage = string.Empty;
             showResourceModal = true;
@@ -673,8 +700,7 @@ namespace Soulstone.Windows
 
                 // Name
                 ImGui.TextUnformatted(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceName"));
-                ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputText("##ModalResName", ref modalResourceName, 50);
+                UiUtils.StyledInputText("ModalResName", ref modalResourceName, 50, width: 260.0f);
 
                 // Resource Type
                 ImGui.Spacing();
@@ -688,8 +714,7 @@ namespace Soulstone.Windows
                 // Formula
                 ImGui.Spacing();
                 ImGui.TextUnformatted(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormula"));
-                ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputTextWithHint("##ModalResFormula", LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHint"), ref modalResourceFormula, 150);
+                UiUtils.StyledInputText("ModalResFormula", ref modalResourceFormula, 150, width: 260.0f, hint: LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHint"));
                 if (ImGui.IsItemHovered())
                 {
                     ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaTooltip"));
@@ -698,9 +723,7 @@ namespace Soulstone.Windows
                 // Max
                 ImGui.Spacing();
                 ImGui.TextUnformatted(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceMax"));
-                ImGui.SetNextItemWidth(120.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputInt("##ModalResMax", ref modalResourceMax, 5);
-                if (modalResourceMax < 1) modalResourceMax = 1;
+                UiUtils.StyledInputInt("ModalResMax", ref modalResourceMax, step: 5, width: 120.0f, min: 1);
 
                 // Color Picker
                 ImGui.Spacing();
@@ -710,8 +733,7 @@ namespace Soulstone.Windows
                     modalResourceColorHex = Vector3ToHex(modalResourceColorVec);
                 }
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                ImGui.SetNextItemWidth(90.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.InputText("##ModalResColorHex", ref modalResourceColorHex, 10))
+                if (UiUtils.StyledInputText("ModalResColorHex", ref modalResourceColorHex, 10, width: 90.0f))
                 {
                     modalResourceColorVec = HexToVector3(modalResourceColorHex);
                 }
@@ -724,7 +746,7 @@ namespace Soulstone.Windows
                     if (i > 0) ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                     var preset = ColorPresets[i];
                     Vector4 pCol = new(preset.Color.X, preset.Color.Y, preset.Color.Z, 1.0f);
-                    if (ImGui.ColorButton($"##Preset_{preset.Name}", pCol, ImGuiColorEditFlags.NoTooltip, new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                    if (ImGui.ColorButton($"##Preset_{preset.Name}", pCol, ImGuiColorEditFlags.NoTooltip, new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                     {
                         modalResourceColorHex = preset.Hex;
                         modalResourceColorVec = preset.Color;
@@ -738,19 +760,24 @@ namespace Soulstone.Windows
                 // Description
                 ImGui.Spacing();
                 ImGui.TextUnformatted(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
-                ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputText("##ModalResDesc", ref modalResourceDesc, 100);
+                UiUtils.StyledInputText("ModalResDesc", ref modalResourceDesc, 100, width: 260.0f);
 
                 // Is Required
                 ImGui.Spacing();
                 ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceIsRequired"), ref modalResourceIsRequired);
+
+                if (modalResourceTypeIndex == 2)
+                {
+                    ImGui.Spacing();
+                    ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceIsRollable"), ref modalResourceIsRollable);
+                }
 
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
 
                 // Save / Cancel buttons
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}###SaveResModalBtn", new Vector2(100, 0) * ImGuiHelpers.GlobalScale))
+                if (UiUtils.IconTextButton("SaveResModalBtn", FontAwesomeIcon.Save, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), size: new Vector2(100, 0) * ImGuiHelpers.GlobalScale))
                 {
                     string trimmedName = modalResourceName.Trim();
                     if (string.IsNullOrWhiteSpace(trimmedName))
@@ -779,7 +806,8 @@ namespace Soulstone.Windows
                             modalResourceDesc.Trim(),
                             modalResourceIsRequired,
                             modalResourceFormula.Trim(),
-                            resType
+                            resType,
+                            modalResourceIsRollable
                         ));
 
                         showResourceModal = false;
@@ -787,7 +815,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CancelButton")}###CancelResModalBtn", new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
+                if (UiUtils.IconTextButton("CancelResModalBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(80, 0) * ImGuiHelpers.GlobalScale))
                 {
                     showResourceModal = false;
                 }
@@ -798,8 +826,7 @@ namespace Soulstone.Windows
 
         private void DrawAugmentationsCard(DiceSystem currentSystem)
         {
-            var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
-            if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader")}###AugmentationsHeader", flags))
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader"), defaultOpen: true, icon: FontAwesomeIcon.Microchip, accentColor: ImGuiColors.ParsedPurple))
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsSubtitle"));
                 ImGui.Spacing();
@@ -826,8 +853,7 @@ namespace Soulstone.Windows
                         ImGui.AlignTextToFramePadding();
                         ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("AugmentationTitleLabel"));
                         ImGui.TableNextColumn();
-                        ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.InputText("##AugmentationTitle", ref currentSystem.augmentationTitle, 100);
+                        UiUtils.StyledInputText("AugmentationTitle", ref currentSystem.augmentationTitle, 100, width: 260.0f);
 
                         // Slot list
                         ImGui.TableNextRow();
@@ -849,7 +875,7 @@ namespace Soulstone.Windows
 
                             if (i > 0)
                             {
-                                if (UiUtils.IconButton($"MoveUpAugSlot_{slot}", FontAwesomeIcon.ChevronLeft, LocalizationManager.Instance.GetLocalizedString("MoveLeftTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                if (UiUtils.IconButton($"MoveUpAugSlot_{slot}", FontAwesomeIcon.ChevronLeft, LocalizationManager.Instance.GetLocalizedString("MoveLeftTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
                                 {
                                     slotToMoveUp = slot;
                                 }
@@ -857,14 +883,14 @@ namespace Soulstone.Windows
                             }
                             if (i < slots.Count - 1)
                             {
-                                if (UiUtils.IconButton($"MoveDownAugSlot_{slot}", FontAwesomeIcon.ChevronRight, LocalizationManager.Instance.GetLocalizedString("MoveRightTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                                if (UiUtils.IconButton($"MoveDownAugSlot_{slot}", FontAwesomeIcon.ChevronRight, LocalizationManager.Instance.GetLocalizedString("MoveRightTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
                                 {
                                     slotToMoveDown = slot;
                                 }
                                 ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
                             }
 
-                            if (UiUtils.IconButton($"DelAugSlot_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                            if (UiUtils.IconButton($"DelAugSlot_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
                             {
                                 slotToRemove = slot;
                             }
@@ -890,10 +916,9 @@ namespace Soulstone.Windows
                         }
 
                         // Add slot
-                        ImGui.SetNextItemWidth(160.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.InputTextWithHint("##NewAugSlotName", "Slot name...", ref newAugSlotName, 50);
+                        UiUtils.StyledInputText("NewAugSlotName", ref newAugSlotName, 50, width: 160.0f, hint: "Slot name...");
                         ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddAugmentationSlot")}###AddAugSlotBtn"))
+                        if (UiUtils.IconTextButton("AddAugSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddAugmentationSlot")))
                         {
                             if (!string.IsNullOrWhiteSpace(newAugSlotName))
                             {
@@ -915,8 +940,7 @@ namespace Soulstone.Windows
 
         private void DrawThresholdsCard(DiceSystem currentSystem)
         {
-            var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
-            if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("DiceSysThresholdsHeader")}###ThresholdsHeader", flags))
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysThresholdsHeader"), defaultOpen: true, icon: FontAwesomeIcon.SlidersH, accentColor: ImGuiColors.ParsedOrange))
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysThresholdsSubtitle"));
                 ImGui.Spacing();
@@ -932,27 +956,21 @@ namespace Soulstone.Windows
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("SuccessThresholdLabel"));
                     ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(90.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.InputInt("##SuccessThreshold", ref currentSystem.successThreshold, 1);
+                    UiUtils.StyledInputInt("SuccessThreshold", ref currentSystem.successThreshold, step: 1, width: 90.0f);
 
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("SuccessIntervalLabel"));
                     ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(90.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.InputInt("##SuccessInterval", ref currentSystem.successInterval, 1);
+                    UiUtils.StyledInputInt("SuccessInterval", ref currentSystem.successInterval, step: 1, width: 90.0f);
 
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("DicePoolMaxSuccessCountLabel"));
                     ImGui.TableNextColumn();
-                    ImGui.SetNextItemWidth(90.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.InputInt("##DicePoolMaxSuccessCount", ref currentSystem.dicePoolMaxSuccessCount, 1))
-                    {
-                        if (currentSystem.dicePoolMaxSuccessCount < 1) currentSystem.dicePoolMaxSuccessCount = 1;
-                    }
+                    UiUtils.StyledInputInt("DicePoolMaxSuccessCount", ref currentSystem.dicePoolMaxSuccessCount, step: 1, width: 90.0f, min: 1);
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DicePoolMaxSuccessCountTooltip"));
@@ -963,8 +981,7 @@ namespace Soulstone.Windows
 
         private void DrawFeaturesCard(DiceSystem currentSystem)
         {
-            var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
-            if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("DiceSysFeaturesHeader")}###FeaturesHeader", flags))
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysFeaturesHeader"), defaultOpen: true, icon: FontAwesomeIcon.CheckSquare, accentColor: ImGuiColors.ParsedGold))
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysFeaturesSubtitle"));
                 ImGui.Spacing();

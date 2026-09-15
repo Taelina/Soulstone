@@ -76,44 +76,44 @@ namespace Soulstone.Windows
 
         private void DrawTopBar(CharacterSheet sheet, DiceSystem? diceSystem)
         {
+            var scale = ImGuiHelpers.GlobalScale;
             string pageTitle = !string.IsNullOrWhiteSpace(diceSystem?.AugmentationTitle)
                 ? diceSystem.AugmentationTitle
                 : LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader");
 
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Microchip.ToIconString());
-            ImGui.PopFont();
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            ImGui.TextColored(ImGuiColors.ParsedGold, $"{sheet.CharacterFullName} — {pageTitle}");
-
             var equippedCount = sheet.GetEquippedAugmentationItems().Count;
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            UiUtils.Badge($"{equippedCount} {LocalizationManager.Instance.GetLocalizedString("InstalledBadge")}", new Vector4(0.18f, 0.35f, 0.22f, 0.8f), ImGuiColors.ParsedGreen);
-
             var saveLabel = LocalizationManager.Instance.GetLocalizedString("SaveStatButton");
             var createLabel = LocalizationManager.Instance.GetLocalizedString("CreateAugmentationModalTitle");
-            var createWidth = ImGui.CalcTextSize(createLabel).X + 24.0f * ImGuiHelpers.GlobalScale;
-            var saveWidth = 28.0f * ImGuiHelpers.GlobalScale;
-            var totalRightWidth = createWidth + saveWidth + 8.0f * ImGuiHelpers.GlobalScale;
-            var rightX = ImGui.GetWindowContentRegionMax().X - totalRightWidth;
 
-            if (ImGui.GetCursorPosX() < rightX)
-                ImGui.SameLine(rightX);
-            else
-                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+            UiUtils.DrawWindowHeroBanner(
+                title: $"{sheet.CharacterFullName} — {pageTitle}",
+                subtitle: LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader"),
+                badgeText: $"{equippedCount} {LocalizationManager.Instance.GetLocalizedString("InstalledBadge")}",
+                badgeColor: ImGuiColors.ParsedGreen,
+                icon: FontAwesomeIcon.Microchip,
+                accentColor: ImGuiColors.ParsedBlue,
+                actionLabel: createLabel,
+                onAction: () =>
+                {
+                    creatingAug = new GearItem("New Augmentation", "Neural", "", "Common", null, "", 0.5f, "", isAugmentation: true);
+                    modEditorState = new StatModifierEditorState();
+                    showCreateAugModal = true;
+                });
+        }
 
-            if (ImGui.Button($"{createLabel}###CreateAugTopBtn"))
+        private static FontAwesomeIcon GetAugSlotIcon(string slot)
+        {
+            return slot?.ToLowerInvariant() switch
             {
-                creatingAug = new GearItem("New Augmentation", "Neural", "", "Common", null, "", 0.5f, "", isAugmentation: true);
-                modEditorState = new StatModifierEditorState();
-                showCreateAugModal = true;
-            }
-
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.IconButton("SaveAugBtn", FontAwesomeIcon.Save, saveLabel))
-            {
-                CharacterSheet.SaveSheet(sheet);
-            }
+                "neural" or "cortex" or "brain" => FontAwesomeIcon.Brain,
+                "ocular" or "eyes" => FontAwesomeIcon.Eye,
+                "cardiovascular" or "heart" or "internal" => FontAwesomeIcon.Heartbeat,
+                "muscular" or "arms" => FontAwesomeIcon.HandRock,
+                "skeletal" or "legs" or "bones" => FontAwesomeIcon.Bone,
+                "dermal" or "skin" => FontAwesomeIcon.ShieldAlt,
+                "subdermal" or "circulatory" => FontAwesomeIcon.Microchip,
+                _ => FontAwesomeIcon.Microchip
+            };
         }
 
         private void DrawAugmentationSlots(CharacterSheet sheet, DiceSystem? diceSystem)
@@ -147,83 +147,104 @@ namespace Soulstone.Windows
         {
             ImGui.PushID($"AugSlot_{slot}");
 
+            var scale = ImGuiHelpers.GlobalScale;
             var pos = ImGui.GetCursorScreenPos();
-            var cardHeight = 52.0f * ImGuiHelpers.GlobalScale;
+            var cardHeight = 52.0f * scale;
             var cardSize = new Vector2(width, cardHeight);
 
             var drawList = ImGui.GetWindowDrawList();
             bool isSelected = string.Equals(selectedSlot, slot, StringComparison.OrdinalIgnoreCase);
             bool isHovered = ImGui.IsMouseHoveringRect(pos, pos + cardSize);
+            var rarityCol = item != null ? GetRarityColor(item.Rarity) : ImGuiColors.DalamudGrey;
+            var slotIcon = GetAugSlotIcon(slot);
 
             var bgCol = isSelected
-                ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.28f, 0.40f, 0.85f))
+                ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.22f, 0.32f, 0.95f))
                 : (isHovered
-                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.16f, 0.20f, 0.26f, 0.70f))
-                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.14f, 0.18f, 0.55f)));
+                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.15f, 0.16f, 0.20f, 0.90f))
+                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.11f, 0.13f, 0.85f)));
 
             var borderCol = isSelected
                 ? ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold)
                 : (isHovered
-                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.35f, 0.55f, 0.80f, 0.60f))
-                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.26f, 0.35f, 0.40f)));
+                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(rarityCol.X, rarityCol.Y, rarityCol.Z, 0.80f))
+                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.24f, 0.26f, 0.30f, 0.55f)));
 
-            drawList.AddRectFilled(pos, pos + cardSize, bgCol, 4.0f * ImGuiHelpers.GlobalScale);
-            drawList.AddRect(pos, pos + cardSize, borderCol, 4.0f * ImGuiHelpers.GlobalScale, ImDrawFlags.None, isSelected ? 2.0f : 1.0f);
+            drawList.AddRectFilled(pos, pos + cardSize, bgCol, 6.0f * scale);
+            drawList.AddRect(pos, pos + cardSize, borderCol, 6.0f * scale, ImDrawFlags.None, isSelected ? 1.8f : 1.0f);
 
-            ImGui.SetCursorScreenPos(pos + new Vector2(8.0f * ImGuiHelpers.GlobalScale, 6.0f * ImGuiHelpers.GlobalScale));
+            // Left accent bar
+            drawList.AddRectFilled(
+                pos + new Vector2(2f * scale, 5f * scale),
+                pos + new Vector2(5.5f * scale, cardHeight - 5f * scale),
+                ImGui.ColorConvertFloat4ToU32(item != null ? rarityCol : new Vector4(0.3f, 0.3f, 0.35f, 0.5f)),
+                2.0f * scale);
 
-            // Slot name badge
-            string localizedSlot = GetLocalizedSlotName(slot);
-            UiUtils.Badge(localizedSlot, new Vector4(0.15f, 0.25f, 0.35f, 0.9f), ImGuiColors.ParsedBlue);
+            // Framed slot icon emblem
+            var iconBoxSize = 36.0f * scale;
+            var iconBoxPos = pos + new Vector2(10.0f * scale, (cardHeight - iconBoxSize) * 0.5f);
+            drawList.AddRectFilled(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.14f, 0.15f, 0.18f, 0.95f)), 6.0f * scale);
+            drawList.AddRect(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(item != null ? rarityCol : ImGuiColors.DalamudGrey), 6.0f * scale, ImDrawFlags.None, 1.0f);
 
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+            ImGui.PushFont(UiBuilder.IconFont);
+            var iconStr = slotIcon.ToIconString();
+            var iconSize = ImGui.CalcTextSize(iconStr);
+            drawList.AddText(iconBoxPos + new Vector2((iconBoxSize - iconSize.X) * 0.5f, (iconBoxSize - iconSize.Y) * 0.5f), ImGui.ColorConvertFloat4ToU32(item != null ? rarityCol : ImGuiColors.DalamudGrey), iconStr);
+            ImGui.PopFont();
 
-            if (item != null)
+            // Slot Details
+            ImGui.SetCursorScreenPos(pos + new Vector2(iconBoxSize + 18.0f * scale, 6.0f * scale));
+            ImGui.BeginGroup();
             {
-                var rarityCol = GetRarityColor(item.Rarity);
-                ImGui.TextColored(rarityCol, item.Name);
+                // Slot Label
+                string localizedSlot = GetLocalizedSlotName(slot);
+                ImGui.TextColored(ImGuiColors.ParsedGold, localizedSlot);
 
-                // Row 2: Stat modifiers summary & action buttons
-                ImGui.SetCursorScreenPos(pos + new Vector2(8.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale));
-
-                if (item.StatModifiers != null && item.StatModifiers.Count > 0)
+                if (item != null)
                 {
-                    string modsSummary = string.Join(", ", item.StatModifiers.Take(3).Select(kv => $"{(kv.Value >= 0 ? "+" : "")}{kv.Value} {kv.Key}"));
-                    if (item.StatModifiers.Count > 3) modsSummary += $" (+{item.StatModifiers.Count - 3})";
-                    ImGui.TextColored(ImGuiColors.ParsedGreen, modsSummary);
+                    ImGui.SameLine(0, 6.0f * scale);
+                    UiUtils.PillBadge(item.Rarity, new Vector4(rarityCol.X * 0.2f, rarityCol.Y * 0.2f, rarityCol.Z * 0.2f, 0.85f), rarityCol);
+
+                    ImGui.TextColored(rarityCol, item.Name);
+
+                    // Modifiers preview
+                    if (item.StatModifiers != null && item.StatModifiers.Count > 0)
+                    {
+                        ImGui.SameLine(0, 8.0f * scale);
+                        string modSummary = string.Join(", ", item.StatModifiers.Take(2).Select(kv => $"{(kv.Value >= 0 ? "+" : "")}{kv.Value} {kv.Key}"));
+                        if (item.StatModifiers.Count > 2) modSummary += $" (+{item.StatModifiers.Count - 2})";
+                        UiUtils.PillBadge(modSummary, new Vector4(0.15f, 0.30f, 0.20f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Bolt);
+                    }
                 }
                 else
                 {
-                    ImGui.TextDisabled(item.Rarity);
+                    ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAugmentationsEquipped"));
                 }
             }
-            else
-            {
-                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAugmentationsEquipped"));
-            }
+            ImGui.EndGroup();
 
             // Right action buttons
-            float rightButtonsWidth = item != null ? (92.0f * ImGuiHelpers.GlobalScale) : (60.0f * ImGuiHelpers.GlobalScale);
+            float rightButtonsWidth = item != null ? (96.0f * scale) : (64.0f * scale);
             var rightBtnX = pos.X + width - rightButtonsWidth;
-            ImGui.SetCursorScreenPos(new Vector2(rightBtnX, pos.Y + 10.0f * ImGuiHelpers.GlobalScale));
+            ImGui.SetCursorScreenPos(new Vector2(rightBtnX, pos.Y + 12.0f * scale));
 
             if (item != null)
             {
-                if (UiUtils.IconButton($"UnequipAug_{slot}", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("UninstallButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
+                if (UiUtils.IconButton($"UnequipAug_{slot}", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("UninstallButton"), new Vector2(26, 26) * scale))
                 {
                     sheet.UnequipAugmentation(slot);
                     CharacterSheet.SaveSheet(sheet);
                 }
 
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (UiUtils.IconButton($"ChangeAug_{slot}", FontAwesomeIcon.ExchangeAlt, LocalizationManager.Instance.GetLocalizedString("ChooseGearTitle"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
+                ImGui.SameLine(0, 4.0f * scale);
+                if (UiUtils.IconButton($"ChangeAug_{slot}", FontAwesomeIcon.ExchangeAlt, LocalizationManager.Instance.GetLocalizedString("ChooseGearTitle"), new Vector2(26, 26) * scale))
                 {
                     equipModalSlot = slot;
                     showEquipModal = true;
                 }
 
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (UiUtils.IconButton($"DeleteAug_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
+                ImGui.SameLine(0, 4.0f * scale);
+                if (UiUtils.IconButton($"DeleteAug_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(26, 26) * scale))
                 {
                     sheet.RemoveItem(item.Id);
                     CharacterSheet.SaveSheet(sheet);
@@ -231,7 +252,7 @@ namespace Soulstone.Windows
             }
             else
             {
-                if (UiUtils.IconButton($"InstallAug_{slot}", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("InstallButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
+                if (UiUtils.IconButton($"InstallAug_{slot}", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("InstallButton"), new Vector2(26, 26) * scale))
                 {
                     equipModalSlot = slot;
                     showEquipModal = true;
@@ -257,7 +278,7 @@ namespace Soulstone.Windows
                 {
                     DrawTotalStatBonuses(sheet);
                     ImGui.Spacing();
-                    ImGui.Separator();
+                    UiUtils.DrawOrnamentalDivider(accentColor: ImGuiColors.ParsedBlue);
                     ImGui.Spacing();
                     DrawEquippedAugmentationsList(sheet);
                 }
@@ -266,9 +287,11 @@ namespace Soulstone.Windows
 
         private void DrawTotalStatBonuses(CharacterSheet sheet)
         {
-            ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("TotalAugmentationBonusesLabel"));
-            ImGui.Separator();
-            ImGui.Spacing();
+            var scale = ImGuiHelpers.GlobalScale;
+            UiUtils.DrawSectionHeader(
+                LocalizationManager.Instance.GetLocalizedString("TotalAugmentationBonusesLabel"),
+                FontAwesomeIcon.ChartLine,
+                ImGuiColors.ParsedGreen);
 
             var equippedAugs = sheet.GetEquippedAugmentationItems();
             var totalBonuses = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -291,33 +314,34 @@ namespace Soulstone.Windows
                 return;
             }
 
-            using (var table = ImRaii.Table("##AugTotalBonusesTable", 2, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.12f, 0.14f, 0.85f)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
+            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8f, 6f) * scale))
+            using (var bonusCard = ImRaii.Child("##TotalAugModsPanel", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar))
             {
-                if (table.Success)
+                if (bonusCard.Success)
                 {
-                    ImGui.TableSetupColumn("Stat", ImGuiTableColumnFlags.WidthStretch, 0.65f);
-                    ImGui.TableSetupColumn("Bonus", ImGuiTableColumnFlags.WidthStretch, 0.35f);
-                    ImGui.TableHeadersRow();
-
                     foreach (var kv in totalBonuses)
                     {
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudWhite, kv.Key);
-
-                        ImGui.TableNextColumn();
-                        var col = kv.Value >= 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
-                        ImGui.TextColored(col, $"{(kv.Value >= 0 ? "+" : "")}{kv.Value}");
+                        string sign = kv.Value >= 0 ? "+" : "";
+                        string chipText = $"{kv.Key} {sign}{kv.Value}";
+                        var chipColor = kv.Value >= 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+                        var chipBg = kv.Value >= 0 ? new Vector4(0.14f, 0.32f, 0.20f, 0.85f) : new Vector4(0.38f, 0.14f, 0.14f, 0.85f);
+                        UiUtils.PillBadge(chipText, chipBg, chipColor, FontAwesomeIcon.Bolt);
+                        ImGui.SameLine(0, 6.0f * scale);
                     }
+                    ImGui.NewLine();
                 }
             }
         }
 
         private void DrawEquippedAugmentationsList(CharacterSheet sheet)
         {
-            ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("InstalledBadge"));
-            ImGui.Separator();
-            ImGui.Spacing();
+            var scale = ImGuiHelpers.GlobalScale;
+            UiUtils.DrawSectionHeader(
+                LocalizationManager.Instance.GetLocalizedString("InstalledBadge"),
+                FontAwesomeIcon.Microchip,
+                ImGuiColors.ParsedBlue);
 
             var equipped = sheet.GetEquippedAugmentationItems();
             if (equipped.Count == 0)
@@ -330,21 +354,24 @@ namespace Soulstone.Windows
             {
                 var slot = kv.Key;
                 var item = kv.Value;
+                var rarityCol = GetRarityColor(item.Rarity);
+                var slotIcon = GetAugSlotIcon(slot);
 
-                if (UiUtils.IconButton($"DelAugSide_{slot}_{item.Id}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(18, 18) * ImGuiHelpers.GlobalScale))
+                if (UiUtils.IconButton($"DelAugSide_{slot}_{item.Id}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(22, 22) * scale))
                 {
                     sheet.RemoveItem(item.Id);
                     CharacterSheet.SaveSheet(sheet);
                 }
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                UiUtils.Badge(GetLocalizedSlotName(slot), new Vector4(0.15f, 0.25f, 0.35f, 0.8f), ImGuiColors.ParsedBlue);
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                ImGui.TextColored(GetRarityColor(item.Rarity), item.Name);
+                ImGui.SameLine(0, 6.0f * scale);
+                UiUtils.PillBadge(GetLocalizedSlotName(slot), new Vector4(0.15f, 0.25f, 0.35f, 0.85f), ImGuiColors.ParsedBlue, slotIcon);
+                ImGui.SameLine(0, 6.0f * scale);
+                ImGui.TextColored(rarityCol, item.Name);
 
                 if (item.StatModifiers != null && item.StatModifiers.Count > 0)
                 {
                     string mods = item.GetFormattedModifiers();
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, $"  └ {mods}");
+                    ImGui.SameLine(0, 8.0f * scale);
+                    UiUtils.PillBadge(mods, new Vector4(0.14f, 0.32f, 0.20f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Bolt);
                 }
                 ImGui.Spacing();
             }
@@ -386,7 +413,7 @@ namespace Soulstone.Windows
                 {
                     ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAugmentationsInInventory"));
                     ImGui.Spacing();
-                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CreateAugmentationModalTitle")}###CreateAugFromModalBtn"))
+                    if (UiUtils.IconTextButton("CreateAugFromModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("CreateAugmentationModalTitle")))
                     {
                         creatingAug = new GearItem("New Augmentation", equipModalSlot, "", "Common", null, "", 0.5f, "", isAugmentation: true);
                         modEditorState = new StatModifierEditorState();
@@ -414,7 +441,7 @@ namespace Soulstone.Windows
                                 }
 
                                 ImGui.SameLine(ImGui.GetContentRegionAvail().X - 80.0f * ImGuiHelpers.GlobalScale);
-                                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InstallButton")}###BtnInstall_{item.Id}", new Vector2(75.0f * ImGuiHelpers.GlobalScale, 22.0f * ImGuiHelpers.GlobalScale)))
+                                if (UiUtils.IconTextButton($"BtnInstall_{item.Id}", FontAwesomeIcon.Check, LocalizationManager.Instance.GetLocalizedString("InstallButton"), size: new Vector2(75.0f * ImGuiHelpers.GlobalScale, 22.0f * ImGuiHelpers.GlobalScale)))
                                 {
                                     sheet.EquipAugmentation(equipModalSlot, item.Id);
                                     CharacterSheet.SaveSheet(sheet);
@@ -429,7 +456,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.Spacing();
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CloseButton")}###CloseInstallModalBtn"))
+                if (UiUtils.IconTextButton("CloseInstallModalBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CloseButton")))
                 {
                     showEquipModal = false;
                 }
@@ -447,33 +474,29 @@ namespace Soulstone.Windows
             if (ImGui.Begin(title, ref showCreateAugModal, ImGuiWindowFlags.NoCollapse))
             {
                 ImGui.TextColored(ImGuiColors.DalamudGrey, "Name:");
-                ImGui.SetNextItemWidth(-1.0f);
-                ImGui.InputText("##NewAugName", ref creatingAug.name, 100);
+                UiUtils.StyledInputText("NewAugName", ref creatingAug.name, 100, width: -1.0f);
 
                 var slots = diceSystem?.GetEffectiveAugmentationSlots() ?? GearItem.StandardAugmentationSlots.ToList();
                 var slotsArray = slots.ToArray();
 
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
-                ImGui.SetNextItemWidth(200.0f * ImGuiHelpers.GlobalScale);
                 int slotIdx = Array.IndexOf(slotsArray, creatingAug.Slot);
                 if (slotIdx < 0) slotIdx = 0;
-                if (ImGui.Combo("##NewAugSlotCombo", ref slotIdx, slotsArray, slotsArray.Length))
+                if (UiUtils.StyledCombo("##NewAugSlotCombo", ref slotIdx, slotsArray, icon: FontAwesomeIcon.Microchip, width: 200.0f))
                 {
                     creatingAug.Slot = slotsArray[slotIdx];
                 }
 
                 ImGui.TextColored(ImGuiColors.DalamudGrey, "Rarity:");
-                ImGui.SetNextItemWidth(200.0f * ImGuiHelpers.GlobalScale);
                 int rarityIdx = Array.IndexOf(rarities, creatingAug.Rarity);
                 if (rarityIdx < 0) rarityIdx = 0;
-                if (ImGui.Combo("##NewAugRarityCombo", ref rarityIdx, rarities))
+                if (UiUtils.StyledCombo("##NewAugRarityCombo", ref rarityIdx, rarities, icon: FontAwesomeIcon.Gem, width: 200.0f))
                 {
                     creatingAug.Rarity = rarities[rarityIdx];
                 }
 
                 ImGui.TextColored(ImGuiColors.DalamudGrey, "Description:");
-                ImGui.SetNextItemWidth(-1.0f);
-                ImGui.InputTextMultiline("##NewAugDesc", ref creatingAug.description, 500, new Vector2(-1.0f, 50.0f * ImGuiHelpers.GlobalScale));
+                UiUtils.StyledInputMultiline("NewAugDesc", ref creatingAug.description, 500, new Vector2(-1.0f, 50.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Separator();
                 creatingAug.isAugmentation = true;
@@ -483,7 +506,7 @@ namespace Soulstone.Windows
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")} & {LocalizationManager.Instance.GetLocalizedString("InstallButton")}###CreateInstallBtn"))
+                if (UiUtils.IconTextButton("CreateInstallBtn", FontAwesomeIcon.Check, $"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")} & {LocalizationManager.Instance.GetLocalizedString("InstallButton")}"))
                 {
                     if (string.IsNullOrWhiteSpace(creatingAug.Name)) creatingAug.Name = "New Augmentation";
                     creatingAug.isAugmentation = true;
@@ -494,7 +517,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")}###CreateOnlyAugBtn"))
+                if (UiUtils.IconTextButton("CreateOnlyAugBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")))
                 {
                     if (string.IsNullOrWhiteSpace(creatingAug.Name)) creatingAug.Name = "New Augmentation";
                     creatingAug.isAugmentation = true;
@@ -504,7 +527,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CancelButton")}###CancelCreateAugBtn"))
+                if (UiUtils.IconTextButton("CancelCreateAugBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton")))
                 {
                     showCreateAugModal = false;
                 }

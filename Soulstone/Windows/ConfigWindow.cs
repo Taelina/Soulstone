@@ -57,8 +57,7 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawRollSettings()
     {
-        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
-        if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("ConfigRollDisplayHeader")}###RollDisplayHeader", flags))
+        if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("ConfigRollDisplayHeader"), defaultOpen: true, icon: FontAwesomeIcon.DiceD20, accentColor: ImGuiColors.ParsedGold))
         {
             bool detailedRollsVal = configuration.detailedRolls;
             if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigDetailedRollsCheck")}##DetailedRolls", ref detailedRollsVal))
@@ -78,14 +77,12 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawLocalizationSettings()
     {
-        var flags = ImGuiTreeNodeFlags.DefaultOpen | ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
-        if (ImGui.CollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("ConfigLocalizationHeader")}###LocalizationHeader", flags))
+        if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("ConfigLocalizationHeader"), defaultOpen: true, icon: FontAwesomeIcon.Language, accentColor: ImGuiColors.ParsedBlue))
         {
             ImGui.AlignTextToFramePadding();
             ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("ConfigLanguageCombo"));
             ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-            ImGui.SetNextItemWidth(150.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Combo("##LanguageCombo", ref selectedLanguageIndex, Enum.GetNames<Language>()))
+            if (UiUtils.StyledCombo("##LanguageCombo", ref selectedLanguageIndex, Enum.GetNames<Language>(), icon: FontAwesomeIcon.Language, width: 150.0f))
             {
                 configuration.Language = (Language)selectedLanguageIndex;
                 configuration.Save();

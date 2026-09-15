@@ -62,6 +62,7 @@ namespace Soulstone.Datamodels
     {
         public string CharacterName { get; set; } = string.Empty;
         public string RolledBy { get; set; } = string.Empty;
+        public string TargetCharacterName { get; set; } = string.Empty;
         public string RollName { get; set; } = string.Empty;
         public int Total { get; set; }
         public string Details { get; set; } = string.Empty;
@@ -69,6 +70,7 @@ namespace Soulstone.Datamodels
         public bool IsCriticalFailure { get; set; }
         public string RulesetName { get; set; } = string.Empty;
         public string EchoMessage { get; set; } = string.Empty;
+        public bool IsPrivate { get; set; }
     }
 
     public class InitiativeSyncPayload
@@ -128,6 +130,7 @@ namespace Soulstone.Datamodels
         // modifier / pool size / percentile target) instead of parsing Formula as XdY.
         public bool UseSystemDice { get; set; }
         public int StatValue { get; set; }
+        public bool IsPrivate { get; set; }
     }
 
     public class PrivateStatsPayload

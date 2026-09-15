@@ -37,6 +37,7 @@ namespace Soulstone.Windows
         private bool useSystemDice = true;
         private bool rollAdvantage = false;
         private bool rollDisadvantage = false;
+        private bool rollPrivate = false;
 
         // Expanded Sections
         private readonly HashSet<string> expandedStatsMembers = new(StringComparer.OrdinalIgnoreCase);
@@ -109,94 +110,143 @@ namespace Soulstone.Windows
 
         private void DrawConnectedSessionBanner(PartySyncManager sync)
         {
+            var scale = ImGuiHelpers.GlobalScale;
+            var pos = ImGui.GetCursorScreenPos();
+            var availWidth = ImGui.GetContentRegionAvail().X;
+            var bannerHeight = 58.0f * scale;
+            var drawList = ImGui.GetWindowDrawList();
+
+            // Background card with metallic green accent
+            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.12f, 0.14f, 0.96f));
+            var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.65f, 0.35f, 0.75f));
+            var accentCol = ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGreen);
+
+            drawList.AddRectFilled(pos, pos + new Vector2(availWidth, bannerHeight), bgCol, 8.0f * scale);
+            drawList.AddRect(pos, pos + new Vector2(availWidth, bannerHeight), borderCol, 8.0f * scale, ImDrawFlags.None, 1.5f);
+
+            // Left accent stripe
+            drawList.AddRectFilled(
+                pos + new Vector2(2.5f * scale, 5.0f * scale),
+                pos + new Vector2(6.0f * scale, bannerHeight - 5.0f * scale),
+                accentCol,
+                2.0f * scale);
+
+            // Framed Wifi Icon Emblem
+            var emblemSize = 38.0f * scale;
+            var emblemPos = pos + new Vector2(12.0f * scale, (bannerHeight - emblemSize) * 0.5f);
+            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.14f, 0.22f, 0.16f, 0.95f)), 6.0f * scale);
+            drawList.AddRect(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), accentCol, 6.0f * scale, ImDrawFlags.None, 1.2f);
+
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ImGuiColors.ParsedGreen, FontAwesomeIcon.Wifi.ToIconString());
+            var iconStr = FontAwesomeIcon.Wifi.ToIconString();
+            var iconSize = ImGui.CalcTextSize(iconStr);
+            drawList.AddText(emblemPos + new Vector2((emblemSize - iconSize.X) * 0.5f, (emblemSize - iconSize.Y) * 0.5f), accentCol, iconStr);
             ImGui.PopFont();
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
-            ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("GroupRelayStatus"));
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-
-            int memberCount = sync.ConnectedPartyMembers.Count;
-            string memberBadgeText = string.Format(LocalizationManager.Instance.GetLocalizedString("GroupConnectedMembers"), memberCount);
-            UiUtils.Badge(memberBadgeText, new Vector4(0.12f, 0.35f, 0.22f, 0.9f), ImGuiColors.ParsedGreen);
-
-            if (sync.IsSessionHost)
+            // Status details
+            ImGui.SetCursorScreenPos(pos + new Vector2(emblemSize + 22.0f * scale, 8.0f * scale));
+            ImGui.BeginGroup();
             {
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupBadgeLeader"), new Vector4(0.35f, 0.28f, 0.10f, 0.9f), ImGuiColors.ParsedGold);
-            }
-            else if (!string.IsNullOrWhiteSpace(plugin.Configuration.SyncHostName))
-            {
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                string hostInfo = $"{LocalizationManager.Instance.GetLocalizedString("GroupHostLabel")} {plugin.Configuration.SyncHostName}";
-                UiUtils.Badge(hostInfo, new Vector4(0.20f, 0.25f, 0.38f, 0.9f), ImGuiColors.ParsedBlue);
-            }
+                ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("GroupRelayStatus"));
+                ImGui.SameLine(0, 8.0f * scale);
 
-            if (DiceSystemManager.Instance.IsSessionRulesetActive)
-            {
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupSyncedFromDM"), new Vector4(0.15f, 0.35f, 0.40f, 0.9f), ImGuiColors.ParsedBlue);
-            }
+                int memberCount = sync.ConnectedPartyMembers.Count;
+                string memberBadgeText = string.Format(LocalizationManager.Instance.GetLocalizedString("GroupConnectedMembers"), memberCount);
+                UiUtils.PillBadge(memberBadgeText, new Vector4(0.12f, 0.35f, 0.22f, 0.9f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Users);
 
-            // Right-aligned buttons
+                if (sync.IsSessionHost)
+                {
+                    ImGui.SameLine(0, 6.0f * scale);
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupBadgeLeader"), new Vector4(0.35f, 0.28f, 0.10f, 0.9f), ImGuiColors.ParsedGold, FontAwesomeIcon.Crown);
+                }
+                else if (!string.IsNullOrWhiteSpace(plugin.Configuration.SyncHostName))
+                {
+                    ImGui.SameLine(0, 6.0f * scale);
+                    string hostInfo = $"{LocalizationManager.Instance.GetLocalizedString("GroupHostLabel")} {plugin.Configuration.SyncHostName}";
+                    UiUtils.PillBadge(hostInfo, new Vector4(0.20f, 0.25f, 0.38f, 0.9f), ImGuiColors.ParsedBlue, FontAwesomeIcon.UserShield);
+                }
+
+                if (DiceSystemManager.Instance.IsSessionRulesetActive)
+                {
+                    ImGui.SameLine(0, 6.0f * scale);
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupSyncedFromDM"), new Vector4(0.15f, 0.35f, 0.40f, 0.9f), ImGuiColors.ParsedBlue, FontAwesomeIcon.DiceD20);
+                }
+            }
+            ImGui.EndGroup();
+
+            // Right-aligned buttons inside banner
             float rightButtonsWidth = 0f;
             if (sync.IsSessionHost && !string.IsNullOrWhiteSpace(sync.InviteCode))
             {
-                rightButtonsWidth += 120.0f * ImGuiHelpers.GlobalScale;
+                rightButtonsWidth += 120.0f * scale;
             }
-            rightButtonsWidth += 140.0f * ImGuiHelpers.GlobalScale;
+            rightButtonsWidth += 150.0f * scale;
 
-            float avail = ImGui.GetContentRegionAvail().X;
-            if (avail > rightButtonsWidth)
+            float remainingSpace = availWidth - (emblemSize + 24.0f * scale);
+            if (remainingSpace > rightButtonsWidth)
             {
-                ImGui.SameLine(ImGui.GetCursorPosX() + avail - rightButtonsWidth);
+                ImGui.SetCursorScreenPos(new Vector2(pos.X + availWidth - rightButtonsWidth - 10.0f * scale, pos.Y + 14.0f * scale));
             }
             else
             {
-                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                ImGui.SameLine(0, 8.0f * scale);
             }
 
-            if (sync.IsSessionHost && !string.IsNullOrWhiteSpace(sync.InviteCode))
+            ImGui.BeginGroup();
             {
-                bool justCopied = (DateTime.UtcNow - inviteCopiedTime).TotalSeconds < 3.0;
-                var copyIcon = justCopied ? FontAwesomeIcon.Check : FontAwesomeIcon.Copy;
-                var copyText = justCopied
-                    ? LocalizationManager.Instance.GetLocalizedString("GroupCopied")
-                    : LocalizationManager.Instance.GetLocalizedString("GroupCopyInvite");
-
-                if (UiUtils.IconButton("CopyInviteBtn", copyIcon, copyText))
+                if (sync.IsSessionHost && !string.IsNullOrWhiteSpace(sync.InviteCode))
                 {
-                    ImGui.SetClipboardText(sync.InviteCode);
-                    inviteCopiedTime = DateTime.UtcNow;
-                    connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupInviteCopied");
+                    bool justCopied = (DateTime.UtcNow - inviteCopiedTime).TotalSeconds < 3.0;
+                    var copyIcon = justCopied ? FontAwesomeIcon.Check : FontAwesomeIcon.Copy;
+                    var copyText = justCopied
+                        ? LocalizationManager.Instance.GetLocalizedString("GroupCopied")
+                        : LocalizationManager.Instance.GetLocalizedString("GroupCopyInvite");
+
+                    if (UiUtils.IconButton("CopyInviteBtn", copyIcon, copyText))
+                    {
+                        ImGui.SetClipboardText(sync.InviteCode);
+                        inviteCopiedTime = DateTime.UtcNow;
+                        connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupInviteCopied");
+                    }
+                    ImGui.SameLine(0, 4.0f * scale);
                 }
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            }
 
-            if (UiUtils.IconButton("SessionInfoToggle", showSessionInfo ? FontAwesomeIcon.EyeSlash : FontAwesomeIcon.InfoCircle, LocalizationManager.Instance.GetLocalizedString("GroupSessionInfo")))
-            {
-                showSessionInfo = !showSessionInfo;
-            }
-
-            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.45f, 0.18f, 0.18f, 0.8f)))
-            using (ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.60f, 0.22f, 0.22f, 0.9f)))
-            {
-                if (UiUtils.IconButton("LeaveSessionBtn", FontAwesomeIcon.SignOutAlt, LocalizationManager.Instance.GetLocalizedString("GroupLeaveSession")))
+                if (UiUtils.IconButton("SessionInfoToggle", showSessionInfo ? FontAwesomeIcon.EyeSlash : FontAwesomeIcon.InfoCircle, LocalizationManager.Instance.GetLocalizedString("GroupSessionInfo")))
                 {
-                    _ = sync.DisconnectAsync(true);
+                    showSessionInfo = !showSessionInfo;
+                }
+
+                ImGui.SameLine(0, 4.0f * scale);
+                using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.45f, 0.18f, 0.18f, 0.8f)))
+                using (ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.60f, 0.22f, 0.22f, 0.9f)))
+                {
+                    if (UiUtils.IconButton("LeaveSessionBtn", FontAwesomeIcon.SignOutAlt, LocalizationManager.Instance.GetLocalizedString("GroupLeaveSession")))
+                    {
+                        _ = sync.DisconnectAsync(true);
+                    }
                 }
             }
+            ImGui.EndGroup();
+
+            ImGui.SetCursorScreenPos(pos);
+            ImGui.Dummy(new Vector2(availWidth, bannerHeight));
 
             if (showSessionInfo)
             {
                 ImGui.Spacing();
-                ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GroupRelayUrl")}: {plugin.Configuration.SyncServerUrl}");
-                if (!string.IsNullOrWhiteSpace(plugin.Configuration.SyncSessionId))
+                using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.09f, 0.11f, 0.8f)))
+                using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4.0f * scale))
+                using (var infoChild = ImRaii.Child("##SessionInfoDetailsBox", new Vector2(0, 26.0f * scale), true))
                 {
-                    ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GroupSessionIdLabel")}: {plugin.Configuration.SyncSessionId}");
+                    if (infoChild.Success)
+                    {
+                        ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GroupRelayUrl")}: {plugin.Configuration.SyncServerUrl}");
+                        if (!string.IsNullOrWhiteSpace(plugin.Configuration.SyncSessionId))
+                        {
+                            ImGui.SameLine(0, 12.0f * scale);
+                            ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GroupSessionIdLabel")}: {plugin.Configuration.SyncSessionId}");
+                        }
+                    }
                 }
             }
 
@@ -209,86 +259,119 @@ namespace Soulstone.Windows
 
         private void DrawDisconnectedSessionSetup(PartySyncManager sync)
         {
+            var scale = ImGuiHelpers.GlobalScale;
+            var pos = ImGui.GetCursorScreenPos();
+            var availWidth = ImGui.GetContentRegionAvail().X;
+            var setupHeight = 56.0f * scale;
+            var drawList = ImGui.GetWindowDrawList();
+
+            // Background card with subtle amber border
+            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.11f, 0.13f, 0.95f));
+            var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.50f, 0.35f, 0.15f, 0.70f));
+            var accentCol = ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudOrange);
+
+            drawList.AddRectFilled(pos, pos + new Vector2(availWidth, setupHeight), bgCol, 8.0f * scale);
+            drawList.AddRect(pos, pos + new Vector2(availWidth, setupHeight), borderCol, 8.0f * scale, ImDrawFlags.None, 1.2f);
+
+            // Left accent stripe
+            drawList.AddRectFilled(
+                pos + new Vector2(2.5f * scale, 5.0f * scale),
+                pos + new Vector2(6.0f * scale, setupHeight - 5.0f * scale),
+                accentCol,
+                2.0f * scale);
+
+            // Framed Plug Icon Emblem
+            var emblemSize = 36.0f * scale;
+            var emblemPos = pos + new Vector2(10.0f * scale, (setupHeight - emblemSize) * 0.5f);
+            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.16f, 0.12f, 0.95f)), 6.0f * scale);
+            drawList.AddRect(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), accentCol, 6.0f * scale, ImDrawFlags.None, 1.2f);
+
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ImGuiColors.DalamudOrange, FontAwesomeIcon.Plug.ToIconString());
+            var iconStr = FontAwesomeIcon.Plug.ToIconString();
+            var iconSize = ImGui.CalcTextSize(iconStr);
+            drawList.AddText(emblemPos + new Vector2((emblemSize - iconSize.X) * 0.5f, (emblemSize - iconSize.Y) * 0.5f), accentCol, iconStr);
             ImGui.PopFont();
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
-            ImGui.TextColored(ImGuiColors.DalamudOrange, LocalizationManager.Instance.GetLocalizedString("GroupRelayStatus"));
-            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            ImGui.TextDisabled($"({sync.ConnectionStatus})");
+            ImGui.SetCursorScreenPos(pos + new Vector2(emblemSize + 18.0f * scale, 12.0f * scale));
 
-            // Quick Reconnect Bar if session exists
-            if (!string.IsNullOrWhiteSpace(plugin.Configuration.SyncSessionId))
+            ImGui.BeginGroup();
             {
-                ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-                using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.18f, 0.40f, 0.25f, 0.85f)))
+                ImGui.TextColored(ImGuiColors.DalamudOrange, LocalizationManager.Instance.GetLocalizedString("GroupRelayStatus"));
+                ImGui.SameLine(0, 4.0f * scale);
+                ImGui.TextDisabled($"({sync.ConnectionStatus})");
+
+                // Quick Reconnect Bar if session exists
+                if (!string.IsNullOrWhiteSpace(plugin.Configuration.SyncSessionId))
                 {
-                    if (UiUtils.IconButton("QuickReconnectBtn", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("GroupReconnect")))
+                    ImGui.SameLine(0, 10.0f * scale);
+                    using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.18f, 0.40f, 0.25f, 0.85f)))
                     {
-                        _ = ReconnectAsync();
+                        if (UiUtils.IconButton("QuickReconnectBtn", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("GroupReconnect")))
+                        {
+                            _ = ReconnectAsync();
+                        }
+                    }
+                    ImGui.SameLine(0, 4.0f * scale);
+
+                    if (UiUtils.IconButton("ForgetSessionBtn", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("GroupForgetSession")))
+                    {
+                        _ = sync.DisconnectAsync(true);
                     }
                 }
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
 
-                if (UiUtils.IconButton("ForgetSessionBtn", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("GroupForgetSession")))
+                // Mode Selector Tabs (Join vs Host)
+                ImGui.SameLine(0, 10.0f * scale);
+                using (ImRaii.PushColor(ImGuiCol.Button, connectionTab == 0 ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f)))
                 {
-                    _ = sync.DisconnectAsync(true);
-                }
-            }
-
-            // Mode Selector Tabs (Join vs Host)
-            ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
-            using (ImRaii.PushColor(ImGuiCol.Button, connectionTab == 0 ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f)))
-            using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
-            {
-                if (ImGui.Button(WithStableId(LocalizationManager.Instance.GetLocalizedString("GroupJoinTab"), "JoinSessionTab")))
-                {
-                    connectionTab = 0;
-                }
-            }
-            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            using (ImRaii.PushColor(ImGuiCol.Button, connectionTab == 1 ? new Vector4(0.50f, 0.38f, 0.15f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f)))
-            using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
-            {
-                if (ImGui.Button(WithStableId(LocalizationManager.Instance.GetLocalizedString("GroupHostTab"), "HostSessionTab")))
-                {
-                    connectionTab = 1;
-                }
-            }
-
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-
-            if (connectionTab == 0) // Join Session
-            {
-                float inputWidth = Math.Clamp(ImGui.GetContentRegionAvail().X - 80.0f * ImGuiHelpers.GlobalScale, 160.0f * ImGuiHelpers.GlobalScale, 280.0f * ImGuiHelpers.GlobalScale);
-                ImGui.SetNextItemWidth(inputWidth);
-                ImGui.InputTextWithHint("##RelayInvite", LocalizationManager.Instance.GetLocalizedString("GroupInviteCode"), ref inviteCode, 4096);
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-
-                using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.18f, 0.45f, 0.70f, 0.9f)))
-                {
-                    if (ImGui.Button(WithStableId(LocalizationManager.Instance.GetLocalizedString("GroupJoinSession"), "JoinSessionButton")))
+                    if (UiUtils.IconTextButton("JoinSessionTab", FontAwesomeIcon.SignInAlt, LocalizationManager.Instance.GetLocalizedString("GroupJoinTab")))
                     {
-                        _ = JoinSessionAsync();
+                        connectionTab = 0;
+                    }
+                }
+                ImGui.SameLine(0, 4.0f * scale);
+                using (ImRaii.PushColor(ImGuiCol.Button, connectionTab == 1 ? new Vector4(0.50f, 0.38f, 0.15f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f)))
+                {
+                    if (UiUtils.IconTextButton("HostSessionTab", FontAwesomeIcon.PlusCircle, LocalizationManager.Instance.GetLocalizedString("GroupHostTab")))
+                    {
+                        connectionTab = 1;
+                    }
+                }
+
+                ImGui.SameLine(0, 6.0f * scale);
+
+                if (connectionTab == 0) // Join Session
+                {
+                    float inputWidth = Math.Clamp(ImGui.GetContentRegionAvail().X - 80.0f * scale, 160.0f * scale, 280.0f * scale);
+                    UiUtils.StyledInputText("RelayInvite", ref inviteCode, 4096, width: inputWidth / scale, hint: LocalizationManager.Instance.GetLocalizedString("GroupInviteCode"));
+                    ImGui.SameLine(0, 4.0f * scale);
+
+                    using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.18f, 0.45f, 0.70f, 0.9f)))
+                    {
+                        if (UiUtils.IconTextButton("JoinSessionButton", FontAwesomeIcon.SignInAlt, LocalizationManager.Instance.GetLocalizedString("GroupJoinSession")))
+                        {
+                            _ = JoinSessionAsync();
+                        }
+                    }
+                }
+                else // Host Session
+                {
+                    float inputWidth = Math.Clamp(ImGui.GetContentRegionAvail().X - 130.0f * scale, 160.0f * scale, 280.0f * scale);
+                    UiUtils.StyledInputText("RelayUrl", ref serverUrl, 512, width: inputWidth / scale, hint: LocalizationManager.Instance.GetLocalizedString("GroupRelayUrl"));
+                    ImGui.SameLine(0, 4.0f * scale);
+
+                    using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.40f, 0.32f, 0.15f, 0.9f)))
+                    {
+                        if (UiUtils.IconTextButton("CreateSessionButton", FontAwesomeIcon.PlusCircle, LocalizationManager.Instance.GetLocalizedString("GroupCreateSession")))
+                        {
+                            _ = CreateSessionAsync();
+                        }
                     }
                 }
             }
-            else // Host Session
-            {
-                float inputWidth = Math.Clamp(ImGui.GetContentRegionAvail().X - 130.0f * ImGuiHelpers.GlobalScale, 160.0f * ImGuiHelpers.GlobalScale, 280.0f * ImGuiHelpers.GlobalScale);
-                ImGui.SetNextItemWidth(inputWidth);
-                ImGui.InputTextWithHint("##RelayUrl", LocalizationManager.Instance.GetLocalizedString("GroupRelayUrl"), ref serverUrl, 512);
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+            ImGui.EndGroup();
 
-                using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.40f, 0.32f, 0.15f, 0.9f)))
-                {
-                    if (ImGui.Button(WithStableId(LocalizationManager.Instance.GetLocalizedString("GroupCreateSession"), "CreateSessionButton")))
-                    {
-                        _ = CreateSessionAsync();
-                    }
-                }
-            }
+            ImGui.SetCursorScreenPos(pos);
+            ImGui.Dummy(new Vector2(availWidth, setupHeight));
 
             if (!string.IsNullOrWhiteSpace(connectionMessage))
             {
@@ -337,40 +420,69 @@ namespace Soulstone.Windows
             var requests = PartySyncManager.Instance.PendingRollRequests.Values.ToList();
             if (requests.Count == 0) return;
 
+            var scale = ImGuiHelpers.GlobalScale;
+
             foreach (var request in requests)
             {
-                using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.30f, 0.22f, 0.08f, 0.92f)))
+                using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.18f, 0.14f, 0.08f, 0.95f)))
                 using (ImRaii.PushColor(ImGuiCol.Border, ImGuiColors.ParsedGold))
-                using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * ImGuiHelpers.GlobalScale))
-                using (var requestPanel = ImRaii.Child($"##RollRequest_{request.RequestId}", new Vector2(0, 48.0f * ImGuiHelpers.GlobalScale), true))
+                using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 8.0f * scale))
+                using (var requestPanel = ImRaii.Child($"##RollRequest_{request.RequestId}", new Vector2(0, 50.0f * scale), true))
                 {
                     if (!requestPanel.Success) continue;
 
+                    var drawList = ImGui.GetWindowDrawList();
+                    var panelPos = ImGui.GetWindowPos();
+                    var panelSize = ImGui.GetWindowSize();
+
+                    // Left gold accent bar
+                    drawList.AddRectFilled(
+                        panelPos + new Vector2(2.5f * scale, 5.0f * scale),
+                        panelPos + new Vector2(6.0f * scale, panelSize.Y - 5.0f * scale),
+                        ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold),
+                        2.0f * scale);
+
+                    // Framed Dice Icon Box
+                    var iconBoxSize = 34.0f * scale;
+                    var iconBoxPos = panelPos + new Vector2(10.0f * scale, (panelSize.Y - iconBoxSize) * 0.5f);
+                    drawList.AddRectFilled(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.24f, 0.18f, 0.10f, 0.95f)), 6.0f * scale);
+                    drawList.AddRect(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold), 6.0f * scale, ImDrawFlags.None, 1.2f);
+
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20.ToIconString());
+                    var iconStr = FontAwesomeIcon.DiceD20.ToIconString();
+                    var iconSize = ImGui.CalcTextSize(iconStr);
+                    drawList.AddText(iconBoxPos + new Vector2((iconBoxSize - iconSize.X) * 0.5f, (iconBoxSize - iconSize.Y) * 0.5f), ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold), iconStr);
                     ImGui.PopFont();
-                    ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
-                    ImGui.TextColored(ImGuiColors.ParsedGold, $"{request.RequestedBy}:");
-                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.TextColored(ImGuiColors.DalamudWhite, $"{request.RollName} ({request.Formula})");
+                    ImGui.SetCursorScreenPos(panelPos + new Vector2(iconBoxSize + 18.0f * scale, 12.0f * scale));
 
-                    float reqButtonsWidth = 200.0f * ImGuiHelpers.GlobalScale;
-                    if (ImGui.GetContentRegionAvail().X > reqButtonsWidth)
+                    ImGui.BeginGroup();
                     {
-                        ImGui.SameLine(ImGui.GetWindowWidth() - reqButtonsWidth - 16.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TextColored(ImGuiColors.ParsedGold, $"{request.RequestedBy}:");
+                        ImGui.SameLine(0, 6.0f * scale);
+                        ImGui.TextColored(ImGuiColors.DalamudWhite, request.RollName);
+                        ImGui.SameLine(0, 8.0f * scale);
+                        UiUtils.PillBadge(request.Formula, new Vector4(0.28f, 0.22f, 0.10f, 0.9f), ImGuiColors.ParsedGold, FontAwesomeIcon.Dice);
+                    }
+                    ImGui.EndGroup();
+
+                    float reqButtonsWidth = 220.0f * scale;
+                    float avail = ImGui.GetContentRegionAvail().X;
+                    if (avail > reqButtonsWidth)
+                    {
+                        ImGui.SameLine(panelPos.X + panelSize.X - reqButtonsWidth - 10.0f * scale);
                     }
 
                     using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.20f, 0.55f, 0.28f, 0.9f)))
                     {
-                        if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("GroupRollNow")}##{request.RequestId}"))
+                        if (UiUtils.IconTextButton($"RollReqNow_{request.RequestId}", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("GroupRollNow")))
                         {
                             PartySyncManager.Instance.ExecuteRollRequest(request.RequestId);
                         }
                     }
 
-                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("GroupDismissRoll")}##{request.RequestId}"))
+                    ImGui.SameLine(0, 6.0f * scale);
+                    if (UiUtils.IconTextButton($"RollReqDismiss_{request.RequestId}", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("GroupDismissRoll")))
                     {
                         PartySyncManager.Instance.DismissRollRequest(request.RequestId);
                     }
@@ -468,13 +580,7 @@ namespace Soulstone.Windows
             ImGui.Spacing();
 
             // Row 2: Search & Filter Chips
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, FontAwesomeIcon.Search.ToIconString());
-            ImGui.PopFont();
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-
-            ImGui.SetNextItemWidth(220.0f * ImGuiHelpers.GlobalScale);
-            ImGui.InputTextWithHint("##GroupSearch", LocalizationManager.Instance.GetLocalizedString("GroupSearchHint"), ref searchQuery, 64);
+            UiUtils.StyledInputText("GroupSearch", ref searchQuery, 64, width: 220.0f, hint: LocalizationManager.Instance.GetLocalizedString("GroupSearchHint"), icon: FontAwesomeIcon.Search);
 
             ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
 
@@ -597,35 +703,54 @@ namespace Soulstone.Windows
             bool isLeader = member.IsPartyLeader;
             bool isLocal = string.Equals(member.CharacterName, PartySyncManager.Instance.GetLocalPlayerName(), StringComparison.OrdinalIgnoreCase);
 
-            using (var card = ImRaii.Group())
+            var (roleBg, roleTextCol) = GetJobBadgeColors(member.JobName);
+            var accentColor = isLeader ? ImGuiColors.ParsedGold : (isLocal ? ImGuiColors.ParsedBlue : roleTextCol);
+
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.11f, 0.14f, 0.95f)))
+            using (ImRaii.PushColor(ImGuiCol.Border, isLeader ? new Vector4(0.85f, 0.70f, 0.25f, 0.85f) : (isLocal ? new Vector4(0.30f, 0.55f, 0.85f, 0.75f) : new Vector4(0.24f, 0.26f, 0.32f, 0.65f))))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 8.0f * ImGuiHelpers.GlobalScale))
+            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(12.0f, 10.0f) * ImGuiHelpers.GlobalScale))
+            using (var cardChild = ImRaii.Child($"MemberCardFrame_{member.CharacterName}", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar))
             {
-                DrawCardHeader(member, isLeader, isLocal);
-                ImGui.Spacing();
-                ImGui.Separator();
-                ImGui.Spacing();
-
-                DrawCardVitals(member);
-
-                if (member.ActiveBuffs != null && member.ActiveBuffs.Count > 0)
+                if (cardChild.Success)
                 {
-                    DrawCardBuffs(member.ActiveBuffs);
-                }
+                    var drawList = ImGui.GetWindowDrawList();
+                    var cardPos = ImGui.GetWindowPos();
+                    var cardSize = ImGui.GetWindowSize();
+                    drawList.AddRectFilled(
+                        cardPos + new Vector2(2.5f * ImGuiHelpers.GlobalScale, 6.0f * ImGuiHelpers.GlobalScale),
+                        cardPos + new Vector2(6.0f * ImGuiHelpers.GlobalScale, cardSize.Y - 6.0f * ImGuiHelpers.GlobalScale),
+                        ImGui.ColorConvertFloat4ToU32(accentColor),
+                        2.0f * ImGuiHelpers.GlobalScale);
 
-                if (!string.IsNullOrWhiteSpace(member.LastRollSummary))
-                {
-                    DrawCardLastRoll(member.LastRollSummary);
-                }
+                    DrawCardHeader(member, isLeader, isLocal);
+                    ImGui.Spacing();
+                    UiUtils.DrawOrnamentalDivider(accentColor: accentColor);
+                    ImGui.Spacing();
 
-                // DM Roll Drawer
-                if (PartySyncManager.Instance.IsSessionHost && member.HasSoulstone)
-                {
-                    DrawDmRollDrawer(member);
-                }
+                    DrawCardVitals(member);
 
-                // Decrypted Private Stats (DM View)
-                if (PartySyncManager.Instance.IsSessionHost && member.HasPrivateStats)
-                {
-                    DrawDmPrivateStats(member);
+                    if (member.ActiveBuffs != null && member.ActiveBuffs.Count > 0)
+                    {
+                        DrawCardBuffs(member.ActiveBuffs);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(member.LastRollSummary))
+                    {
+                        DrawCardLastRoll(member.LastRollSummary);
+                    }
+
+                    // DM Roll Drawer
+                    if (PartySyncManager.Instance.IsSessionHost && member.HasSoulstone)
+                    {
+                        DrawDmRollDrawer(member);
+                    }
+
+                    // Decrypted Private Stats (DM View)
+                    if (PartySyncManager.Instance.IsSessionHost && member.HasPrivateStats)
+                    {
+                        DrawDmPrivateStats(member);
+                    }
                 }
             }
 
@@ -634,64 +759,85 @@ namespace Soulstone.Windows
 
         private void DrawCardHeader(PartyMemberSyncData member, bool isLeader, bool isLocal)
         {
-            // Icon & Role
-            ImGui.PushFont(UiBuilder.IconFont);
+            var (jobBg, jobCol) = GetJobBadgeColors(member.JobName);
             var roleIcon = isLeader ? FontAwesomeIcon.Crown : GetJobRoleIcon(member.JobName);
-            var iconColor = isLeader ? ImGuiColors.ParsedGold : ImGuiColors.DalamudWhite;
-            ImGui.TextColored(iconColor, roleIcon.ToIconString());
+            var iconColor = isLeader ? ImGuiColors.ParsedGold : jobCol;
+
+            var scale = ImGuiHelpers.GlobalScale;
+            var emblemSize = 34.0f * scale;
+            var pos = ImGui.GetCursorScreenPos();
+            var drawList = ImGui.GetWindowDrawList();
+
+            drawList.AddRectFilled(pos, pos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.16f, 0.17f, 0.22f, 0.95f)), 6.0f * scale);
+            drawList.AddRect(pos, pos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(iconColor), 6.0f * scale, ImDrawFlags.None, 1.2f);
+
+            ImGui.PushFont(UiBuilder.IconFont);
+            var iconStr = roleIcon.ToIconString();
+            var iconSize = ImGui.CalcTextSize(iconStr);
+            var iconCenter = pos + new Vector2((emblemSize - iconSize.X) * 0.5f, (emblemSize - iconSize.Y) * 0.5f);
+            drawList.AddText(iconCenter, ImGui.ColorConvertFloat4ToU32(iconColor), iconStr);
             ImGui.PopFont();
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
-            // Name & World
-            ImGui.TextColored(ImGuiColors.DalamudWhite, member.CharacterName);
+            ImGui.SetCursorScreenPos(pos + new Vector2(emblemSize + 10.0f * scale, 0));
 
-            if (!string.IsNullOrWhiteSpace(member.WorldName))
+            ImGui.BeginGroup();
             {
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                ImGui.TextDisabled($"({member.WorldName})");
-            }
+                // Name & World
+                ImGui.TextColored(ImGuiColors.DalamudWhite, member.CharacterName);
 
-            // Job Badge
-            if (!string.IsNullOrWhiteSpace(member.JobName))
-            {
-                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                var (jobBg, jobCol) = GetJobBadgeColors(member.JobName);
-                UiUtils.Badge(member.JobName, jobBg, jobCol);
-            }
+                if (!string.IsNullOrWhiteSpace(member.WorldName))
+                {
+                    ImGui.SameLine(0, 6.0f * scale);
+                    ImGui.TextDisabled($"({member.WorldName})");
+                }
 
-            // Badges
-            if (isLeader)
-            {
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupBadgeLeader"), new Vector4(0.38f, 0.30f, 0.12f, 0.9f), ImGuiColors.ParsedGold);
-            }
+                // Badges row
+                if (!string.IsNullOrWhiteSpace(member.JobName))
+                {
+                    UiUtils.PillBadge(member.JobName, jobBg, jobCol);
+                    ImGui.SameLine(0, 6.0f * scale);
+                }
 
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (member.HasSoulstone)
-            {
-                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupStatusConnected"), new Vector4(0.14f, 0.38f, 0.20f, 0.9f), ImGuiColors.ParsedGreen);
-            }
-            else
-            {
-                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupStatusNoSoulstone"), new Vector4(0.25f, 0.25f, 0.25f, 0.85f), ImGuiColors.DalamudGrey);
-            }
+                if (isLeader)
+                {
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupBadgeLeader"), new Vector4(0.38f, 0.30f, 0.12f, 0.9f), ImGuiColors.ParsedGold, FontAwesomeIcon.Crown);
+                    ImGui.SameLine(0, 6.0f * scale);
+                }
 
-            if (!string.IsNullOrWhiteSpace(member.ActiveRulesetName))
-            {
-                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                string rulesetBadge = $"Ruleset: {member.ActiveRulesetName}";
-                var rulesetBg = member.IsRulesetInSync ? new Vector4(0.15f, 0.30f, 0.45f, 0.9f) : new Vector4(0.50f, 0.25f, 0.10f, 0.9f);
-                var rulesetCol = member.IsRulesetInSync ? ImGuiColors.ParsedBlue : ImGuiColors.ParsedOrange;
-                UiUtils.Badge(rulesetBadge, rulesetBg, rulesetCol);
+                if (member.HasSoulstone)
+                {
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupStatusConnected"), new Vector4(0.14f, 0.38f, 0.20f, 0.9f), ImGuiColors.ParsedGreen, FontAwesomeIcon.CheckCircle);
+                }
+                else
+                {
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupStatusNoSoulstone"), new Vector4(0.25f, 0.25f, 0.25f, 0.85f), ImGuiColors.DalamudGrey, FontAwesomeIcon.TimesCircle);
+                }
+
+                if (!string.IsNullOrWhiteSpace(member.ActiveRulesetName))
+                {
+                    ImGui.SameLine(0, 6.0f * scale);
+                    string rulesetBadge = $"{member.ActiveRulesetName}";
+                    var rulesetBg = member.IsRulesetInSync ? new Vector4(0.15f, 0.30f, 0.45f, 0.9f) : new Vector4(0.50f, 0.25f, 0.10f, 0.9f);
+                    var rulesetCol = member.IsRulesetInSync ? ImGuiColors.ParsedBlue : ImGuiColors.ParsedOrange;
+                    UiUtils.PillBadge(rulesetBadge, rulesetBg, rulesetCol, FontAwesomeIcon.DiceD20);
+                }
             }
+            ImGui.EndGroup();
 
             // Right-aligned quick toggles
             if (PartySyncManager.Instance.IsSessionHost && member.HasSoulstone)
             {
-                float actionsWidth = 140.0f * ImGuiHelpers.GlobalScale;
-                if (ImGui.GetContentRegionAvail().X > actionsWidth)
+                float actionsWidth = 190.0f * scale;
+                var currentX = ImGui.GetCursorPosX();
+                var availWidth = ImGui.GetContentRegionAvail().X;
+                if (availWidth > actionsWidth)
                 {
-                    ImGui.SameLine(ImGui.GetWindowWidth() - actionsWidth - 16.0f * ImGuiHelpers.GlobalScale);
+                    ImGui.SameLine(0, 0);
+                    ImGui.SetCursorPosX(currentX + availWidth - actionsWidth);
+                }
+                else
+                {
+                    ImGui.SameLine(0, 8.0f * scale);
                 }
 
                 bool isRollExpanded = expandedRollDrawers.Contains(member.CharacterName);
@@ -706,7 +852,7 @@ namespace Soulstone.Windows
 
                 if (member.HasPrivateStats)
                 {
-                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                    ImGui.SameLine(0, 6.0f * scale);
                     bool isStatsExpanded = expandedStatsMembers.Contains(member.CharacterName);
                     using (ImRaii.PushColor(ImGuiCol.Button, isStatsExpanded ? new Vector4(0.20f, 0.40f, 0.60f, 0.9f) : new Vector4(0.20f, 0.22f, 0.28f, 0.8f)))
                     {
@@ -727,13 +873,8 @@ namespace Soulstone.Windows
             {
                 float hpFraction = Math.Clamp((float)member.CurrentHp / member.MaxHp, 0.0f, 1.0f);
                 string hpOverlay = $"{LocalizationManager.Instance.GetLocalizedString("GroupHealth")}: {member.CurrentHp} / {member.MaxHp} ({(int)(hpFraction * 100)}%)";
-
                 Vector4 hpColor = GetHpBarColor(hpFraction);
-                using (ImRaii.PushColor(ImGuiCol.PlotHistogram, hpColor))
-                using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
-                {
-                    ImGui.ProgressBar(hpFraction, new Vector2(-1.0f, 18.0f * ImGuiHelpers.GlobalScale), hpOverlay);
-                }
+                UiUtils.DrawProgressBar(member.CurrentHp, member.MaxHp, hpOverlay, new Vector2(-1.0f, 18.0f * ImGuiHelpers.GlobalScale), hpColor);
             }
 
             // Mana Bar
@@ -741,12 +882,8 @@ namespace Soulstone.Windows
             {
                 float manaFraction = Math.Clamp((float)member.CurrentMana / member.MaxMana, 0.0f, 1.0f);
                 string manaOverlay = $"{LocalizationManager.Instance.GetLocalizedString("GroupMana")}: {member.CurrentMana} / {member.MaxMana} ({(int)(manaFraction * 100)}%)";
-
-                using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.20f, 0.50f, 0.85f, 0.9f)))
-                using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
-                {
-                    ImGui.ProgressBar(manaFraction, new Vector2(-1.0f, 15.0f * ImGuiHelpers.GlobalScale), manaOverlay);
-                }
+                ImGui.Spacing();
+                UiUtils.DrawProgressBar(member.CurrentMana, member.MaxMana, manaOverlay, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), new Vector4(0.20f, 0.50f, 0.85f, 0.9f));
             }
 
             // Custom Resources
@@ -759,20 +896,15 @@ namespace Soulstone.Windows
                     if (resType == (int)ResourceType.FlatNumber)
                     {
                         string flatLabel = $"{kv.Key}: {kv.Value}";
-                        UiUtils.Badge(flatLabel, new Vector4(0.30f, 0.18f, 0.38f, 0.85f), ImGuiColors.DalamudViolet);
-                        ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                        UiUtils.PillBadge(flatLabel, new Vector4(0.30f, 0.18f, 0.38f, 0.85f), ImGuiColors.DalamudViolet, FontAwesomeIcon.Bolt);
+                        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     }
                     else
                     {
                         int resMax = member.CustomResourceMaxes.TryGetValue(kv.Key, out int mVal) && mVal > 0 ? mVal : 100;
-                        float fraction = Math.Clamp((float)kv.Value / resMax, 0.0f, 1.0f);
                         string overlay = $"{kv.Key}: {kv.Value} / {resMax}";
-
-                        using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.60f, 0.35f, 0.75f, 0.9f)))
-                        using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
-                        {
-                            ImGui.ProgressBar(fraction, new Vector2(-1.0f, 14.0f * ImGuiHelpers.GlobalScale), overlay);
-                        }
+                        UiUtils.DrawProgressBar(kv.Value, resMax, overlay, new Vector2(-1.0f, 15.0f * ImGuiHelpers.GlobalScale), new Vector4(0.60f, 0.35f, 0.75f, 0.9f));
+                        ImGui.Spacing();
                     }
                 }
             }
@@ -795,7 +927,7 @@ namespace Soulstone.Windows
                 var buffBg = buff.IsDebuff ? new Vector4(0.48f, 0.16f, 0.16f, 0.9f) : new Vector4(0.16f, 0.40f, 0.22f, 0.9f);
                 var buffCol = buff.IsDebuff ? ImGuiColors.DalamudRed : ImGuiColors.ParsedGreen;
 
-                UiUtils.Badge(buffLabel, buffBg, buffCol);
+                UiUtils.PillBadge(buffLabel, buffBg, buffCol, buff.IsDebuff ? FontAwesomeIcon.ExclamationCircle : FontAwesomeIcon.Bolt);
 
                 if (ImGui.IsItemHovered())
                 {
@@ -821,9 +953,9 @@ namespace Soulstone.Windows
         private void DrawCardLastRoll(string rollSummary)
         {
             ImGui.Spacing();
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.12f, 0.15f, 0.8f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.09f, 0.12f, 0.9f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4.0f * ImGuiHelpers.GlobalScale))
-            using (var rollBox = ImRaii.Child($"##LastRollBox", new Vector2(0, 26.0f * ImGuiHelpers.GlobalScale), true))
+            using (var rollBox = ImRaii.Child($"##LastRollBox", new Vector2(0, 28.0f * ImGuiHelpers.GlobalScale), true))
             {
                 if (rollBox.Success)
                 {
@@ -847,11 +979,17 @@ namespace Soulstone.Windows
             int curStatValue = memberRollStatValues.TryGetValue(member.CharacterName, out var sVal) ? sVal : 0;
 
             ImGui.Spacing();
-            using (var drawer = ImRaii.Group())
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.09f, 0.11f, 0.85f)))
+            using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.35f, 0.30f, 0.15f, 0.75f)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * ImGuiHelpers.GlobalScale))
+            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 8.0f) * ImGuiHelpers.GlobalScale))
+            using (var drawer = ImRaii.Child($"DmRollDrawer_{member.CharacterName}", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar))
             {
+                if (!drawer.Success) return;
+
                 ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("GroupQuickRoll")}: {member.CharacterName}");
                 ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-                UiUtils.Badge(DiceRoll.DescribeSystemRoll(diceSystem, curStatValue), new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
+                UiUtils.PillBadge(DiceRoll.DescribeSystemRoll(diceSystem, curStatValue), new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20);
                 ImGui.Spacing();
 
                 // Rolls honour the active dice system by default; unchecking allows a raw formula.
@@ -876,13 +1014,19 @@ namespace Soulstone.Windows
                     }
                 }
 
+                ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
+                ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollCheck")}##RollPriv_{member.CharacterName}", ref rollPrivate);
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollTooltip"));
+                }
+
                 ImGui.Spacing();
 
                 string curName = memberRollNames.TryGetValue(member.CharacterName, out var nVal) ? nVal : rollName;
                 string curFormula = memberRollFormulas.TryGetValue(member.CharacterName, out var fVal) ? fVal : $"1d{DiceRoll.GetSystemSides(diceSystem)}";
 
-                ImGui.SetNextItemWidth(140.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.InputTextWithHint($"##RollName_{member.CharacterName}", LocalizationManager.Instance.GetLocalizedString("GroupRollName"), ref curName, 128))
+                if (UiUtils.StyledInputText($"RollName_{member.CharacterName}", ref curName, 128, width: 140.0f, hint: LocalizationManager.Instance.GetLocalizedString("GroupRollName")))
                 {
                     memberRollNames[member.CharacterName] = curName;
                 }
@@ -891,16 +1035,17 @@ namespace Soulstone.Windows
                 if (useSystemDice)
                 {
                     // The single value means modifier, pool size or target depending on the system.
-                    ImGui.SetNextItemWidth(120.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.InputInt($"{GetSystemStatLabel(diceSystem)}##RollStat_{member.CharacterName}", ref curStatValue))
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.TextDisabled(GetSystemStatLabel(diceSystem));
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                    if (UiUtils.StyledInputInt($"RollStat_{member.CharacterName}", ref curStatValue, step: 1, width: 60.0f))
                     {
                         memberRollStatValues[member.CharacterName] = curStatValue;
                     }
                 }
                 else
                 {
-                    ImGui.SetNextItemWidth(120.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.InputTextWithHint($"##RollFormula_{member.CharacterName}", LocalizationManager.Instance.GetLocalizedString("GroupRollFormula"), ref curFormula, 128))
+                    if (UiUtils.StyledInputText($"RollFormula_{member.CharacterName}", ref curFormula, 128, width: 120.0f, hint: LocalizationManager.Instance.GetLocalizedString("GroupRollFormula")))
                     {
                         memberRollFormulas[member.CharacterName] = curFormula;
                     }
@@ -909,15 +1054,15 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
                 using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.20f, 0.45f, 0.70f, 0.9f)))
                 {
-                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("GroupRequestRoll")}##{member.CharacterName}"))
+                    if (UiUtils.IconTextButton($"ReqRoll_{member.CharacterName}", FontAwesomeIcon.Bullhorn, LocalizationManager.Instance.GetLocalizedString("GroupRequestRoll")))
                     {
                         if (useSystemDice)
                         {
-                            PartySyncManager.Instance.RequestRollWithSystem(member.CharacterName, curName, curStatValue, rollAdvantage, rollDisadvantage);
+                            PartySyncManager.Instance.RequestRollWithSystem(member.CharacterName, curName, curStatValue, rollAdvantage, rollDisadvantage, rollPrivate);
                         }
                         else
                         {
-                            PartySyncManager.Instance.RequestRoll(member.CharacterName, curFormula, curName, rollAdvantage, rollDisadvantage);
+                            PartySyncManager.Instance.RequestRoll(member.CharacterName, curFormula, curName, rollAdvantage, rollDisadvantage, rollPrivate);
                         }
                     }
                 }
@@ -925,15 +1070,15 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                 using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.40f, 0.32f, 0.12f, 0.9f)))
                 {
-                    if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("GroupRollForMember")}##{member.CharacterName}"))
+                    if (UiUtils.IconTextButton($"RollFor_{member.CharacterName}", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("GroupRollForMember")))
                     {
                         if (useSystemDice)
                         {
-                            PartySyncManager.Instance.RollForMemberWithSystem(member.CharacterName, curName, curStatValue, rollAdvantage, rollDisadvantage);
+                            PartySyncManager.Instance.RollForMemberWithSystem(member.CharacterName, curName, curStatValue, rollAdvantage, rollDisadvantage, isPrivate: rollPrivate);
                         }
                         else
                         {
-                            PartySyncManager.Instance.RollForMember(member.CharacterName, curFormula, curName, rollAdvantage, rollDisadvantage);
+                            PartySyncManager.Instance.RollForMember(member.CharacterName, curFormula, curName, rollAdvantage, rollDisadvantage, rollPrivate);
                         }
                     }
                 }
@@ -957,8 +1102,14 @@ namespace Soulstone.Windows
             if (!expandedStatsMembers.Contains(member.CharacterName)) return;
 
             ImGui.Spacing();
-            using (var statsGroup = ImRaii.Group())
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.09f, 0.11f, 0.85f)))
+            using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.20f, 0.35f, 0.55f, 0.75f)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * ImGuiHelpers.GlobalScale))
+            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 8.0f) * ImGuiHelpers.GlobalScale))
+            using (var statsGroup = ImRaii.Child($"DmStatsDrawer_{member.CharacterName}", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar))
             {
+                if (!statsGroup.Success) return;
+
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.TextColored(ImGuiColors.ParsedBlue, FontAwesomeIcon.Scroll.ToIconString());
                 ImGui.PopFont();
@@ -968,7 +1119,7 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
 
                 string levelClassText = $"{LocalizationManager.Instance.GetLocalizedString("LevelLabel")} {member.Level} | {member.ClassName}";
-                UiUtils.Badge(levelClassText, new Vector4(0.20f, 0.30f, 0.45f, 0.85f), ImGuiColors.ParsedBlue);
+                UiUtils.PillBadge(levelClassText, new Vector4(0.20f, 0.30f, 0.45f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.Medal);
 
                 ImGui.Spacing();
                 ImGui.Separator();
@@ -1005,9 +1156,8 @@ namespace Soulstone.Windows
             {
                 string chipText = $"{kv.Key}: {kv.Value}";
                 using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.18f, 0.22f, 0.28f, 0.85f)))
-                using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * ImGuiHelpers.GlobalScale))
                 {
-                    if (ImGui.SmallButton($"{chipText} 🎲##Stat_{memberName}_{kv.Key}"))
+                    if (UiUtils.IconTextButton($"Stat_{memberName}_{kv.Key}", FontAwesomeIcon.DiceD20, chipText))
                     {
                         PartySyncManager.Instance.RollForMemberWithSystem(memberName, $"{kv.Key} Check", kv.Value, rollAdvantage, rollDisadvantage);
                     }
@@ -1065,10 +1215,7 @@ namespace Soulstone.Windows
                     if (member.MaxHp > 0)
                     {
                         float hpFraction = Math.Clamp((float)member.CurrentHp / member.MaxHp, 0.0f, 1.0f);
-                        using (ImRaii.PushColor(ImGuiCol.PlotHistogram, GetHpBarColor(hpFraction)))
-                        {
-                            ImGui.ProgressBar(hpFraction, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), $"{member.CurrentHp}/{member.MaxHp}");
-                        }
+                        UiUtils.DrawProgressBar(member.CurrentHp, member.MaxHp, $"{member.CurrentHp}/{member.MaxHp}", new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), GetHpBarColor(hpFraction));
                     }
                     else
                     {
@@ -1080,10 +1227,7 @@ namespace Soulstone.Windows
                     if (member.MaxMana > 0)
                     {
                         float manaFraction = Math.Clamp((float)member.CurrentMana / member.MaxMana, 0.0f, 1.0f);
-                        using (ImRaii.PushColor(ImGuiCol.PlotHistogram, new Vector4(0.20f, 0.50f, 0.85f, 0.9f)))
-                        {
-                            ImGui.ProgressBar(manaFraction, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), $"{member.CurrentMana}/{member.MaxMana}");
-                        }
+                        UiUtils.DrawProgressBar(member.CurrentMana, member.MaxMana, $"{member.CurrentMana}/{member.MaxMana}", new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), new Vector4(0.20f, 0.50f, 0.85f, 0.9f));
                     }
                     else
                     {
@@ -1161,15 +1305,14 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
 
                 // Quick presets, expressed with the active dice system instead of a fixed d20
-                if (ImGui.SmallButton($"Perception {systemFormula}")) { batchRollName = "Perception Check"; batchRollFormula = systemFormula; }
+                if (UiUtils.IconTextButton("BatchPresetPerc", FontAwesomeIcon.Eye, $"Perception {systemFormula}")) { batchRollName = "Perception Check"; batchRollFormula = systemFormula; }
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.SmallButton($"Initiative {systemFormula}")) { batchRollName = "Initiative"; batchRollFormula = systemFormula; }
+                if (UiUtils.IconTextButton("BatchPresetInit", FontAwesomeIcon.Stopwatch, $"Initiative {systemFormula}")) { batchRollName = "Initiative"; batchRollFormula = systemFormula; }
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.SmallButton($"Save {systemFormula}")) { batchRollName = "Saving Throw"; batchRollFormula = systemFormula; }
+                if (UiUtils.IconTextButton("BatchPresetSave", FontAwesomeIcon.ShieldAlt, $"Save {systemFormula}")) { batchRollName = "Saving Throw"; batchRollFormula = systemFormula; }
 
                 ImGui.Spacing();
-                ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputTextWithHint("##BatchRollName", LocalizationManager.Instance.GetLocalizedString("GroupRollName"), ref batchRollName, 128);
+                UiUtils.StyledInputText("BatchRollName", ref batchRollName, 128, width: 260.0f, hint: LocalizationManager.Instance.GetLocalizedString("GroupRollName"));
 
                 if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDice")}##BatchUseSystem", ref useSystemDice))
                 {
@@ -1183,13 +1326,21 @@ namespace Soulstone.Windows
 
                 if (useSystemDice)
                 {
-                    ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.InputInt($"{GetSystemStatLabel(diceSystem)}##BatchRollStat", ref batchRollStatValue);
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.TextDisabled(GetSystemStatLabel(diceSystem));
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                    UiUtils.StyledInputInt("BatchRollStat", ref batchRollStatValue, step: 1, width: 100.0f);
                 }
                 else
                 {
-                    ImGui.SetNextItemWidth(260.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.InputTextWithHint("##BatchRollFormula", LocalizationManager.Instance.GetLocalizedString("GroupRollFormula"), ref batchRollFormula, 128);
+                    UiUtils.StyledInputText("BatchRollFormula", ref batchRollFormula, 128, width: 260.0f, hint: LocalizationManager.Instance.GetLocalizedString("GroupRollFormula"));
+                }
+
+                ImGui.Spacing();
+                ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollCheck")}##BatchPrivateRoll", ref rollPrivate);
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollTooltip"));
                 }
 
                 ImGui.Spacing();
@@ -1198,7 +1349,7 @@ namespace Soulstone.Windows
 
                 using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.20f, 0.50f, 0.30f, 0.9f)))
                 {
-                    if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("GroupBatchRollSend"), new Vector2(160.0f * ImGuiHelpers.GlobalScale, 0)))
+                    if (UiUtils.IconTextButton("BatchRollSendBtn", FontAwesomeIcon.PaperPlane, LocalizationManager.Instance.GetLocalizedString("GroupBatchRollSend"), size: new Vector2(160.0f * ImGuiHelpers.GlobalScale, 0)))
                     {
                         foreach (var m in PartySyncManager.Instance.ConnectedPartyMembers.Values)
                         {
@@ -1206,11 +1357,11 @@ namespace Soulstone.Windows
                             {
                                 if (useSystemDice)
                                 {
-                                    PartySyncManager.Instance.RequestRollWithSystem(m.CharacterName, batchRollName, batchRollStatValue);
+                                    PartySyncManager.Instance.RequestRollWithSystem(m.CharacterName, batchRollName, batchRollStatValue, isPrivate: rollPrivate);
                                 }
                                 else
                                 {
-                                    PartySyncManager.Instance.RequestRoll(m.CharacterName, batchRollFormula, batchRollName);
+                                    PartySyncManager.Instance.RequestRoll(m.CharacterName, batchRollFormula, batchRollName, isPrivate: rollPrivate);
                                 }
                             }
                         }
@@ -1219,7 +1370,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(100.0f * ImGuiHelpers.GlobalScale, 0)))
+                if (UiUtils.IconTextButton("BatchRollCancelBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(100.0f * ImGuiHelpers.GlobalScale, 0)))
                 {
                     showBatchRollModal = false;
                 }

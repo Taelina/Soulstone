@@ -96,8 +96,7 @@ namespace Soulstone.Tests.Datamodels
         public void GetEffectiveResourceMax_IncludesResourceBuffs()
         {
             var sheet = new CharacterSheet();
-            sheet.characterHealthPoints = 20;
-            sheet.characterMaxHealthPoints = 20;
+            sheet.characterResources["Health"] = new CharacterResource("Health", 20, 20);
             sheet.SyncResourcesWithLegacyFields();
 
             Assert.Equal(20, sheet.GetEffectiveResourceMax("Health"));

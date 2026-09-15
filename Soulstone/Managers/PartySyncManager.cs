@@ -322,22 +322,50 @@ namespace Soulstone.Managers
                             if (string.IsNullOrWhiteSpace(roll.RolledBy)) roll.RolledBy = senderName;
                             if (!string.Equals(roll.RolledBy, senderName, StringComparison.OrdinalIgnoreCase) &&
                                 !RequiresHostSignature(packet.EventType)) return;
+
+                            if (roll.IsPrivate)
+                            {
+                                bool isHost = IsSessionHost;
+                                bool isMe = string.Equals(roll.RolledBy, localName, StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(roll.CharacterName, localName, StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(roll.TargetCharacterName, localName, StringComparison.OrdinalIgnoreCase);
+                                if (!isHost && !isMe) return;
+                            }
+
                             if (ConnectedPartyMembers.TryGetValue(roll.CharacterName, out var member))
                             {
                                 member.LastRollSummary = $"{roll.RollName}: {roll.Total} ({roll.Details})";
                                 member.LastSeen = DateTime.UtcNow;
                                 OnPartyMemberUpdated?.Invoke(member);
                             }
+
+                            DiceHistoryManager.Instance.AddEntry(new DiceHistoryEntry
+                            {
+                                CharacterName = roll.CharacterName,
+                                RolledBy = roll.RolledBy,
+                                TargetCharacterName = roll.TargetCharacterName,
+                                RollName = roll.RollName,
+                                Formula = roll.RulesetName,
+                                Total = roll.Total,
+                                Details = roll.Details,
+                                IsCriticalSuccess = roll.IsCriticalSuccess,
+                                IsCriticalFailure = roll.IsCriticalFailure,
+                                IsPrivate = roll.IsPrivate,
+                                IsLocal = isFromSelf,
+                                ResultDisplay = !string.IsNullOrWhiteSpace(roll.EchoMessage) ? roll.EchoMessage : $"{roll.Total} ({roll.Details})"
+                            });
+
                             OnRemoteDiceRolled?.Invoke(roll);
 
                             if (!isFromSelf)
                             {
+                                string prefix = roll.IsPrivate ? $"[{LocalizationManager.Instance.GetLocalizedString("RollPrivateTag")}] " : "";
                                 string rollEcho = !string.IsNullOrWhiteSpace(packet.EchoMessage)
                                     ? packet.EchoMessage
                                     : (!string.IsNullOrWhiteSpace(roll.EchoMessage)
                                         ? roll.EchoMessage
                                         : LocalizationManager.Instance.GetLocalizedString("RollEchoDefault", roll.CharacterName, roll.RollName, roll.Total, roll.Details));
-                                Messages.PrintEcho(rollEcho);
+                                Messages.PrintEcho(prefix + rollEcho);
                             }
                         }
                     }
@@ -491,7 +519,8 @@ namespace Soulstone.Managers
                                             DisplayCheckmark = false,
                                             IconId = 0
                                         };
-                                        Plugin.ToastGui.ShowQuest($"Roll Requested: {request.RollName} ({request.Formula}) by {senderName}", options);
+                                        string privTag = request.IsPrivate ? $"[{LocalizationManager.Instance.GetLocalizedString("RollPrivateTag")}] " : "";
+                                        Plugin.ToastGui.ShowQuest($"{privTag}Roll Requested: {request.RollName} ({request.Formula}) by {senderName}", options);
                                     }
                                 }
                                 catch { }
@@ -779,14 +808,14 @@ namespace Soulstone.Managers
             }
         }
 
-        public void SendPacket(SyncEventType eventType, object payload, string humanReadableEcho = "")
+        public void SendPacket(SyncEventType eventType, object payload, string humanReadableEcho = "", bool isPrivateMessage = false)
         {
             if (!string.IsNullOrWhiteSpace(humanReadableEcho)) Messages.PrintEcho(humanReadableEcho);
             if (!relayClient.IsConnected || configuration == null) return;
-            _ = SendPacketCoreAsync(eventType, payload, humanReadableEcho);
+            _ = SendPacketCoreAsync(eventType, payload, humanReadableEcho, isPrivateMessage);
         }
 
-        private async Task SendPacketCoreAsync(SyncEventType eventType, object payload, string humanReadableEcho = "")
+        private async Task SendPacketCoreAsync(SyncEventType eventType, object payload, string humanReadableEcho = "", bool isPrivateMessage = false)
         {
             if (configuration == null) return;
             try
@@ -801,7 +830,7 @@ namespace Soulstone.Managers
                     EchoMessage = humanReadableEcho
                 };
 
-                RelayEnvelope envelope = eventType == SyncEventType.PrivateStats
+                RelayEnvelope envelope = (eventType == SyncEventType.PrivateStats || isPrivateMessage)
                     ? RelayCrypto.EncryptPrivateMessage(packet, configuration.SyncHostPublicKey)
                     : RelayCrypto.EncryptGroupMessage(packet, configuration.SyncRoomKey);
                 if (IsSessionHost)
@@ -831,10 +860,10 @@ namespace Soulstone.Managers
                 CharacterName = GetLocalPlayerName(),
                 WorldName = GetLocalPlayerWorld(),
                 RulesetName = diceSys?.systemName ?? string.Empty,
-                CurrentHp = sheet?.characterHealthPoints ?? 100,
-                MaxHp = sheet?.characterMaxHealthPoints ?? 100,
-                CurrentMana = sheet?.characterManaPoints ?? 100,
-                MaxMana = sheet?.characterMaxManaPoints ?? 100,
+                CurrentHp = sheet?.characterHealthPoints ?? 0,
+                MaxHp = sheet?.characterMaxHealthPoints ?? 0,
+                CurrentMana = sheet?.characterManaPoints ?? 0,
+                MaxMana = sheet?.characterMaxManaPoints ?? 0,
                 ActiveBuffs = sheet?.activeBuffs != null ? new List<Buff>(sheet.activeBuffs) : new List<Buff>()
             };
 
@@ -858,7 +887,7 @@ namespace Soulstone.Managers
             OnPartyMemberUpdated?.Invoke(localData);
         }
 
-        public void BroadcastDiceRoll(string rollName, int total, string details, bool isCritSuccess = false, bool isCritFailure = false, string echoText = "", string? characterName = null)
+        public void BroadcastDiceRoll(string rollName, int total, string details, bool isCritSuccess = false, bool isCritFailure = false, string echoText = "", string? characterName = null, bool isPrivate = false, string? targetCharacterName = null)
         {
             string roller = GetLocalPlayerName();
             string actor = string.IsNullOrWhiteSpace(characterName) ? roller : characterName;
@@ -866,28 +895,55 @@ namespace Soulstone.Managers
                 ? echoText
                 : LocalizationManager.Instance.GetLocalizedString("RollEchoDefault", actor, rollName, total, details);
 
+            if (isPrivate)
+            {
+                string privPrefix = $"[{LocalizationManager.Instance.GetLocalizedString("RollPrivateTag")}] ";
+                if (!echo.StartsWith(privPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    echo = privPrefix + echo;
+                }
+            }
+
             var payload = new DiceRollPayload
             {
                 CharacterName = actor,
                 RolledBy = roller,
+                TargetCharacterName = targetCharacterName ?? string.Empty,
                 RollName = rollName,
                 Total = total,
                 Details = details,
                 IsCriticalSuccess = isCritSuccess,
                 IsCriticalFailure = isCritFailure,
                 RulesetName = DiceSystemManager.Instance.CurrentDiceSystem?.systemName ?? string.Empty,
-                EchoMessage = echo
+                EchoMessage = echo,
+                IsPrivate = isPrivate
             };
 
-            SendPacket(SyncEventType.DiceRoll, payload, echo);
+            SendPacket(SyncEventType.DiceRoll, payload, echo, isPrivateMessage: isPrivate && !IsSessionHost);
 
             var member = ConnectedPartyMembers.GetOrAdd(actor, name => new PartyMemberSyncData { CharacterName = name });
             member.LastRollSummary = $"{rollName}: {total} ({details})";
             member.LastSeen = DateTime.UtcNow;
             OnPartyMemberUpdated?.Invoke(member);
+
+            DiceHistoryManager.Instance.AddEntry(new DiceHistoryEntry
+            {
+                CharacterName = actor,
+                RolledBy = roller,
+                TargetCharacterName = targetCharacterName ?? string.Empty,
+                RollName = rollName,
+                Formula = DiceSystemManager.Instance.CurrentDiceSystem?.systemName ?? string.Empty,
+                Total = total,
+                Details = details,
+                IsCriticalSuccess = isCritSuccess,
+                IsCriticalFailure = isCritFailure,
+                IsPrivate = isPrivate,
+                IsLocal = true,
+                ResultDisplay = echo
+            });
         }
 
-        public bool RequestRoll(string targetName, string formula, string rollName, bool advantage = false, bool disadvantage = false)
+        public bool RequestRoll(string targetName, string formula, string rollName, bool advantage = false, bool disadvantage = false, bool isPrivate = false)
         {
             if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName) || string.IsNullOrWhiteSpace(formula)) return false;
             var request = new RollRequestPayload
@@ -897,14 +953,16 @@ namespace Soulstone.Managers
                 RollName = string.IsNullOrWhiteSpace(rollName) ? formula : rollName.Trim(),
                 Formula = formula.Replace(" ", string.Empty),
                 Advantage = advantage,
-                Disadvantage = disadvantage
+                Disadvantage = disadvantage,
+                IsPrivate = isPrivate
             };
-            SendPacket(SyncEventType.RollRequest, request, LocalizationManager.Instance.GetLocalizedString("RollRequestedEcho", targetName, request.RollName, request.Formula));
+            string privPrefix = isPrivate ? $"[{LocalizationManager.Instance.GetLocalizedString("RollPrivateTag")}] " : "";
+            SendPacket(SyncEventType.RollRequest, request, privPrefix + LocalizationManager.Instance.GetLocalizedString("RollRequestedEcho", targetName, request.RollName, request.Formula));
             return true;
         }
 
         // Asks the target to roll with their own dice system rather than a fixed d20 formula.
-        public bool RequestRollWithSystem(string targetName, string rollName, int statValue = 0, bool advantage = false, bool disadvantage = false)
+        public bool RequestRollWithSystem(string targetName, string rollName, int statValue = 0, bool advantage = false, bool disadvantage = false, bool isPrivate = false)
         {
             if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName)) return false;
             var diceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
@@ -917,32 +975,34 @@ namespace Soulstone.Managers
                 Advantage = advantage,
                 Disadvantage = disadvantage,
                 UseSystemDice = true,
-                StatValue = statValue
+                StatValue = statValue,
+                IsPrivate = isPrivate
             };
-            SendPacket(SyncEventType.RollRequest, request, LocalizationManager.Instance.GetLocalizedString("RollRequestedEcho", targetName, request.RollName, request.Formula));
+            string privPrefix = isPrivate ? $"[{LocalizationManager.Instance.GetLocalizedString("RollPrivateTag")}] " : "";
+            SendPacket(SyncEventType.RollRequest, request, privPrefix + LocalizationManager.Instance.GetLocalizedString("RollRequestedEcho", targetName, request.RollName, request.Formula));
             return true;
         }
 
-        public bool RollForMember(string targetName, string formula, string rollName, bool advantage = false, bool disadvantage = false)
+        public bool RollForMember(string targetName, string formula, string rollName, bool advantage = false, bool disadvantage = false, bool isPrivate = false)
         {
             if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName)) return false;
             var roll = DiceRoll.ParseDiceRollString(formula.Replace(" ", string.Empty), advantage, disadvantage);
             if (roll == null) return false;
             string label = string.IsNullOrWhiteSpace(rollName) ? formula : rollName.Trim();
-            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RolledForMemberEcho", targetName, roll.RollResultString.TextValue), characterName: targetName);
+            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RolledForMemberEcho", targetName, roll.RollResultString.TextValue), characterName: targetName, isPrivate: isPrivate, targetCharacterName: targetName);
             return true;
         }
 
         // Rolls on a member's behalf using the active dice system (dice type, system type and
         // thresholds) instead of a hardcoded d20 formula.
-        public bool RollForMemberWithSystem(string targetName, string rollName, int statValue = 0, bool advantage = false, bool disadvantage = false, int rawSuccesses = 0)
+        public bool RollForMemberWithSystem(string targetName, string rollName, int statValue = 0, bool advantage = false, bool disadvantage = false, int rawSuccesses = 0, bool isPrivate = false)
         {
             if (!IsSessionHost || string.IsNullOrWhiteSpace(targetName)) return false;
             var diceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
             string label = string.IsNullOrWhiteSpace(rollName) ? DiceRoll.DescribeSystemRoll(diceSystem, statValue) : rollName.Trim();
             var roll = DiceRoll.RollStatWithSystem(diceSystem, label, statValue, advantage, disadvantage, rawSuccesses);
             if (roll == null) return false;
-            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RolledForMemberEcho", targetName, roll.RollResultString.TextValue), characterName: targetName);
+            BroadcastDiceRoll(label, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RolledForMemberEcho", targetName, roll.RollResultString.TextValue), characterName: targetName, isPrivate: isPrivate, targetCharacterName: targetName);
             return true;
         }
 
@@ -953,7 +1013,7 @@ namespace Soulstone.Managers
                 ? DiceRoll.RollStatWithSystem(DiceSystemManager.Instance.CurrentDiceSystem, request.RollName, request.StatValue, request.Advantage, request.Disadvantage)
                 : DiceRoll.ParseDiceRollString(request.Formula, request.Advantage, request.Disadvantage);
             if (roll == null) return false;
-            BroadcastDiceRoll(request.RollName, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RollEchoResult", request.RollName, roll.RollResultString.TextValue));
+            BroadcastDiceRoll(request.RollName, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: LocalizationManager.Instance.GetLocalizedString("RollEchoResult", request.RollName, roll.RollResultString.TextValue), isPrivate: request.IsPrivate, targetCharacterName: request.RequestedBy);
             OnPartyRosterUpdated?.Invoke();
             return true;
         }

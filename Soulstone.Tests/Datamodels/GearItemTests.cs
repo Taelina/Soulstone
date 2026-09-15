@@ -162,6 +162,10 @@ namespace Soulstone.Tests.Datamodels
                 characterSkills = new Dictionary<string, Skill>
                 {
                     { "Athletics", new Skill { SkillName = "Athletics", SkillModifier = 3, LinkedAttribute = "Strength" } }
+                },
+                characterResources = new Dictionary<string, CharacterResource>
+                {
+                    { "Health", new CharacterResource("Health", 100, 100) }
                 }
             };
 

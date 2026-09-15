@@ -16,20 +16,15 @@ namespace Soulstone.Windows
 {
     internal class DiceWindow
     {
-        private struct RollHistoryEntry
-        {
-            public DateTime Timestamp;
-            public string Formula;
-            public string ResultText;
-        }
-
         private bool detailedRoll = false;
         private string rollInputText = "";
         private bool advantage = false;
         private bool disadvantage = false;
+        private bool rollPrivate = false;
 
-        private readonly List<RollHistoryEntry> rollHistory = new();
-        private const int MaxHistoryCount = 30;
+        // History Filters
+        private string historySearch = "";
+        private int historyFilter = 0; // 0: All, 1: Mine, 2: Party, 3: Private
 
         private readonly Plugin plugin;
         private readonly Configuration configuration;
@@ -113,16 +108,13 @@ namespace Soulstone.Windows
                         {
                             var roll = sheet.RollInitiative(currentSystem, advantage, disadvantage, detailedRoll);
                             InitiativeTrackerManager.Instance.AddOrUpdateCurrentCharacter(sheet, currentSystem, roll.RollResult, mod);
-                            rollHistory.Insert(0, new RollHistoryEntry
-                            {
-                                Timestamp = DateTime.Now,
-                                Formula = $"Initiative ({diceNotation} + {statSource})",
-                                ResultText = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue
-                            });
-                            if (rollHistory.Count > MaxHistoryCount)
-                            {
-                                rollHistory.RemoveAt(rollHistory.Count - 1);
-                            }
+                            PartySyncManager.Instance.BroadcastDiceRoll(
+                                "Initiative",
+                                roll.RollResult,
+                                string.Join(", ", roll.IndividualRolls),
+                                echoText: detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue,
+                                isPrivate: rollPrivate
+                            );
                         }
                     }
 
@@ -147,7 +139,7 @@ namespace Soulstone.Windows
             {
                 if (i > 0) ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                 var dice = diceList[i];
-                if (ImGui.Button($"{dice}##Quick_{dice}", new Vector2(btnWidth, 24.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton($"Quick_{dice}", FontAwesomeIcon.DiceD20, dice, size: new Vector2(btnWidth, 24.0f * ImGuiHelpers.GlobalScale)))
                 {
                     if (string.IsNullOrWhiteSpace(rollInputText))
                     {
@@ -165,7 +157,7 @@ namespace Soulstone.Windows
             foreach (var mod in modBtns)
             {
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{mod}##Mod_{mod}", new Vector2(32.0f * ImGuiHelpers.GlobalScale, 24.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.SmallButton(mod, size: new Vector2(32.0f * ImGuiHelpers.GlobalScale, 24.0f * ImGuiHelpers.GlobalScale)))
                 {
                     if (string.IsNullOrWhiteSpace(rollInputText))
                         rollInputText = "1d20" + (mod.StartsWith("+") ? mod : mod);
@@ -177,7 +169,7 @@ namespace Soulstone.Windows
 
         private void DrawRollControlCard(DiceSystem? currentSystem)
         {
-            using (var card = ImRaii.Child("##RollControlCard", new Vector2(0, 95.0f * ImGuiHelpers.GlobalScale), true))
+            using (var card = ImRaii.Child("##RollControlCard", new Vector2(0, 108.0f * ImGuiHelpers.GlobalScale), true))
             {
                 if (card.Success)
                 {
@@ -186,34 +178,33 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
                     var rollLabel = LocalizationManager.Instance.GetLocalizedString("ThrowButton");
-                    var rollBtnWidth = 32.0f * ImGuiHelpers.GlobalScale;
+                    var rollBtnWidth = 40.0f * ImGuiHelpers.GlobalScale;
                     var clearBtnWidth = 26.0f * ImGuiHelpers.GlobalScale;
-                    var labelWidth = ImGui.CalcTextSize(LocalizationManager.Instance.GetLocalizedString("RollInputLabel")).X + 10.0f * ImGuiHelpers.GlobalScale;
                     var spacing = 18.0f * ImGuiHelpers.GlobalScale;
 
                     float inputWidth = Math.Max(120.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - clearBtnWidth - rollBtnWidth - spacing);
 
-                    ImGui.SetNextItemWidth(inputWidth);
-                    ImGui.InputTextWithHint("##RollInput", LocalizationManager.Instance.GetLocalizedString("DiceRollFormulaHint"), ref rollInputText, 100);
+                    UiUtils.StyledInputText("RollInput", ref rollInputText, 100, width: inputWidth / ImGuiHelpers.GlobalScale, hint: LocalizationManager.Instance.GetLocalizedString("DiceRollFormulaHint"));
 
                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Button("x##ClearFormula", new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
+                    if (UiUtils.IconButton("ClearFormula", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("ClearFormulaTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
                     {
                         rollInputText = "";
                     }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("ClearFormulaTooltip"));
 
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.5f, 0.3f, 0.7f));
-                    ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.65f, 0.4f, 0.9f));
-                    if (UiUtils.IconButton("ExecuteRoll", FontAwesomeIcon.DiceD20, rollLabel, new Vector2(rollBtnWidth, 24.0f * ImGuiHelpers.GlobalScale)))
+                    using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.2f, 0.5f, 0.3f, 0.7f)))
+                    using (ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.65f, 0.4f, 0.9f)))
                     {
-                        ExecuteRoll();
+                        if (UiUtils.IconButton("ExecuteRoll", FontAwesomeIcon.DiceD20, rollLabel, new Vector2(rollBtnWidth, 24.0f * ImGuiHelpers.GlobalScale)))
+                        {
+                            ExecuteRoll();
+                        }
                     }
-                    ImGui.PopStyleColor(2);
 
                     ImGui.Spacing();
                     ImGui.Separator();
+                    ImGui.Spacing();
 
                     // Advantage / Disadvantage toggles if enabled
                     if (currentSystem?.systemHasAdvantageDisadvantage == true)
@@ -227,20 +218,35 @@ namespace Soulstone.Windows
                         {
                             if (disadvantage) advantage = false;
                         }
-                        ImGui.SameLine(0, 16.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.SameLine(0, 14.0f * ImGuiHelpers.GlobalScale);
+                    }
+
+                    // Private Roll (DM & Player) toggle
+                    ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("RollPrivateCheck")}##RollPrivateCheck", ref rollPrivate);
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("RollPrivateTooltip"));
+                    }
+
+                    ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
+                    if (rollPrivate)
+                    {
+                        UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("RollPrivateTag"), new Vector4(0.38f, 0.20f, 0.48f, 0.9f), ImGuiColors.DalamudViolet, FontAwesomeIcon.UserSecret);
+                    }
+                    else
+                    {
+                        UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("RollPublicTag"), new Vector4(0.18f, 0.35f, 0.25f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Globe);
                     }
 
                     if (advantage)
                     {
-                        UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("BadgeAdvantage"), new Vector4(0.2f, 0.6f, 0.3f, 0.3f), ImGuiColors.ParsedGreen);
+                        ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                        UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("BadgeAdvantage"), new Vector4(0.15f, 0.40f, 0.20f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.ArrowUp);
                     }
                     else if (disadvantage)
                     {
-                        UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("BadgeDisadvantage"), new Vector4(0.7f, 0.2f, 0.2f, 0.3f), ImGuiColors.DPSRed);
-                    }
-                    else
-                    {
-                        ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NormalRollText"));
+                        ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                        UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("BadgeDisadvantage"), new Vector4(0.45f, 0.15f, 0.15f, 0.85f), ImGuiColors.DPSRed, FontAwesomeIcon.ArrowDown);
                     }
                 }
             }
@@ -248,52 +254,151 @@ namespace Soulstone.Windows
 
         private void DrawHistoryCard()
         {
-            var availHeight = Math.Max(150.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y - 4.0f);
+            var availHeight = Math.Max(180.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y - 4.0f);
+            var entries = DiceHistoryManager.Instance.GetHistory();
+            var localPlayer = PartySyncManager.Instance.GetLocalPlayerName();
 
             using (var card = ImRaii.Child("##RollHistoryCard", new Vector2(0, availHeight), true))
             {
                 if (card.Success)
                 {
-                    ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("RollHistoryHeader"));
-                    ImGui.SameLine();
-                    UiUtils.Badge(rollHistory.Count.ToString(), new Vector4(0.2f, 0.2f, 0.2f, 0.5f), ImGuiColors.DalamudGrey);
+                    // Header Row
+                    ImGui.PushFont(UiBuilder.IconFont);
+                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.History.ToIconString());
+                    ImGui.PopFont();
+                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
+                    ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("RollHistoryHeader"));
+                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                    UiUtils.Badge(entries.Count.ToString(), new Vector4(0.2f, 0.2f, 0.2f, 0.5f), ImGuiColors.DalamudGrey);
+
+                    // Clear button on the right
                     var clearHistLabel = LocalizationManager.Instance.GetLocalizedString("ClearHistoryButton");
-                    var clearHistWidth = ImGui.CalcTextSize(clearHistLabel).X + 16.0f * ImGuiHelpers.GlobalScale;
+                    var clearHistWidth = ImGui.CalcTextSize(clearHistLabel).X + 24.0f * ImGuiHelpers.GlobalScale;
                     var rightX = ImGui.GetWindowContentRegionMax().X - clearHistWidth;
                     if (ImGui.GetCursorPosX() < rightX)
                         ImGui.SameLine(rightX);
                     else
                         ImGui.SameLine();
 
-                    if (rollHistory.Count == 0) ImGui.BeginDisabled();
-                    if (ImGui.Button($"{clearHistLabel}###ClearHistBtn"))
+                    if (entries.Count == 0) ImGui.BeginDisabled();
+                    if (UiUtils.IconButton("ClearHistBtn", FontAwesomeIcon.Trash, clearHistLabel))
                     {
-                        rollHistory.Clear();
+                        DiceHistoryManager.Instance.Clear();
                     }
-                    if (rollHistory.Count == 0) ImGui.EndDisabled();
+                    if (entries.Count == 0) ImGui.EndDisabled();
 
+                    ImGui.Spacing();
+
+                    // Search & Filter Row
+                    UiUtils.StyledInputText("HistorySearch", ref historySearch, 64, width: 180.0f, hint: LocalizationManager.Instance.GetLocalizedString("RollHistorySearchHint"), icon: FontAwesomeIcon.Search);
+
+                    ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                    DrawHistoryFilterChip(0, LocalizationManager.Instance.GetLocalizedString("RollHistoryFilterAll"));
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                    DrawHistoryFilterChip(1, LocalizationManager.Instance.GetLocalizedString("RollHistoryFilterMine"));
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                    DrawHistoryFilterChip(2, LocalizationManager.Instance.GetLocalizedString("RollHistoryFilterParty"));
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                    DrawHistoryFilterChip(3, LocalizationManager.Instance.GetLocalizedString("RollHistoryFilterPrivate"));
+
+                    ImGui.Spacing();
                     ImGui.Separator();
+                    ImGui.Spacing();
 
-                    if (rollHistory.Count == 0)
+                    var filtered = entries.Where(e =>
+                    {
+                        if (historyFilter == 1 && !e.IsLocal && !string.Equals(e.CharacterName, localPlayer, StringComparison.OrdinalIgnoreCase)) return false;
+                        if (historyFilter == 2 && (e.IsLocal || string.Equals(e.CharacterName, localPlayer, StringComparison.OrdinalIgnoreCase))) return false;
+                        if (historyFilter == 3 && !e.IsPrivate) return false;
+
+                        if (!string.IsNullOrWhiteSpace(historySearch))
+                        {
+                            bool matchName = e.CharacterName.Contains(historySearch, StringComparison.OrdinalIgnoreCase);
+                            bool matchRoll = e.RollName.Contains(historySearch, StringComparison.OrdinalIgnoreCase);
+                            bool matchResult = e.ResultDisplay.Contains(historySearch, StringComparison.OrdinalIgnoreCase);
+                            bool matchDetails = e.Details.Contains(historySearch, StringComparison.OrdinalIgnoreCase);
+                            if (!matchName && !matchRoll && !matchResult && !matchDetails) return false;
+                        }
+                        return true;
+                    }).ToList();
+
+                    if (filtered.Count == 0)
                     {
                         ImGui.Spacing();
                         ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoRollHistoryMessage"));
                     }
                     else
                     {
-                        for (int i = rollHistory.Count - 1; i >= 0; i--)
+                        using var listChild = ImRaii.Child("##RollHistoryList", new Vector2(0, 0), false);
+                        if (listChild.Success)
                         {
-                            var entry = rollHistory[i];
-                            ImGui.PushID($"History_{i}");
-                            ImGui.TextDisabled($"[{entry.Timestamp:HH:mm:ss}]");
-                            ImGui.SameLine();
-                            UiUtils.Badge(entry.Formula, new Vector4(0.25f, 0.3f, 0.45f, 0.4f), ImGuiColors.ParsedBlue);
-                            ImGui.SameLine();
-                            ImGui.TextColored(ImGuiColors.DalamudWhite, entry.ResultText);
-                            ImGui.PopID();
+                            for (int i = 0; i < filtered.Count; i++)
+                            {
+                                var entry = filtered[i];
+                                ImGui.PushID($"HistEntry_{entry.Id}");
+
+                                ImGui.TextDisabled($"[{entry.Timestamp:HH:mm:ss}]");
+                                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+
+                                // Character badge
+                                string charLabel = !string.IsNullOrWhiteSpace(entry.CharacterName) ? entry.CharacterName : "Self";
+                                UiUtils.PillBadge(charLabel, new Vector4(0.18f, 0.24f, 0.38f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.User);
+
+                                if (entry.IsPrivate)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("RollPrivateTag"), new Vector4(0.35f, 0.18f, 0.45f, 0.85f), ImGuiColors.DalamudViolet, FontAwesomeIcon.UserSecret);
+                                }
+
+                                if (!string.IsNullOrWhiteSpace(entry.RollName))
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    UiUtils.PillBadge(entry.RollName, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20);
+                                }
+
+                                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                                Vector4 resultCol = entry.IsCriticalSuccess ? ImGuiColors.ParsedGreen : (entry.IsCriticalFailure ? ImGuiColors.DalamudRed : ImGuiColors.DalamudWhite);
+                                ImGui.TextColored(resultCol, entry.ResultDisplay);
+
+                                // Quick actions: Re-roll & Copy
+                                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                                if (UiUtils.IconButton($"Reroll_{entry.Id}", FontAwesomeIcon.Redo, LocalizationManager.Instance.GetLocalizedString("RollHistoryReroll"), new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                                {
+                                    if (!string.IsNullOrWhiteSpace(entry.RollName))
+                                    {
+                                        rollInputText = entry.RollName;
+                                    }
+                                }
+
+                                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                if (UiUtils.IconButton($"Copy_{entry.Id}", FontAwesomeIcon.Clipboard, LocalizationManager.Instance.GetLocalizedString("RollHistoryCopy"), new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                                {
+                                    ImGui.SetClipboardText($"{charLabel}: {entry.RollName} -> {entry.ResultDisplay}");
+                                }
+
+                                ImGui.PopID();
+                                ImGui.Spacing();
+                            }
                         }
                     }
+                }
+            }
+        }
+
+        private void DrawHistoryFilterChip(int index, string label)
+        {
+            bool isSelected = historyFilter == index;
+            var bgCol = isSelected ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f);
+            var textCol = isSelected ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey;
+
+            using (ImRaii.PushColor(ImGuiCol.Button, bgCol))
+            using (ImRaii.PushColor(ImGuiCol.Text, textCol))
+            using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 10.0f * ImGuiHelpers.GlobalScale))
+            {
+                if (ImGui.SmallButton(label))
+                {
+                    historyFilter = index;
                 }
             }
         }
@@ -319,24 +424,14 @@ namespace Soulstone.Windows
                         rollInputText,
                         DR.RollResult,
                         string.Join(", ", DR.IndividualRolls),
-                        echoText: LocalizationManager.Instance.GetLocalizedString("RollEchoResult", rollInputText, resultSeString.TextValue));
-
-                    rollHistory.Add(new RollHistoryEntry
-                    {
-                        Timestamp = DateTime.Now,
-                        Formula = rollInputText,
-                        ResultText = resultSeString.TextValue
-                    });
-
-                    if (rollHistory.Count > MaxHistoryCount)
-                    {
-                        rollHistory.RemoveAt(0);
-                    }
+                        echoText: LocalizationManager.Instance.GetLocalizedString("RollEchoResult", rollInputText, resultSeString.TextValue),
+                        isPrivate: rollPrivate
+                    );
                 }
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Error(ex, $"Failed to execute roll for '{rollInputText}' in DiceWindow");
+                Plugin.Log?.Error(ex, $"Failed to roll dice with formula: '{rollInputText}'");
             }
         }
     }

@@ -227,8 +227,7 @@ namespace Soulstone.Windows
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
             // Name
-            ImGui.SetNextItemWidth(120.0f * ImGuiHelpers.GlobalScale);
-            ImGui.InputTextWithHint("##NewInitName", LocalizationManager.Instance.GetLocalizedString("InitiativeParticipantName"), ref newParticipantName, 50);
+            UiUtils.StyledInputText("NewInitName", ref newParticipantName, 50, width: 120.0f, hint: LocalizationManager.Instance.GetLocalizedString("InitiativeParticipantName"));
 
             // Sheet template / premade file selector
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
@@ -246,7 +245,7 @@ namespace Soulstone.Windows
 
             if (selectedPremadeSheetIndex >= options.Count) selectedPremadeSheetIndex = 0;
 
-            if (ImGui.Combo("##NewParticipantSheetCombo", ref selectedPremadeSheetIndex, options.ToArray(), options.Count))
+            if (UiUtils.StyledCombo("##NewParticipantSheetCombo", ref selectedPremadeSheetIndex, options.ToArray(), icon: FontAwesomeIcon.FileAlt, width: 130.0f))
             {
                 if (selectedPremadeSheetIndex == 0)
                 {
@@ -294,14 +293,13 @@ namespace Soulstone.Windows
 
             // Initiative Value
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            ImGui.SetNextItemWidth(60.0f * ImGuiHelpers.GlobalScale);
-            ImGui.InputInt("##NewInitVal", ref newParticipantInit, 0);
+            UiUtils.StyledInputInt("NewInitVal", ref newParticipantInit, step: 0, width: 60.0f);
 
             // System roll button for this participant
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
             var diceIcon = diceSys?.diceType == DiceType.d20 ? FontAwesomeIcon.DiceD20 : FontAwesomeIcon.Dice;
             string rollTooltip = LocalizationManager.Instance.GetLocalizedString("InitiativeRollTooltip");
-            if (UiUtils.IconButton("QuickRollNewInitBtn", diceIcon, rollTooltip, new Vector2(24, 20) * ImGuiHelpers.GlobalScale))
+            if (UiUtils.IconButton("QuickRollNewInitBtn", diceIcon, rollTooltip, new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
             {
                 if (newParticipantSheet != null)
                 {
@@ -322,8 +320,7 @@ namespace Soulstone.Windows
             ImGui.AlignTextToFramePadding();
             ImGui.TextDisabled("+");
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            ImGui.SetNextItemWidth(45.0f * ImGuiHelpers.GlobalScale);
-            ImGui.InputInt("##NewInitBonus", ref newParticipantBonus, 0);
+            UiUtils.StyledInputInt("NewInitBonus", ref newParticipantBonus, step: 0, width: 45.0f);
 
             // NPC Checkbox
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
@@ -385,26 +382,19 @@ namespace Soulstone.Windows
 
                 // Name
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("BuffNameLabel"));
-                ImGui.SetNextItemWidth(-1);
-                ImGui.InputTextWithHint("##NewBuffName", "e.g. Haste, Bless, Poison, Weakness", ref newBuffName, 60);
+                UiUtils.StyledInputText("NewBuffName", ref newBuffName, 60, width: -1.0f, hint: "e.g. Haste, Bless, Poison, Weakness");
 
                 // Duration (turns)
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("BuffDurationLabel"));
-                ImGui.SetNextItemWidth(100.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.InputInt("##NewBuffDuration", ref newBuffDuration, 1))
-                {
-                    if (newBuffDuration < 1) newBuffDuration = 1;
-                }
+                UiUtils.StyledInputInt("NewBuffDuration", ref newBuffDuration, step: 1, width: 100.0f, min: 1);
 
                 // Target Stat
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("BuffTargetStatLabel"));
-                ImGui.SetNextItemWidth(-1);
-                ImGui.InputTextWithHint("##NewBuffTargetStat", LocalizationManager.Instance.GetLocalizedString("BuffStatNameHint"), ref newBuffTargetStat, 60);
+                UiUtils.StyledInputText("NewBuffTargetStat", ref newBuffTargetStat, 60, width: -1.0f, hint: LocalizationManager.Instance.GetLocalizedString("BuffStatNameHint"));
 
                 // Value / Modifier
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("BuffValueLabel"));
-                ImGui.SetNextItemWidth(100.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.InputInt("##NewBuffValue", ref newBuffValue, 1))
+                if (UiUtils.StyledInputInt("NewBuffValue", ref newBuffValue, step: 1, width: 100.0f))
                 {
                     if (newBuffValue < 0) newBuffIsDebuff = true;
                 }
@@ -414,14 +404,13 @@ namespace Soulstone.Windows
 
                 // Description
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
-                ImGui.SetNextItemWidth(-1);
-                ImGui.InputText("##NewBuffDesc", ref newBuffDescription, 120);
+                UiUtils.StyledInputText("NewBuffDesc", ref newBuffDescription, 120, width: -1.0f);
 
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(120.0f * ImGuiHelpers.GlobalScale, 0)))
+                if (UiUtils.IconTextButton("ConfirmAddBuffBtn", FontAwesomeIcon.Check, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), size: new Vector2(120.0f * ImGuiHelpers.GlobalScale, 0)))
                 {
                     if (!string.IsNullOrWhiteSpace(newBuffName) && targetParticipant != null)
                     {
@@ -438,7 +427,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine();
-                if (ImGui.Button("Cancel", new Vector2(90.0f * ImGuiHelpers.GlobalScale, 0)))
+                if (UiUtils.IconTextButton("CancelAddBuffBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(90.0f * ImGuiHelpers.GlobalScale, 0)))
                 {
                     showAddBuffModal = false;
                     ImGui.CloseCurrentPopup();
@@ -558,8 +547,7 @@ namespace Soulstone.Windows
                     float nameInputWidth = (p.CharacterSheet != null || p.IsCurrentCharacter) 
                         ? Math.Max(50.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 26.0f * ImGuiHelpers.GlobalScale) 
                         : -1;
-                    ImGui.SetNextItemWidth(nameInputWidth);
-                    if (ImGui.InputText($"##Name_{p.Id}", ref nameVal, 50))
+                    if (UiUtils.StyledInputText($"Name_{p.Id}", ref nameVal, 50, width: nameInputWidth > 0 ? nameInputWidth / ImGuiHelpers.GlobalScale : -1.0f))
                     {
                         p.Name = nameVal;
                         if (p.CharacterSheet != null)
@@ -580,8 +568,7 @@ namespace Soulstone.Windows
                     // Column 3: Initiative Value
                     ImGui.TableNextColumn();
                     int initVal = p.InitiativeValue;
-                    ImGui.SetNextItemWidth(-1);
-                    if (ImGui.InputInt($"##Init_{p.Id}", ref initVal, 1))
+                    if (UiUtils.StyledInputInt($"Init_{p.Id}", ref initVal, step: 1, width: -1.0f))
                     {
                         p.InitiativeValue = initVal;
                         needsSort = true;
@@ -590,8 +577,7 @@ namespace Soulstone.Windows
                     // Column 4: Bonus Modifier
                     ImGui.TableNextColumn();
                     int bonusVal = p.BonusModifier;
-                    ImGui.SetNextItemWidth(-1);
-                    if (ImGui.InputInt($"##Bonus_{p.Id}", ref bonusVal, 1))
+                    if (UiUtils.StyledInputInt($"Bonus_{p.Id}", ref bonusVal, step: 1, width: -1.0f))
                     {
                         p.BonusModifier = bonusVal;
                         needsSort = true;
@@ -679,8 +665,7 @@ namespace Soulstone.Windows
                     // Column 6: Notes
                     ImGui.TableNextColumn();
                     string notesVal = p.Notes;
-                    ImGui.SetNextItemWidth(-1);
-                    if (ImGui.InputText($"##Notes_{p.Id}", ref notesVal, 50))
+                    if (UiUtils.StyledInputText($"Notes_{p.Id}", ref notesVal, 50, width: -1.0f))
                     {
                         p.Notes = notesVal;
                     }
@@ -688,7 +673,7 @@ namespace Soulstone.Windows
                     // Column 7: Actions (Re-roll / Sheet / Add Buff / Delete)
                     ImGui.TableNextColumn();
                     string rerollTooltip = LocalizationManager.Instance.GetLocalizedString("InitiativeRerollTooltip");
-                    if (UiUtils.IconButton($"Reroll_{p.Id}", diceIcon, rerollTooltip, new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                    if (UiUtils.IconButton($"Reroll_{p.Id}", diceIcon, rerollTooltip, new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                     {
                         manager.RerollParticipant(p.Id, diceSys);
                         needsSort = true;
@@ -697,7 +682,7 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
                     if (p.CharacterSheet != null || p.IsCurrentCharacter)
                     {
-                        if (UiUtils.IconButton($"SheetAction_{p.Id}", FontAwesomeIcon.AddressCard, LocalizationManager.Instance.GetLocalizedString("InitiativeNpcSheet"), new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                        if (UiUtils.IconButton($"SheetAction_{p.Id}", FontAwesomeIcon.AddressCard, LocalizationManager.Instance.GetLocalizedString("InitiativeNpcSheet"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                         {
                             selectedNpcParticipant = p;
                             showNpcSheetModal = true;
@@ -705,7 +690,7 @@ namespace Soulstone.Windows
                     }
                     else
                     {
-                        if (UiUtils.IconButton($"AttachSheet_{p.Id}", FontAwesomeIcon.FileMedical, LocalizationManager.Instance.GetLocalizedString("InitiativeAttachSheet"), new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                        if (UiUtils.IconButton($"AttachSheet_{p.Id}", FontAwesomeIcon.FileMedical, LocalizationManager.Instance.GetLocalizedString("InitiativeAttachSheet"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                         {
                             attachSheetParticipantId = p.Id;
                             showAttachSheetModal = true;
@@ -713,13 +698,13 @@ namespace Soulstone.Windows
                     }
 
                     ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.IconButton($"AddBuffAction_{p.Id}", FontAwesomeIcon.Magic, LocalizationManager.Instance.GetLocalizedString("BuffModalTitle"), new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                    if (UiUtils.IconButton($"AddBuffAction_{p.Id}", FontAwesomeIcon.Magic, LocalizationManager.Instance.GetLocalizedString("BuffModalTitle"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                     {
                         OpenAddBuffModal(p.Id);
                     }
 
                     ImGui.SameLine(0, 3.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.IconButton($"Delete_{p.Id}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("SupprButton"), new Vector2(22, 20) * ImGuiHelpers.GlobalScale))
+                    if (UiUtils.IconButton($"Delete_{p.Id}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("SupprButton"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                     {
                         participantToRemove = p.Id;
                     }
@@ -775,8 +760,7 @@ namespace Soulstone.Windows
                 if (attachModalSheetIndex >= options.Count) attachModalSheetIndex = 0;
 
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InitiativeSheetSelectorHint"));
-                ImGui.SetNextItemWidth(-1);
-                ImGui.Combo("##AttachModalCombo", ref attachModalSheetIndex, options.ToArray(), options.Count);
+                UiUtils.StyledCombo("##AttachModalCombo", ref attachModalSheetIndex, options.ToArray(), icon: FontAwesomeIcon.FileAlt);
 
                 ImGui.Spacing();
                 ImGui.Separator();
@@ -784,7 +768,7 @@ namespace Soulstone.Windows
 
                 var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
 
-                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("InitiativeAttachSheet"), new Vector2(130.0f * ImGuiHelpers.GlobalScale, 0)))
+                if (UiUtils.IconTextButton("ConfirmAttachSheetBtn", FontAwesomeIcon.Link, LocalizationManager.Instance.GetLocalizedString("InitiativeAttachSheet"), size: new Vector2(130.0f * ImGuiHelpers.GlobalScale, 0)))
                 {
                     if (attachModalSheetIndex == 0)
                     {
@@ -810,7 +794,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine();
-                if (ImGui.Button("Cancel", new Vector2(90.0f * ImGuiHelpers.GlobalScale, 0)))
+                if (UiUtils.IconTextButton("CancelAttachSheetBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(90.0f * ImGuiHelpers.GlobalScale, 0)))
                 {
                     showAttachSheetModal = false;
                     ImGui.CloseCurrentPopup();
@@ -909,7 +893,7 @@ namespace Soulstone.Windows
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                if (ImGui.Button("Close", new Vector2(100.0f * ImGuiHelpers.GlobalScale, 0)))
+                if (UiUtils.IconTextButton("CloseNpcSheetModalBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CloseButton"), size: new Vector2(100.0f * ImGuiHelpers.GlobalScale, 0)))
                 {
                     showNpcSheetModal = false;
                     ImGui.CloseCurrentPopup();
@@ -936,26 +920,24 @@ namespace Soulstone.Windows
             int maxHp = sheet.characterMaxHealthPoints > 0 ? sheet.characterMaxHealthPoints : 100;
             ImGui.TextColored(ImGuiColors.DalamudRed, LocalizationManager.Instance.GetLocalizedString("HealthLabel"));
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            ImGui.SetNextItemWidth(70.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.InputInt("##NpcCurHp", ref curHp, 0)) sheet.characterHealthPoints = curHp;
+            if (UiUtils.StyledInputInt("NpcCurHp", ref curHp, step: 0, width: 70.0f)) sheet.characterHealthPoints = curHp;
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
             ImGui.TextDisabled("/");
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            ImGui.SetNextItemWidth(70.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.InputInt("##NpcMaxHp", ref maxHp, 0)) sheet.characterMaxHealthPoints = Math.Max(1, maxHp);
+            if (UiUtils.StyledInputInt("NpcMaxHp", ref maxHp, step: 0, width: 70.0f)) sheet.characterMaxHealthPoints = Math.Max(1, maxHp);
 
             // Quick adjustment buttons
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button("-5##HpM5")) sheet.characterHealthPoints = Math.Max(0, sheet.characterHealthPoints - 5);
+            if (UiUtils.SmallButton("-5##HpM5")) sheet.characterHealthPoints = Math.Max(0, sheet.characterHealthPoints - 5);
             ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button("-1##HpM1")) sheet.characterHealthPoints = Math.Max(0, sheet.characterHealthPoints - 1);
+            if (UiUtils.SmallButton("-1##HpM1")) sheet.characterHealthPoints = Math.Max(0, sheet.characterHealthPoints - 1);
             ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button("+1##HpP1")) sheet.characterHealthPoints += 1;
+            if (UiUtils.SmallButton("+1##HpP1")) sheet.characterHealthPoints += 1;
             ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button("+5##HpP5")) sheet.characterHealthPoints += 5;
+            if (UiUtils.SmallButton("+5##HpP5")) sheet.characterHealthPoints += 5;
 
             float hpRatio = maxHp > 0 ? Math.Clamp((float)sheet.characterHealthPoints / maxHp, 0f, 1f) : 0f;
-            ImGui.ProgressBar(hpRatio, new Vector2(-1, 14.0f * ImGuiHelpers.GlobalScale), $"{sheet.characterHealthPoints} / {maxHp}");
+            UiUtils.DrawProgressBar(sheet.characterHealthPoints, maxHp, $"{sheet.characterHealthPoints} / {maxHp}", new Vector2(-1, 16.0f * ImGuiHelpers.GlobalScale), ImGuiColors.ParsedGreen);
             ImGui.Spacing();
 
             // MP
@@ -963,25 +945,23 @@ namespace Soulstone.Windows
             int maxMp = sheet.characterMaxManaPoints > 0 ? sheet.characterMaxManaPoints : 100;
             ImGui.TextColored(ImGuiColors.ParsedBlue, LocalizationManager.Instance.GetLocalizedString("ManaLabel"));
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            ImGui.SetNextItemWidth(70.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.InputInt("##NpcCurMp", ref curMp, 0)) sheet.characterManaPoints = curMp;
+            if (UiUtils.StyledInputInt("NpcCurMp", ref curMp, step: 0, width: 70.0f)) sheet.characterManaPoints = curMp;
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
             ImGui.TextDisabled("/");
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            ImGui.SetNextItemWidth(70.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.InputInt("##NpcMaxMp", ref maxMp, 0)) sheet.characterMaxManaPoints = Math.Max(1, maxMp);
+            if (UiUtils.StyledInputInt("NpcMaxMp", ref maxMp, step: 0, width: 70.0f)) sheet.characterMaxManaPoints = Math.Max(1, maxMp);
 
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button("-5##MpM5")) sheet.characterManaPoints = Math.Max(0, sheet.characterManaPoints - 5);
+            if (UiUtils.SmallButton("-5##MpM5")) sheet.characterManaPoints = Math.Max(0, sheet.characterManaPoints - 5);
             ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button("-1##MpM1")) sheet.characterManaPoints = Math.Max(0, sheet.characterManaPoints - 1);
+            if (UiUtils.SmallButton("-1##MpM1")) sheet.characterManaPoints = Math.Max(0, sheet.characterManaPoints - 1);
             ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button("+1##MpP1")) sheet.characterManaPoints += 1;
+            if (UiUtils.SmallButton("+1##MpP1")) sheet.characterManaPoints += 1;
             ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button("+5##MpP5")) sheet.characterManaPoints += 5;
+            if (UiUtils.SmallButton("+5##MpP5")) sheet.characterManaPoints += 5;
 
             float mpRatio = maxMp > 0 ? Math.Clamp((float)sheet.characterManaPoints / maxMp, 0f, 1f) : 0f;
-            ImGui.ProgressBar(mpRatio, new Vector2(-1, 14.0f * ImGuiHelpers.GlobalScale), $"{sheet.characterManaPoints} / {maxMp}");
+            UiUtils.DrawProgressBar(sheet.characterManaPoints, maxMp, $"{sheet.characterManaPoints} / {maxMp}", new Vector2(-1, 16.0f * ImGuiHelpers.GlobalScale), ImGuiColors.ParsedBlue);
             ImGui.Spacing();
 
             // Custom Resources
@@ -999,25 +979,22 @@ namespace Soulstone.Windows
 
                     ImGui.TextColored(ImGuiColors.DalamudWhite, res.Name);
                     ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.SetNextItemWidth(70.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.InputInt($"##NpcCur_{res.Name}", ref curRes, 0)) res.CurrentValue = curRes;
+                    if (UiUtils.StyledInputInt($"NpcCur_{res.Name}", ref curRes, step: 0, width: 70.0f)) res.CurrentValue = curRes;
                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TextDisabled("/");
                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.SetNextItemWidth(70.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.InputInt($"##NpcMax_{res.Name}", ref maxRes, 0)) res.MaxValue = Math.Max(1, maxRes);
+                    if (UiUtils.StyledInputInt($"NpcMax_{res.Name}", ref maxRes, step: 0, width: 70.0f)) res.MaxValue = Math.Max(1, maxRes);
 
                     ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Button($"-5##{res.Name}M5")) res.CurrentValue = Math.Max(0, res.CurrentValue - 5);
+                    if (UiUtils.SmallButton($"-5##{res.Name}M5")) res.CurrentValue = Math.Max(0, res.CurrentValue - 5);
                     ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Button($"-1##{res.Name}M1")) res.CurrentValue = Math.Max(0, res.CurrentValue - 1);
+                    if (UiUtils.SmallButton($"-1##{res.Name}M1")) res.CurrentValue = Math.Max(0, res.CurrentValue - 1);
                     ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Button($"+1##{res.Name}P1")) res.CurrentValue += 1;
+                    if (UiUtils.SmallButton($"+1##{res.Name}P1")) res.CurrentValue += 1;
                     ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                    if (ImGui.Button($"+5##{res.Name}P5")) res.CurrentValue += 5;
+                    if (UiUtils.SmallButton($"+5##{res.Name}P5")) res.CurrentValue += 5;
 
-                    float ratio = maxRes > 0 ? Math.Clamp((float)res.CurrentValue / maxRes, 0f, 1f) : 0f;
-                    ImGui.ProgressBar(ratio, new Vector2(-1, 14.0f * ImGuiHelpers.GlobalScale), $"{res.CurrentValue} / {maxRes}");
+                    UiUtils.DrawProgressBar(res.CurrentValue, maxRes, $"{res.CurrentValue} / {maxRes}", new Vector2(-1, 16.0f * ImGuiHelpers.GlobalScale), ImGuiColors.ParsedGold);
                     ImGui.Spacing();
                 }
             }
@@ -1057,8 +1034,7 @@ namespace Soulstone.Windows
 
                         ImGui.TableNextColumn();
                         int baseVal = attr.Value;
-                        ImGui.SetNextItemWidth(-1);
-                        if (ImGui.InputInt($"##NpcAttr_{attr.Name}", ref baseVal, 0))
+                        if (UiUtils.StyledInputInt($"NpcAttr_{attr.Name}", ref baseVal, step: 0, width: -1.0f))
                         {
                             attr.Value = baseVal;
                         }
@@ -1069,7 +1045,7 @@ namespace Soulstone.Windows
                         ImGui.TextColored(ImGuiColors.ParsedGreen, totalVal >= 0 ? $"+{totalVal}" : $"{totalVal}");
 
                         ImGui.TableNextColumn();
-                        if (UiUtils.IconButton($"RollNpcAttr_{attr.Name}", diceIcon, $"Roll {attr.Name}", new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                        if (UiUtils.IconButton($"RollNpcAttr_{attr.Name}", diceIcon, $"Roll {attr.Name}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
                         {
                             var roll = DiceRoll.RollStatWithSystem(diceSys, attr.Name, totalVal)
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, attr.Name);
@@ -1126,8 +1102,7 @@ namespace Soulstone.Windows
 
                         ImGui.TableNextColumn();
                         int baseVal = skill.skillModifier;
-                        ImGui.SetNextItemWidth(-1);
-                        if (ImGui.InputInt($"##NpcSkill_{skill.skillName}", ref baseVal, 0))
+                        if (UiUtils.StyledInputInt($"NpcSkill_{skill.skillName}", ref baseVal, step: 0, width: -1.0f))
                         {
                             skill.skillModifier = baseVal;
                         }
@@ -1138,7 +1113,7 @@ namespace Soulstone.Windows
                         ImGui.TextColored(ImGuiColors.ParsedGreen, totalVal >= 0 ? $"+{totalVal}" : $"{totalVal}");
 
                         ImGui.TableNextColumn();
-                        if (UiUtils.IconButton($"RollNpcSkill_{skill.skillName}", diceIcon, $"Roll {skill.skillName}", new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                        if (UiUtils.IconButton($"RollNpcSkill_{skill.skillName}", diceIcon, $"Roll {skill.skillName}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
                         {
                             var roll = DiceRoll.RollStatWithSystem(diceSys, skill.skillName, totalVal)
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, skill.skillName);
@@ -1190,8 +1165,7 @@ namespace Soulstone.Windows
 
                         ImGui.TableNextColumn();
                         int baseVal = abil.abilityModifier;
-                        ImGui.SetNextItemWidth(-1);
-                        if (ImGui.InputInt($"##NpcAbil_{abil.abilityName}", ref baseVal, 0))
+                        if (UiUtils.StyledInputInt($"NpcAbil_{abil.abilityName}", ref baseVal, step: 0, width: -1.0f))
                         {
                             abil.abilityModifier = baseVal;
                         }
@@ -1202,7 +1176,7 @@ namespace Soulstone.Windows
                         ImGui.TextColored(ImGuiColors.ParsedGreen, totalVal >= 0 ? $"+{totalVal}" : $"{totalVal}");
 
                         ImGui.TableNextColumn();
-                        if (UiUtils.IconButton($"RollNpcAbil_{abil.abilityName}", diceIcon, $"Roll {abil.abilityName}", new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                        if (UiUtils.IconButton($"RollNpcAbil_{abil.abilityName}", diceIcon, $"Roll {abil.abilityName}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
                         {
                             var roll = DiceRoll.RollStatWithSystem(diceSys, abil.abilityName, totalVal)
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, abil.abilityName);
@@ -1262,7 +1236,7 @@ namespace Soulstone.Windows
                         ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
                     }
 
-                    if (UiUtils.IconButton($"RemNpcBuff_{b.Id}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("SupprButton"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                    if (UiUtils.IconButton($"RemNpcBuff_{b.Id}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("SupprButton"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
                     {
                         buffToRemove = b.Id;
                     }

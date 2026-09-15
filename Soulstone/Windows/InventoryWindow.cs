@@ -106,7 +106,7 @@ namespace Soulstone.Windows
         private void DrawTopBar(CharacterSheet sheet, DiceSystem? diceSystem)
         {
             // Action Buttons
-            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryAddItem")}###AddItemBtn"))
+            if (UiUtils.IconTextButton("AddItemBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("InventoryAddItem")))
             {
                 editingItem = new Item();
                 isEditingExistingItem = false;
@@ -118,14 +118,14 @@ namespace Soulstone.Windows
             }
 
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryManageTypes")}###ManageTypesBtn"))
+            if (UiUtils.IconTextButton("ManageTypesBtn", FontAwesomeIcon.Tags, LocalizationManager.Instance.GetLocalizedString("InventoryManageTypes")))
             {
                 newCustomTypeName = string.Empty;
                 showManageTypesModal = true;
             }
 
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryImportJson")}###ImportItemsBtn"))
+            if (UiUtils.IconTextButton("ImportItemsBtn", FontAwesomeIcon.FileImport, LocalizationManager.Instance.GetLocalizedString("InventoryImportJson")))
             {
                 showImportModal = true;
                 importRawText = string.Empty;
@@ -181,8 +181,7 @@ namespace Soulstone.Windows
         private void DrawFilterBar(CharacterSheet sheet)
         {
             // Search input
-            ImGui.SetNextItemWidth(160.0f * ImGuiHelpers.GlobalScale);
-            ImGui.InputTextWithHint("##InvSearch", LocalizationManager.Instance.GetLocalizedString("InventorySearchPlaceholder"), ref searchQuery, 100);
+            UiUtils.DrawSearchInput("InvSearch", ref searchQuery, LocalizationManager.Instance.GetLocalizedString("InventorySearchPlaceholder"), 160.0f);
 
             // Type filter
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
@@ -197,7 +196,7 @@ namespace Soulstone.Windows
             var localizedFilterOptions = filterOptions.Select(GetLocalizedItemType).ToArray();
 
             ImGui.SetNextItemWidth(130.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Combo("##TypeFilterCombo", ref currentFilterIdx, localizedFilterOptions, localizedFilterOptions.Length))
+            if (UiUtils.StyledCombo("##TypeFilterCombo", ref currentFilterIdx, localizedFilterOptions, icon: FontAwesomeIcon.Filter, width: 130.0f))
             {
                 selectedTypeFilter = filterOptions[currentFilterIdx];
             }
@@ -206,9 +205,8 @@ namespace Soulstone.Windows
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
             ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventorySortBy"));
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            ImGui.SetNextItemWidth(100.0f * ImGuiHelpers.GlobalScale);
             var localizedSortOptions = sortOptions.Select(GetLocalizedSortOption).ToArray();
-            ImGui.Combo("##SortCombo", ref selectedSortIndex, localizedSortOptions, localizedSortOptions.Length);
+            UiUtils.StyledCombo("##SortCombo", ref selectedSortIndex, localizedSortOptions, icon: FontAwesomeIcon.SortAmountDown, width: 110.0f);
         }
 
         private string GetLocalizedItemType(string itemType)
@@ -335,15 +333,30 @@ namespace Soulstone.Windows
                 var cardSize = new Vector2(availWidth, itemCardHeight);
 
                 var drawList = ImGui.GetWindowDrawList();
+                bool isHovered = ImGui.IsMouseHoveringRect(pos, pos + cardSize);
+                var rarityCol = GetRarityColor(item.Rarity);
+
                 var bgCol = isSelected
-                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.2f, 0.35f, 0.5f, 0.4f))
-                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.14f, 0.18f, 0.5f));
+                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.32f, 0.48f, 0.85f))
+                    : (isHovered
+                        ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.20f, 0.26f, 0.80f))
+                        : ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.13f, 0.16f, 0.75f)));
+
                 var borderCol = isSelected
                     ? ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold)
-                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.28f, 0.35f, 0.4f));
+                    : (isHovered
+                        ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.60f, 0.60f, 0.65f, 0.70f))
+                        : ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.27f, 0.33f, 0.45f)));
 
-                drawList.AddRectFilled(pos, pos + cardSize, bgCol, 4.0f * ImGuiHelpers.GlobalScale);
-                drawList.AddRect(pos, pos + cardSize, borderCol, 4.0f * ImGuiHelpers.GlobalScale, ImDrawFlags.None, isSelected ? 1.5f : 1.0f);
+                drawList.AddRectFilled(pos, pos + cardSize, bgCol, 5.0f * ImGuiHelpers.GlobalScale);
+                drawList.AddRect(pos, pos + cardSize, borderCol, 5.0f * ImGuiHelpers.GlobalScale, ImDrawFlags.None, isSelected ? 1.8f : 1.0f);
+
+                // Left accent bar
+                drawList.AddRectFilled(
+                    pos + new Vector2(2f * ImGuiHelpers.GlobalScale, 4f * ImGuiHelpers.GlobalScale),
+                    pos + new Vector2(4.5f * ImGuiHelpers.GlobalScale, itemCardHeight - 4f * ImGuiHelpers.GlobalScale),
+                    ImGui.ColorConvertFloat4ToU32(rarityCol),
+                    2.0f * ImGuiHelpers.GlobalScale);
 
                 // Invisible button over card for selection
                 if (ImGui.InvisibleButton($"##CardBtn_{item.Id}", cardSize))
@@ -398,12 +411,12 @@ namespace Soulstone.Windows
                 ImGui.EndGroup();
 
                 // Quick buttons on the far right
-                var quickBtnWidth = 20.0f * ImGuiHelpers.GlobalScale;
-                var quickBtnHeight = 20.0f * ImGuiHelpers.GlobalScale;
+                var quickBtnWidth = 22.0f * ImGuiHelpers.GlobalScale;
+                var quickBtnHeight = 22.0f * ImGuiHelpers.GlobalScale;
                 var rightBtnsX = pos.X + availWidth - (quickBtnWidth * 2 + 8.0f * ImGuiHelpers.GlobalScale);
 
                 ImGui.SetCursorScreenPos(new Vector2(rightBtnsX, pos.Y + (itemCardHeight - quickBtnHeight) * 0.5f));
-                if (ImGui.Button("-###DecrQty", new Vector2(quickBtnWidth, quickBtnHeight)))
+                if (UiUtils.IconButton("DecrQty", FontAwesomeIcon.Minus, "-", new Vector2(quickBtnWidth, quickBtnHeight)))
                 {
                     if (item.Quantity > 1)
                     {
@@ -417,7 +430,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button("+###IncrQty", new Vector2(quickBtnWidth, quickBtnHeight)))
+                if (UiUtils.IconButton("IncrQty", FontAwesomeIcon.Plus, "+", new Vector2(quickBtnWidth, quickBtnHeight)))
                 {
                     if (item.Quantity < item.MaxStack)
                     {
@@ -600,7 +613,7 @@ namespace Soulstone.Windows
 
                 if (isEquipped)
                 {
-                    if (ImGui.Button($"{unequipBtnLabel}###InvUnequipBtn"))
+                    if (UiUtils.IconTextButton("InvUnequipBtn", FontAwesomeIcon.SignOutAlt, unequipBtnLabel))
                     {
                         sheet.UnequipItem(gearToEquip.Id);
                         CharacterSheet.SaveSheet(sheet);
@@ -608,7 +621,7 @@ namespace Soulstone.Windows
                 }
                 else
                 {
-                    if (ImGui.Button($"{equipBtnLabel}###InvEquipBtn"))
+                    if (UiUtils.IconTextButton("InvEquipBtn", FontAwesomeIcon.ShieldAlt, equipBtnLabel))
                     {
                         if (gearToEquip.isAugmentation)
                         {
@@ -627,7 +640,7 @@ namespace Soulstone.Windows
             // Use Button
             if (item.IsUsable)
             {
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryItemUse")}###UseBtn"))
+                if (UiUtils.IconTextButton("UseBtn", FontAwesomeIcon.Magic, LocalizationManager.Instance.GetLocalizedString("InventoryItemUse")))
                 {
                     item.Use(sheet);
                     if (item.Quantity <= 0)
@@ -638,9 +651,7 @@ namespace Soulstone.Windows
             }
             else
             {
-                ImGui.BeginDisabled();
-                ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryItemUse")}###UseBtnDisabled");
-                ImGui.EndDisabled();
+                UiUtils.IconTextButton("UseBtnDisabled", FontAwesomeIcon.Magic, LocalizationManager.Instance.GetLocalizedString("InventoryItemUse"), enabled: false);
                 if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                 {
                     ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InventoryItemNotUsable"));
@@ -648,7 +659,7 @@ namespace Soulstone.Windows
             }
 
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryItemEdit")}###EditBtn"))
+            if (UiUtils.IconTextButton("EditBtn", FontAwesomeIcon.Edit, LocalizationManager.Instance.GetLocalizedString("InventoryItemEdit")))
             {
                 isItemGear = (item is GearItem);
                 editingItem = item.Clone();
@@ -661,7 +672,7 @@ namespace Soulstone.Windows
             }
 
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryItemDuplicate")}###DupBtn"))
+            if (UiUtils.IconTextButton("DupBtn", FontAwesomeIcon.Clone, LocalizationManager.Instance.GetLocalizedString("InventoryItemDuplicate")))
             {
                 var clone = item.Clone();
                 clone.Name += LocalizationManager.Instance.GetLocalizedString("InventoryItemCopySuffix");
@@ -670,13 +681,13 @@ namespace Soulstone.Windows
             }
 
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryExportJson")}###ExportBtn"))
+            if (UiUtils.IconTextButton("ExportBtn", FontAwesomeIcon.Clipboard, LocalizationManager.Instance.GetLocalizedString("InventoryExportJson")))
             {
                 ImGui.SetClipboardText(item.ToJson());
             }
 
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryItemDelete")}###DeleteBtn"))
+            if (UiUtils.IconTextButton("DeleteBtn", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("InventoryItemDelete")))
             {
                 itemToDelete = item;
                 showDeleteConfirmModal = true;
@@ -705,8 +716,7 @@ namespace Soulstone.Windows
             {
                 // Item Name
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemName"));
-                ImGui.SetNextItemWidth(-1.0f);
-                ImGui.InputText("##EditItemName", ref editingItem.name, 100);
+                UiUtils.StyledInputText("EditItemName", ref editingItem.name, 100, width: -1.0f);
 
                 // Type & Rarity
                 using (var row = ImRaii.Table("##TypeRarityRow", 2, ImGuiTableFlags.SizingStretchSame))
@@ -719,8 +729,7 @@ namespace Soulstone.Windows
                         var allTypes = GetAllAvailableTypes(sheet);
                         var typeIdx = Math.Max(0, allTypes.IndexOf(editingItem.itemType));
                         var localizedAllTypes = allTypes.Select(GetLocalizedItemType).ToArray();
-                        ImGui.SetNextItemWidth(-1.0f);
-                        if (ImGui.Combo("##EditItemTypeCombo", ref typeIdx, localizedAllTypes, localizedAllTypes.Length))
+                        if (UiUtils.StyledCombo("##EditItemTypeCombo", ref typeIdx, localizedAllTypes, icon: FontAwesomeIcon.Tags))
                         {
                             editingItem.itemType = allTypes[typeIdx];
                         }
@@ -729,8 +738,7 @@ namespace Soulstone.Windows
                         ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemRarity"));
                         var rarityIdx = Math.Max(0, Array.IndexOf(rarities, editingItem.rarity));
                         var localizedRarities = rarities.Select(GetLocalizedRarity).ToArray();
-                        ImGui.SetNextItemWidth(-1.0f);
-                        if (ImGui.Combo("##EditItemRarityCombo", ref rarityIdx, localizedRarities, localizedRarities.Length))
+                        if (UiUtils.StyledCombo("##EditItemRarityCombo", ref rarityIdx, localizedRarities, icon: FontAwesomeIcon.Gem))
                         {
                             editingItem.rarity = rarities[rarityIdx];
                         }
@@ -745,21 +753,15 @@ namespace Soulstone.Windows
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
                         ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemQuantity"));
-                        ImGui.SetNextItemWidth(-1.0f);
-                        ImGui.InputInt("##EditItemQty", ref editingItem.quantity, 1);
-                        if (editingItem.quantity < 1) editingItem.quantity = 1;
+                        UiUtils.StyledInputInt("EditItemQty", ref editingItem.quantity, step: 1, width: -1.0f, min: 1);
 
                         ImGui.TableNextColumn();
                         ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemMaxStack"));
-                        ImGui.SetNextItemWidth(-1.0f);
-                        ImGui.InputInt("##EditItemMaxStack", ref editingItem.maxStack, 1);
-                        if (editingItem.maxStack < 1) editingItem.maxStack = 1;
+                        UiUtils.StyledInputInt("EditItemMaxStack", ref editingItem.maxStack, step: 1, width: -1.0f, min: 1);
 
                         ImGui.TableNextColumn();
                         ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemWeight"));
-                        ImGui.SetNextItemWidth(-1.0f);
-                        ImGui.InputFloat("##EditItemWeight", ref editingItem.weight, 0.1f, 1.0f, "%.1f");
-                        if (editingItem.weight < 0.0f) editingItem.weight = 0.0f;
+                        UiUtils.StyledInputFloat("EditItemWeight", ref editingItem.weight, step: 0.1f, format: "%.1f", width: -1.0f, min: 0.0f);
                     }
                 }
 
@@ -767,11 +769,11 @@ namespace Soulstone.Windows
 
                 // Image Section
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemImage"));
-                ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 160.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputText("##EditItemImageUrl", ref editingItem.imageUrl, 500);
+                float imgInputW = Math.Max(120.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 170.0f * ImGuiHelpers.GlobalScale);
+                UiUtils.StyledInputText("EditItemImageUrl", ref editingItem.imageUrl, 500, width: imgInputW / ImGuiHelpers.GlobalScale);
 
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CharPictureBrowse")}###BrowseItemPic"))
+                if (UiUtils.IconTextButton("BrowseItemPic", FontAwesomeIcon.FolderOpen, LocalizationManager.Instance.GetLocalizedString("CharPictureBrowse")))
                 {
                     plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("InventoryChoosePicPickerTitle"), ".png;.jpg;.jpeg;.bmp;.webp;.gif", (path) =>
                     {
@@ -781,7 +783,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CharPictureClear")}###ClearItemPic"))
+                if (UiUtils.IconTextButton("ClearItemPic", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CharPictureClear")))
                 {
                     editingItem.imageUrl = string.Empty;
                 }
@@ -797,8 +799,7 @@ namespace Soulstone.Windows
 
                 // Effect
                 ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("InventoryItemEffect"));
-                ImGui.SetNextItemWidth(-1.0f);
-                ImGui.InputTextMultiline("##EditItemEffect", ref editingItem.effect, 1000, new Vector2(-1.0f, 50.0f * ImGuiHelpers.GlobalScale));
+                UiUtils.StyledInputMultiline("EditItemEffect", ref editingItem.effect, 1000, new Vector2(-1.0f, 50.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Spacing();
 
@@ -807,16 +808,14 @@ namespace Soulstone.Windows
                 if (editingItem.isUsable)
                 {
                     ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemFormula"));
-                    ImGui.SetNextItemWidth(-1.0f);
-                    ImGui.InputTextWithHint("##EditItemFormula", LocalizationManager.Instance.GetLocalizedString("InventoryItemFormulaHint"), ref editingItem.useFormula, 100);
+                    UiUtils.StyledInputText("EditItemFormula", ref editingItem.useFormula, 100, width: -1.0f, hint: LocalizationManager.Instance.GetLocalizedString("InventoryItemFormulaHint"));
                 }
 
                 ImGui.Spacing();
 
                 // Description
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemDescription"));
-                ImGui.SetNextItemWidth(-1.0f);
-                ImGui.InputTextMultiline("##EditItemDesc", ref editingItem.description, 2000, new Vector2(-1.0f, 65.0f * ImGuiHelpers.GlobalScale));
+                UiUtils.StyledInputMultiline("EditItemDesc", ref editingItem.description, 2000, new Vector2(-1.0f, 65.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Spacing();
 
@@ -844,7 +843,6 @@ namespace Soulstone.Windows
                     ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("ItemIsAugmentationCheckbox"), ref gearEdit.isAugmentation);
 
                     ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
-                    ImGui.SetNextItemWidth(200.0f * ImGuiHelpers.GlobalScale);
 
                     var slotList = gearEdit.isAugmentation
                         ? (diceSystem?.GetEffectiveAugmentationSlots() ?? GearItem.StandardAugmentationSlots.ToList())
@@ -856,7 +854,7 @@ namespace Soulstone.Windows
                         slotIdx = 0;
                         gearEdit.Slot = slotArray[0];
                     }
-                    if (ImGui.Combo("##EditGearSlotCombo", ref slotIdx, slotArray, slotArray.Length))
+                    if (UiUtils.StyledCombo("##EditGearSlotCombo", ref slotIdx, slotArray, icon: FontAwesomeIcon.ShieldAlt, width: 200.0f))
                     {
                         gearEdit.Slot = slotArray[slotIdx];
                     }
@@ -871,13 +869,11 @@ namespace Soulstone.Windows
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemCustomProps"));
                 
                 // Add Property row
-                ImGui.SetNextItemWidth(120.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputTextWithHint("##NewPropKey", LocalizationManager.Instance.GetLocalizedString("InventoryPropKey"), ref newPropKey, 50);
+                UiUtils.StyledInputText("NewPropKey", ref newPropKey, 50, width: 120.0f, hint: LocalizationManager.Instance.GetLocalizedString("InventoryPropKey"));
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                ImGui.SetNextItemWidth(160.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputTextWithHint("##NewPropVal", LocalizationManager.Instance.GetLocalizedString("InventoryPropValue"), ref newPropValue, 200);
+                UiUtils.StyledInputText("NewPropVal", ref newPropValue, 200, width: 160.0f, hint: LocalizationManager.Instance.GetLocalizedString("InventoryPropValue"));
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryAddProperty")}###AddPropBtn"))
+                if (UiUtils.IconTextButton("AddPropBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("InventoryAddProperty")))
                 {
                     if (!string.IsNullOrWhiteSpace(newPropKey))
                     {
@@ -893,7 +889,7 @@ namespace Soulstone.Windows
                 {
                     ImGui.BulletText($"{kvp.Key}: {kvp.Value}");
                     ImGui.SameLine();
-                    if (ImGui.SmallButton($"x###RemoveProp_{kvp.Key}"))
+                    if (UiUtils.IconButton($"RemoveProp_{kvp.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
                     {
                         propToRemove = kvp.Key;
                     }
@@ -908,7 +904,7 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
 
                 // Modal Action Buttons
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventorySaveItem")}###SaveItemModalBtn", new Vector2(140.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton("SaveItemModalBtn", FontAwesomeIcon.Save, LocalizationManager.Instance.GetLocalizedString("InventorySaveItem"), size: new Vector2(140.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
                 {
                     if (string.IsNullOrWhiteSpace(editingItem.name))
                     {
@@ -959,7 +955,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CancelButton")}###CancelItemModalBtn", new Vector2(90.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton("CancelItemModalBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(90.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
                 {
                     showCreateEditModal = false;
                 }
@@ -976,11 +972,11 @@ namespace Soulstone.Windows
             if (ImGui.Begin($"{LocalizationManager.Instance.GetLocalizedString("InventoryManageTypesTitle")}###ManageTypesModal", ref showManageTypesModal, ImGuiWindowFlags.NoCollapse))
             {
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryNewTypeName"));
-                ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 100.0f * ImGuiHelpers.GlobalScale);
-                ImGui.InputText("##NewCustomTypeInput", ref newCustomTypeName, 50);
+                float typeInputW = Math.Max(120.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 110.0f * ImGuiHelpers.GlobalScale);
+                UiUtils.StyledInputText("NewCustomTypeInput", ref newCustomTypeName, 50, width: typeInputW / ImGuiHelpers.GlobalScale);
 
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryAddTypeBtn")}###AddTypeBtn"))
+                if (UiUtils.IconTextButton("AddTypeBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("InventoryAddTypeBtn")))
                 {
                     if (!string.IsNullOrWhiteSpace(newCustomTypeName))
                     {
@@ -1016,7 +1012,7 @@ namespace Soulstone.Windows
                     {
                         ImGui.BulletText(ct);
                         ImGui.SameLine();
-                        if (ImGui.SmallButton($"x###RemoveType_{ct}"))
+                        if (UiUtils.IconButton($"RemoveType_{ct}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
                         {
                             typeToRemove = ct;
                         }
@@ -1031,7 +1027,7 @@ namespace Soulstone.Windows
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CloseButton")}###CloseTypesModalBtn", new Vector2(80.0f * ImGuiHelpers.GlobalScale, 24.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton("CloseTypesModalBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CloseButton"), size: new Vector2(80.0f * ImGuiHelpers.GlobalScale, 24.0f * ImGuiHelpers.GlobalScale)))
                 {
                     showManageTypesModal = false;
                 }
@@ -1051,7 +1047,7 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
                 ImGui.Spacing();
 
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("DeleteButton")}###ConfirmDeleteBtn", new Vector2(100.0f * ImGuiHelpers.GlobalScale, 26.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton("ConfirmDeleteBtn", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), size: new Vector2(100.0f * ImGuiHelpers.GlobalScale, 26.0f * ImGuiHelpers.GlobalScale)))
                 {
                     sheet.RemoveItem(itemToDelete.Id);
                     if (selectedItemId == itemToDelete.Id)
@@ -1063,7 +1059,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CancelButton")}###CancelDeleteBtn", new Vector2(80.0f * ImGuiHelpers.GlobalScale, 26.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton("CancelDeleteBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(80.0f * ImGuiHelpers.GlobalScale, 26.0f * ImGuiHelpers.GlobalScale)))
                 {
                     itemToDelete = null;
                     showDeleteConfirmModal = false;
@@ -1081,7 +1077,7 @@ namespace Soulstone.Windows
             if (ImGui.Begin($"{LocalizationManager.Instance.GetLocalizedString("InventoryImportTitle")}###ImportItemsModal", ref showImportModal, ImGuiWindowFlags.NoCollapse))
             {
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryImportSelectJsonPrompt"));
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryImportFileBtn")}###ImportChooseFileBtn", new Vector2(160.0f * ImGuiHelpers.GlobalScale, 26.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton("ImportChooseFileBtn", FontAwesomeIcon.FolderOpen, LocalizationManager.Instance.GetLocalizedString("InventoryImportFileBtn"), size: new Vector2(160.0f * ImGuiHelpers.GlobalScale, 26.0f * ImGuiHelpers.GlobalScale)))
                 {
                     plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("InventoryImportPickerTitle"), ".json", (filePath) =>
                     {
@@ -1122,11 +1118,11 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
 
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryImportRawText"));
-                ImGui.InputTextMultiline("##ImportRawJsonInput", ref importRawText, 100000, new Vector2(-1.0f, 150.0f * ImGuiHelpers.GlobalScale));
+                UiUtils.StyledInputMultiline("ImportRawJsonInput", ref importRawText, 100000, new Vector2(-1.0f, 150.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Spacing();
 
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("InventoryImportConfirmBtn")}###ConfirmImportBtn", new Vector2(180.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton("ConfirmImportBtn", FontAwesomeIcon.FileImport, LocalizationManager.Instance.GetLocalizedString("InventoryImportConfirmBtn"), size: new Vector2(180.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
                 {
                     try
                     {
@@ -1158,7 +1154,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                if (ImGui.Button($"{LocalizationManager.Instance.GetLocalizedString("CloseButton")}###CloseImportModalBtn", new Vector2(80.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
+                if (UiUtils.IconTextButton("CloseImportModalBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CloseButton"), size: new Vector2(80.0f * ImGuiHelpers.GlobalScale, 28.0f * ImGuiHelpers.GlobalScale)))
                 {
                     showImportModal = false;
                 }

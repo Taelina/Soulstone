@@ -72,10 +72,10 @@ namespace Soulstone.Datamodels
         public int characterLevel;
         public string characterClass = string.Empty;
         public int characterExperiencePoints;
-        public int characterHealthPoints = 100;
-        public int characterMaxHealthPoints = 100;
-        public int characterManaPoints = 100;
-        public int characterMaxManaPoints = 100;
+        public int characterHealthPoints = 0;
+        public int characterMaxHealthPoints = 0;
+        public int characterManaPoints = 0;
+        public int characterMaxManaPoints = 0;
 
         //Character Generic Resources fields
         public Dictionary<string, CharacterResource> characterResources = new Dictionary<string, CharacterResource>();
@@ -159,45 +159,26 @@ namespace Soulstone.Datamodels
         {
             characterResources ??= new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
 
-            if (characterResources.Count == 0)
-            {
-                if (characterHealthPoints != 0 || characterMaxHealthPoints != 0)
-                {
-                    characterResources["Health"] = new CharacterResource("Health", characterHealthPoints, characterMaxHealthPoints);
-                }
-                if (characterManaPoints != 0 || characterMaxManaPoints != 0)
-                {
-                    characterResources["Mana"] = new CharacterResource("Mana", characterManaPoints, characterMaxManaPoints);
-                }
-                return;
-            }
-
             if (characterResources.TryGetValue("Health", out var healthRes))
             {
-                if (characterHealthPoints != 0 || characterMaxHealthPoints != 0)
-                {
-                    healthRes.CurrentValue = characterHealthPoints;
-                    healthRes.MaxValue = characterMaxHealthPoints;
-                }
-                else
-                {
-                    characterHealthPoints = healthRes.CurrentValue;
-                    characterMaxHealthPoints = healthRes.MaxValue;
-                }
+                characterHealthPoints = healthRes.CurrentValue;
+                characterMaxHealthPoints = healthRes.MaxValue;
+            }
+            else
+            {
+                characterHealthPoints = 0;
+                characterMaxHealthPoints = 0;
             }
 
             if (characterResources.TryGetValue("Mana", out var manaRes))
             {
-                if (characterManaPoints != 0 || characterMaxManaPoints != 0)
-                {
-                    manaRes.CurrentValue = characterManaPoints;
-                    manaRes.MaxValue = characterMaxManaPoints;
-                }
-                else
-                {
-                    characterManaPoints = manaRes.CurrentValue;
-                    characterMaxManaPoints = manaRes.MaxValue;
-                }
+                characterManaPoints = manaRes.CurrentValue;
+                characterMaxManaPoints = manaRes.MaxValue;
+            }
+            else
+            {
+                characterManaPoints = 0;
+                characterMaxManaPoints = 0;
             }
         }
 
@@ -409,7 +390,7 @@ namespace Soulstone.Datamodels
                         {
                             initCur = initMax;
                         }
-                        res = new CharacterResource(def.Name, initCur, initMax, formula: def.Formula, resourceType: def.ResourceType);
+                        res = new CharacterResource(def.Name, initCur, initMax, formula: def.Formula, resourceType: def.ResourceType, isRollable: def.IsRollable);
                         characterResources[def.Name] = res;
                     }
                     else
@@ -419,6 +400,7 @@ namespace Soulstone.Datamodels
                             res.Formula = def.Formula;
                         }
                         res.ResourceType = def.ResourceType;
+                        res.IsRollable = def.IsRollable;
                     }
                     result.Add(res);
                 }

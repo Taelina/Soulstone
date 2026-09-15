@@ -12,6 +12,7 @@ namespace Soulstone.Datamodels
         public bool isRequired = false;
         public string formula = string.Empty;
         public ResourceType resourceType = ResourceType.Bar;
+        public bool isRollable = true;
 
         public string Name { get => name; set => name = value; }
         public string Description { get => description; set => description = value; }
@@ -21,10 +22,11 @@ namespace Soulstone.Datamodels
         public bool IsRequired { get => isRequired; set => isRequired = value; }
         public string Formula { get => formula; set => formula = value; }
         public ResourceType ResourceType { get => resourceType; set => resourceType = value; }
+        public bool IsRollable { get => isRollable; set => isRollable = value; }
 
         public ResourceDefinition() { }
 
-        public ResourceDefinition(string name, int defaultMax = 100, int defaultCurrent = 100, string colorHex = "#2ecc71", string description = "", bool isRequired = false, string formula = "", ResourceType resourceType = ResourceType.Bar)
+        public ResourceDefinition(string name, int defaultMax = 100, int defaultCurrent = 100, string colorHex = "#2ecc71", string description = "", bool isRequired = false, string formula = "", ResourceType resourceType = ResourceType.Bar, bool isRollable = true)
         {
             this.name = name;
             this.defaultMax = defaultMax;
@@ -34,6 +36,7 @@ namespace Soulstone.Datamodels
             this.isRequired = isRequired;
             this.formula = formula;
             this.resourceType = resourceType;
+            this.isRollable = isRollable;
         }
 
         public ResourceDefinition Clone()
@@ -47,7 +50,8 @@ namespace Soulstone.Datamodels
                 ColorHex = this.ColorHex,
                 IsRequired = this.IsRequired,
                 Formula = this.Formula,
-                ResourceType = this.ResourceType
+                ResourceType = this.ResourceType,
+                IsRollable = this.IsRollable
             };
         }
     }

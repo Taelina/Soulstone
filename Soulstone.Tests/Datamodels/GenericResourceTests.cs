@@ -87,12 +87,15 @@ namespace Soulstone.Tests.Datamodels
         public void CharacterSheet_GenericResourcesAndLegacyFieldsSync()
         {
             var sheet = new CharacterSheet();
-            sheet.characterHealthPoints = 75;
-            sheet.characterMaxHealthPoints = 120;
-            sheet.characterManaPoints = 40;
-            sheet.characterMaxManaPoints = 60;
+            sheet.CharacterResources["Health"] = new CharacterResource("Health", 75, 120);
+            sheet.CharacterResources["Mana"] = new CharacterResource("Mana", 40, 60);
 
             sheet.SyncResourcesWithLegacyFields();
+
+            sheet.CharacterHealthPoints.Should().Be(75);
+            sheet.CharacterMaxHealthPoints.Should().Be(120);
+            sheet.CharacterManaPoints.Should().Be(40);
+            sheet.CharacterMaxManaPoints.Should().Be(60);
 
             sheet.CharacterResources.Should().ContainKey("Health");
             sheet.CharacterResources["Health"].CurrentValue.Should().Be(75);
@@ -137,12 +140,11 @@ namespace Soulstone.Tests.Datamodels
         {
             var sheet = new CharacterSheet
             {
-                CharacterFullName = "Mage Hero",
-                CharacterHealthPoints = 80,
-                CharacterMaxHealthPoints = 100,
-                CharacterManaPoints = 120,
-                CharacterMaxManaPoints = 150
+                CharacterFullName = "Mage Hero"
             };
+            sheet.CharacterResources["Health"] = new CharacterResource("Health", 80, 100);
+            sheet.CharacterResources["Mana"] = new CharacterResource("Mana", 120, 150);
+            sheet.SyncResourcesWithLegacyFields();
 
             sheet.SetResourceCurrent("Shield", 50);
             sheet.SetResourceMax("Shield", 50);
@@ -237,7 +239,7 @@ namespace Soulstone.Tests.Datamodels
         {
             var sheet = new CharacterSheet { CharacterFullName = "Paladin" };
             sheet.CharacterResources["HolyPower"] = new CharacterResource("HolyPower", 2, 5, 0, "", ResourceType.Counter);
-            sheet.CharacterResources["SpellDC"] = new CharacterResource("SpellDC", 15, 15, 0, "", ResourceType.FlatNumber);
+            sheet.CharacterResources["SpellDC"] = new CharacterResource("SpellDC", 15, 15, 0, "", ResourceType.FlatNumber, isRollable: false);
             sheet.CharacterResources["Shield"] = new CharacterResource("Shield", 100, 100, 0, "", ResourceType.Bar);
 
             var json = JsonSerializer.Serialize(sheet);
@@ -246,6 +248,7 @@ namespace Soulstone.Tests.Datamodels
             deserialized.Should().NotBeNull();
             deserialized!.CharacterResources["HolyPower"].ResourceType.Should().Be(ResourceType.Counter);
             deserialized.CharacterResources["SpellDC"].ResourceType.Should().Be(ResourceType.FlatNumber);
+            deserialized.CharacterResources["SpellDC"].IsRollable.Should().BeFalse();
             deserialized.CharacterResources["Shield"].ResourceType.Should().Be(ResourceType.Bar);
         }
 
@@ -253,10 +256,8 @@ namespace Soulstone.Tests.Datamodels
         public void CharacterSheet_And_DiceSystem_CanDeleteAnyResource_EvenHealthAndMana()
         {
             var sheet = new CharacterSheet();
-            sheet.CharacterHealthPoints = 100;
-            sheet.CharacterMaxHealthPoints = 100;
-            sheet.CharacterManaPoints = 50;
-            sheet.CharacterMaxManaPoints = 50;
+            sheet.CharacterResources["Health"] = new CharacterResource("Health", 100, 100);
+            sheet.CharacterResources["Mana"] = new CharacterResource("Mana", 50, 50);
             sheet.SyncResourcesWithLegacyFields();
 
             sheet.CharacterResources.Should().ContainKey("Health");

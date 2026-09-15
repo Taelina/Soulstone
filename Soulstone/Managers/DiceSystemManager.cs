@@ -135,21 +135,6 @@ namespace Soulstone.Managers
 
             string warnMsg = LocalizationManager.Instance.GetLocalizedString("DiceSysSwitchSaveEcho", charName, oldSysName, newSysName);
             Messages.PrintEcho(warnMsg);
-
-            try
-            {
-                if (Plugin.ToastGui != null)
-                {
-                    var toastOptions = new Dalamud.Game.Gui.Toast.QuestToastOptions
-                    {
-                        PlaySound = true,
-                        DisplayCheckmark = true,
-                        IconId = 0
-                    };
-                    Plugin.ToastGui.ShowQuest(warnMsg, toastOptions);
-                }
-            }
-            catch { }
         }
 
         public void RevertToLocalRuleset()

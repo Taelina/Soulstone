@@ -154,25 +154,39 @@ public class MainWindow : Window, IDisposable
 
     private void DrawHeader()
     {
-        // Branded Header Title
+        var scale = ImGuiHelpers.GlobalScale;
+        var sheet = CharacterManager.Instance.CharacterSheet;
+        var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
+
+        // Branded Header Title with CharacterSelect+ style emblem
+        ImGui.PushFont(UiBuilder.IconFont);
+        ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Gem.ToIconString());
+        ImGui.PopFont();
+        ImGui.SameLine(0, 6.0f * scale);
         ImGui.TextColored(ImGuiColors.ParsedGold, "Soulstone");
 
-        if (CharacterManager.Instance.CharacterSheet != null && !string.IsNullOrWhiteSpace(CharacterManager.Instance.CharacterSheet.CharacterFullName))
+        if (sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName))
         {
-            ImGui.SameLine();
-            ImGui.TextDisabled("|");
-            ImGui.SameLine();
-            ImGui.TextColored(ImGuiColors.DalamudWhite, CharacterManager.Instance.CharacterSheet.CharacterFullName);
+            ImGui.SameLine(0, 8.0f * scale);
+            ImGui.TextDisabled("•");
+            ImGui.SameLine(0, 8.0f * scale);
+            ImGui.TextColored(ImGuiColors.DalamudWhite, sheet.CharacterFullName);
+
+            if (diceSys != null && !string.IsNullOrWhiteSpace(diceSys.systemName))
+            {
+                ImGui.SameLine(0, 8.0f * scale);
+                UiUtils.PillBadge(diceSys.systemName, new Vector4(0.15f, 0.22f, 0.35f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.DiceD20);
+            }
         }
 
         // Right-aligned settings, group, and initiative buttons
         var groupLabel = LocalizationManager.Instance.GetLocalizedString("GroupOpenWindow");
         var initLabel = LocalizationManager.Instance.GetLocalizedString("InitiativeOpenTracker");
         var configLabel = LocalizationManager.Instance.GetLocalizedString("ConfigButton");
-        var groupBtnWidth = ImGui.CalcTextSize(groupLabel).X + 28.0f * ImGuiHelpers.GlobalScale;
-        var initBtnWidth = ImGui.CalcTextSize(initLabel).X + 28.0f * ImGuiHelpers.GlobalScale;
-        var configBtnWidth = ImGui.CalcTextSize(configLabel).X + 20.0f * ImGuiHelpers.GlobalScale;
-        var totalButtonsWidth = groupBtnWidth + initBtnWidth + configBtnWidth + 14.0f * ImGuiHelpers.GlobalScale;
+        var groupBtnWidth = ImGui.CalcTextSize(groupLabel).X + 28.0f * scale;
+        var initBtnWidth = ImGui.CalcTextSize(initLabel).X + 28.0f * scale;
+        var configBtnWidth = ImGui.CalcTextSize(configLabel).X + 20.0f * scale;
+        var totalButtonsWidth = groupBtnWidth + initBtnWidth + configBtnWidth + 14.0f * scale;
 
         var rightX = ImGui.GetWindowContentRegionMax().X - totalButtonsWidth;
         if (ImGui.GetCursorPosX() < rightX)
@@ -189,19 +203,19 @@ public class MainWindow : Window, IDisposable
             plugin.ToggleGroupUi();
         }
 
-        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+        ImGui.SameLine(0, 6.0f * scale);
         if (UiUtils.IconButton("OpenInitTrackerBtn", FontAwesomeIcon.Stopwatch, initLabel))
         {
             plugin.ToggleInitiativeTrackerUi();
         }
 
-        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-        if (ImGui.Button($"{configLabel}###SettingsBtn"))
+        ImGui.SameLine(0, 6.0f * scale);
+        if (UiUtils.IconButton("SettingsBtn", FontAwesomeIcon.Cog, configLabel))
         {
             plugin.ToggleConfigUi();
         }
 
-        ImGui.Separator();
+        UiUtils.DrawOrnamentalDivider();
         ImGui.Spacing();
     }
 }

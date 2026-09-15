@@ -170,10 +170,12 @@ namespace Soulstone.Datamodels
                         existing.DefaultMax = res.MaxValue;
                         existing.DefaultCurrent = res.CurrentValue;
                         existing.Formula = res.Formula;
+                        existing.ResourceType = res.ResourceType;
+                        existing.IsRollable = res.IsRollable;
                     }
                     else
                     {
-                        systemResources.Add(new ResourceDefinition(res.Name, res.MaxValue, res.CurrentValue, formula: res.Formula));
+                        systemResources.Add(new ResourceDefinition(res.Name, res.MaxValue, res.CurrentValue, formula: res.Formula, resourceType: res.ResourceType, isRollable: res.IsRollable));
                     }
                 }
             }
