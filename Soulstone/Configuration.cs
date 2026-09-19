@@ -15,6 +15,8 @@ public class Configuration : IPluginConfiguration
 
     public bool detailedRolls = false;
     public bool showEpicBonus = false;
+    public bool showGroupResources = true;
+    public bool ShowGroupResources { get => showGroupResources; set => showGroupResources = value; }
 
     public List<string> PinnedFileBrowserPaths = new List<string>();
     public string? LastBrowserDirectory;
@@ -23,7 +25,17 @@ public class Configuration : IPluginConfiguration
 
     public string LastActiveDiceSystem { get; set; } = string.Empty;
 
-    public string SyncServerUrl { get; set; } = "http://127.0.0.1:5077";
+    public const string DefaultSyncServerUrl = "http://82.65.2.251:5077";
+    public const string LegacyDefaultSyncServerUrl = "http://127.0.0.1:5077";
+
+    private string syncServerUrl = DefaultSyncServerUrl;
+    public string SyncServerUrl
+    {
+        get => string.IsNullOrWhiteSpace(syncServerUrl) || string.Equals(syncServerUrl.Trim(), LegacyDefaultSyncServerUrl, StringComparison.OrdinalIgnoreCase)
+            ? DefaultSyncServerUrl
+            : syncServerUrl;
+        set => syncServerUrl = value;
+    }
     public string SyncSessionId { get; set; } = string.Empty;
     public string SyncHostToken { get; set; } = string.Empty;
     public string SyncMemberToken { get; set; } = string.Empty;

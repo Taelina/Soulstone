@@ -15,6 +15,21 @@ namespace Soulstone.Sync
 
         public static string CreateRoomKey() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
 
+        public static string NormalizeServerUrl(string? serverUrl)
+        {
+            if (string.IsNullOrWhiteSpace(serverUrl))
+                return Configuration.DefaultSyncServerUrl;
+
+            string trimmed = serverUrl.Trim();
+            if (!trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                trimmed = "http://" + trimmed;
+            }
+
+            return trimmed.TrimEnd('/');
+        }
+
         public static (string PublicKey, string PrivateKey) CreateHostKeyPair()
         {
             using RSA rsa = RSA.Create(2048);
@@ -55,7 +70,8 @@ namespace Soulstone.Sync
         {
             if (!IsValidShortInviteCode(code))
                 throw new ArgumentException("The short invite code is invalid.", nameof(code));
-            if (!Uri.TryCreate(serverUrl?.TrimEnd('/') + "/", UriKind.Absolute, out var serverUri) ||
+            string normalized = NormalizeServerUrl(serverUrl);
+            if (!Uri.TryCreate(normalized.TrimEnd('/') + "/", UriKind.Absolute, out var serverUri) ||
                 (serverUri.Scheme != Uri.UriSchemeHttp && serverUri.Scheme != Uri.UriSchemeHttps))
                 throw new ArgumentException("The relay URL is invalid.", nameof(serverUrl));
 

@@ -52,6 +52,8 @@ public class ConfigWindow : Window, IDisposable
     {
         DrawRollSettings();
         ImGui.Spacing();
+        DrawGroupSettings();
+        ImGui.Spacing();
         DrawLocalizationSettings();
     }
 
@@ -70,6 +72,19 @@ public class ConfigWindow : Window, IDisposable
             if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigEpicBonusCheck")}##EpicBonus", ref showEpicBonusVal))
             {
                 configuration.showEpicBonus = showEpicBonusVal;
+                configuration.Save();
+            }
+        }
+    }
+
+    private void DrawGroupSettings()
+    {
+        if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("ConfigGroupManagementHeader"), defaultOpen: true, icon: FontAwesomeIcon.Users, accentColor: ImGuiColors.ParsedGreen))
+        {
+            bool showGroupRes = configuration.ShowGroupResources;
+            if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigShowGroupResourcesCheck")}##ShowGroupRes", ref showGroupRes))
+            {
+                configuration.ShowGroupResources = showGroupRes;
                 configuration.Save();
             }
         }

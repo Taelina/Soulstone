@@ -655,5 +655,13 @@
   "FieldVisibilityHiddenTooltip": "Hidden from others (click to show)",
   "PublishSheetToServer": "Publish to Server",
   "SheetPublishedSuccess": "Character sheet published to server successfully.",
-  "SheetPublishFailed": "Failed to publish character sheet to server."
+  "SheetPublishFailed": "Failed to publish character sheet to server.",
+  "GroupResources": "Resources",
+  "GroupToggleResourcesTooltip": "Toggle display of resources in group management",
+  "ConfigGroupManagementHeader": "Group Management",
+  "ConfigShowGroupResourcesCheck": "Show resources in Group Management window",
+  "ResourceShowInGroupLabel": "Show in Group Management",
+  "ResourceShowInGroupTooltip": "Display this resource in the group management window",
+  "ResourceHideFromGroupTooltip": "Hide this resource from the group management window",
+  "RetryButton": "Retry"
 }

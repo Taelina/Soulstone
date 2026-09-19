@@ -6,6 +6,7 @@ using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Soulstone.Datamodels;
 using Soulstone.Managers;
+using Soulstone.Sync;
 using Soulstone.Utils;
 using System;
 using System.Collections.Generic;
@@ -58,7 +59,9 @@ namespace Soulstone.Windows
             : base("Group Management###SoulstoneGroupManagement", ImGuiWindowFlags.None)
         {
             this.plugin = plugin;
-            serverUrl = plugin.Configuration.SyncServerUrl;
+            serverUrl = string.IsNullOrWhiteSpace(plugin.Configuration.SyncServerUrl)
+                ? Configuration.DefaultSyncServerUrl
+                : plugin.Configuration.SyncServerUrl;
 
             Size = new Vector2(860, 620);
             SizeCondition = ImGuiCond.FirstUseEver;
@@ -356,7 +359,11 @@ namespace Soulstone.Windows
                 else // Host Session
                 {
                     float inputWidth = Math.Clamp(ImGui.GetContentRegionAvail().X - 130.0f * scale, 160.0f * scale, 280.0f * scale);
-                    UiUtils.StyledInputText("RelayUrl", ref serverUrl, 512, width: inputWidth / scale, hint: LocalizationManager.Instance.GetLocalizedString("GroupRelayUrl"));
+                    if (UiUtils.StyledInputText("RelayUrl", ref serverUrl, 512, width: inputWidth / scale, hint: LocalizationManager.Instance.GetLocalizedString("GroupRelayUrl")))
+                    {
+                        plugin.Configuration.SyncServerUrl = serverUrl;
+                        plugin.Configuration.Save();
+                    }
                     ImGui.SameLine(0, 4.0f * scale);
 
                     using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.40f, 0.32f, 0.15f, 0.9f)))
@@ -385,6 +392,9 @@ namespace Soulstone.Windows
             try
             {
                 connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupConnecting");
+                serverUrl = RelayCrypto.NormalizeServerUrl(serverUrl);
+                plugin.Configuration.SyncServerUrl = serverUrl;
+                plugin.Configuration.Save();
                 PartySyncManager.Instance.Init(plugin.Configuration);
                 bool success = await PartySyncManager.Instance.CreateSessionAsync(serverUrl);
                 connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionCreated" : "GroupConnectionFailed");
@@ -549,6 +559,16 @@ namespace Soulstone.Windows
                     if (UiUtils.IconButton("GroupRevertRulesetBtn", FontAwesomeIcon.Undo, LocalizationManager.Instance.GetLocalizedString("GroupRevertRuleset")))
                     {
                         DiceSystemManager.Instance.RevertToLocalRuleset();
+                    }
+                }
+
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                using (ImRaii.PushColor(ImGuiCol.Button, plugin.Configuration.ShowGroupResources ? new Vector4(0.20f, 0.40f, 0.30f, 0.9f) : new Vector4(0.18f, 0.18f, 0.22f, 0.7f)))
+                {
+                    if (UiUtils.IconButton("ToggleGroupResourcesBtn", FontAwesomeIcon.Heart, LocalizationManager.Instance.GetLocalizedString("GroupToggleResourcesTooltip")))
+                    {
+                        plugin.Configuration.ShowGroupResources = !plugin.Configuration.ShowGroupResources;
+                        plugin.Configuration.Save();
                     }
                 }
 
@@ -868,42 +888,56 @@ namespace Soulstone.Windows
 
         private void DrawCardVitals(PartyMemberSyncData member)
         {
-            // HP Bar
-            if (member.MaxHp > 0)
-            {
-                float hpFraction = Math.Clamp((float)member.CurrentHp / member.MaxHp, 0.0f, 1.0f);
-                string hpOverlay = $"{LocalizationManager.Instance.GetLocalizedString("GroupHealth")}: {member.CurrentHp} / {member.MaxHp} ({(int)(hpFraction * 100)}%)";
-                Vector4 hpColor = GetHpBarColor(hpFraction);
-                UiUtils.DrawProgressBar(member.CurrentHp, member.MaxHp, hpOverlay, new Vector2(-1.0f, 18.0f * ImGuiHelpers.GlobalScale), hpColor);
-            }
+            if (!plugin.Configuration.ShowGroupResources) return;
 
-            // Mana Bar
-            if (member.MaxMana > 0)
-            {
-                float manaFraction = Math.Clamp((float)member.CurrentMana / member.MaxMana, 0.0f, 1.0f);
-                string manaOverlay = $"{LocalizationManager.Instance.GetLocalizedString("GroupMana")}: {member.CurrentMana} / {member.MaxMana} ({(int)(manaFraction * 100)}%)";
-                ImGui.Spacing();
-                UiUtils.DrawProgressBar(member.CurrentMana, member.MaxMana, manaOverlay, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), new Vector4(0.20f, 0.50f, 0.85f, 0.9f));
-            }
-
-            // Custom Resources
+            // Sheet / Custom Resources
             if (member.CustomResources != null && member.CustomResources.Count > 0)
             {
-                ImGui.Spacing();
+                var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
+                bool first = true;
                 foreach (var kv in member.CustomResources)
                 {
-                    int resType = member.CustomResourceTypes.TryGetValue(kv.Key, out int tVal) ? tVal : (int)ResourceType.Bar;
+                    if (member.CustomResourceShowInGroup != null &&
+                        member.CustomResourceShowInGroup.TryGetValue(kv.Key, out bool show) && !show)
+                    {
+                        continue;
+                    }
+
+                    if (first)
+                    {
+                        ImGui.Spacing();
+                        first = false;
+                    }
+
+                    var def = diceSys?.SystemResources.FirstOrDefault(d => string.Equals(d.Name, kv.Key, StringComparison.OrdinalIgnoreCase));
+                    var resCol = UiUtils.GetResourceColor(kv.Key, def?.ColorHex);
+                    int resType = member.CustomResourceTypes.TryGetValue(kv.Key, out int tVal) ? tVal : (int)(def?.ResourceType ?? ResourceType.Bar);
+                    int resMax = member.CustomResourceMaxes.TryGetValue(kv.Key, out int mVal) && mVal > 0 ? mVal : (def?.DefaultMax ?? 100);
+
                     if (resType == (int)ResourceType.FlatNumber)
                     {
                         string flatLabel = $"{kv.Key}: {kv.Value}";
-                        UiUtils.PillBadge(flatLabel, new Vector4(0.30f, 0.18f, 0.38f, 0.85f), ImGuiColors.DalamudViolet, FontAwesomeIcon.Bolt);
+                        UiUtils.PillBadge(flatLabel, new Vector4(resCol.X * 0.35f, resCol.Y * 0.35f, resCol.Z * 0.35f, 0.85f), resCol, FontAwesomeIcon.Bolt);
                         ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                    }
+                    else if (resType == (int)ResourceType.Counter)
+                    {
+                        string overlay = resMax > 0
+                            ? $"{kv.Key}: {kv.Value} / {resMax}"
+                            : $"{kv.Key}: {kv.Value}";
+                        UiUtils.DrawSectionedBar(
+                            kv.Value,
+                            resMax > 0 ? resMax : 1,
+                            overlay,
+                            new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale),
+                            activeColor: resCol);
+                        ImGui.Spacing();
                     }
                     else
                     {
-                        int resMax = member.CustomResourceMaxes.TryGetValue(kv.Key, out int mVal) && mVal > 0 ? mVal : 100;
-                        string overlay = $"{kv.Key}: {kv.Value} / {resMax}";
-                        UiUtils.DrawProgressBar(kv.Value, resMax, overlay, new Vector2(-1.0f, 15.0f * ImGuiHelpers.GlobalScale), new Vector4(0.60f, 0.35f, 0.75f, 0.9f));
+                        float fraction = resMax > 0 ? Math.Clamp((float)kv.Value / resMax, 0.0f, 1.0f) : 1.0f;
+                        string overlay = $"{kv.Key}: {kv.Value} / {resMax} ({(int)(fraction * 100)}%)";
+                        UiUtils.DrawProgressBar(kv.Value, resMax, overlay, new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), resCol);
                         ImGui.Spacing();
                     }
                 }
@@ -1178,14 +1212,13 @@ namespace Soulstone.Windows
 
         private void DrawTacticalGrid(List<PartyMemberSyncData> members)
         {
-            int columns = 6;
+            int columns = 5;
             if (ImGui.BeginTable("##GroupTacticalGrid", columns, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
             {
                 ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("GroupRoleOther"), ImGuiTableColumnFlags.WidthFixed, 50.0f * ImGuiHelpers.GlobalScale);
                 ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("NameLabel"), ImGuiTableColumnFlags.WidthStretch, 2.0f);
-                ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("GroupHealth"), ImGuiTableColumnFlags.WidthStretch, 2.5f);
-                ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("GroupMana"), ImGuiTableColumnFlags.WidthStretch, 2.0f);
-                ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("GroupLastRoll"), ImGuiTableColumnFlags.WidthStretch, 2.5f);
+                ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("GroupResources"), ImGuiTableColumnFlags.WidthStretch, 3.5f);
+                ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("GroupLastRoll"), ImGuiTableColumnFlags.WidthStretch, 2.0f);
                 ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("GroupPlayerControls"), ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
                 ImGui.TableHeadersRow();
 
@@ -1210,32 +1243,69 @@ namespace Soulstone.Windows
                         ImGui.TextDisabled($"[{member.JobName}]");
                     }
 
-                    // Col 2: Health
+                    // Col 2: Resources
                     ImGui.TableSetColumnIndex(2);
-                    if (member.MaxHp > 0)
+                    if (plugin.Configuration.ShowGroupResources && member.CustomResources != null && member.CustomResources.Count > 0)
                     {
-                        float hpFraction = Math.Clamp((float)member.CurrentHp / member.MaxHp, 0.0f, 1.0f);
-                        UiUtils.DrawProgressBar(member.CurrentHp, member.MaxHp, $"{member.CurrentHp}/{member.MaxHp}", new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), GetHpBarColor(hpFraction));
+                        var visibleResources = member.CustomResources
+                            .Where(kv => member.CustomResourceShowInGroup == null ||
+                                         !member.CustomResourceShowInGroup.TryGetValue(kv.Key, out bool show) || show)
+                            .ToList();
+
+                        if (visibleResources.Count > 0)
+                        {
+                            var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
+                            bool first = true;
+                            foreach (var kv in visibleResources)
+                            {
+                                var def = diceSys?.SystemResources.FirstOrDefault(d => string.Equals(d.Name, kv.Key, StringComparison.OrdinalIgnoreCase));
+                                var resCol = UiUtils.GetResourceColor(kv.Key, def?.ColorHex);
+                                int resType = member.CustomResourceTypes.TryGetValue(kv.Key, out int tVal) ? tVal : (int)(def?.ResourceType ?? ResourceType.Bar);
+                                int resMax = member.CustomResourceMaxes.TryGetValue(kv.Key, out int mVal) && mVal > 0 ? mVal : (def?.DefaultMax ?? 100);
+
+                                if (resType == (int)ResourceType.FlatNumber)
+                                {
+                                    UiUtils.PillBadge($"{kv.Key}: {kv.Value}", new Vector4(resCol.X * 0.35f, resCol.Y * 0.35f, resCol.Z * 0.35f, 0.85f), resCol, FontAwesomeIcon.Bolt);
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                else if (resType == (int)ResourceType.Counter)
+                                {
+                                    if (!first)
+                                    {
+                                        ImGui.Spacing();
+                                    }
+                                    first = false;
+                                    string overlay = $"{kv.Key}: {kv.Value}/{resMax}";
+                                    UiUtils.DrawSectionedBar(
+                                        kv.Value,
+                                        resMax > 0 ? resMax : 1,
+                                        overlay,
+                                        new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale),
+                                        activeColor: resCol);
+                                }
+                                else
+                                {
+                                    if (!first)
+                                    {
+                                        ImGui.Spacing();
+                                    }
+                                    first = false;
+                                    UiUtils.DrawProgressBar(kv.Value, resMax, $"{kv.Key}: {kv.Value}/{resMax}", new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), resCol);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            ImGui.TextDisabled("—");
+                        }
                     }
                     else
                     {
                         ImGui.TextDisabled("—");
                     }
 
-                    // Col 3: Mana
+                    // Col 3: Last Roll
                     ImGui.TableSetColumnIndex(3);
-                    if (member.MaxMana > 0)
-                    {
-                        float manaFraction = Math.Clamp((float)member.CurrentMana / member.MaxMana, 0.0f, 1.0f);
-                        UiUtils.DrawProgressBar(member.CurrentMana, member.MaxMana, $"{member.CurrentMana}/{member.MaxMana}", new Vector2(-1.0f, 16.0f * ImGuiHelpers.GlobalScale), new Vector4(0.20f, 0.50f, 0.85f, 0.9f));
-                    }
-                    else
-                    {
-                        ImGui.TextDisabled("—");
-                    }
-
-                    // Col 4: Last Roll
-                    ImGui.TableSetColumnIndex(4);
                     if (!string.IsNullOrWhiteSpace(member.LastRollSummary))
                     {
                         ImGui.TextColored(ImGuiColors.ParsedGold, member.LastRollSummary);
@@ -1245,8 +1315,8 @@ namespace Soulstone.Windows
                         ImGui.TextDisabled("—");
                     }
 
-                    // Col 5: Actions
-                    ImGui.TableSetColumnIndex(5);
+                    // Col 4: Actions
+                    ImGui.TableSetColumnIndex(4);
                     if (PartySyncManager.Instance.IsSessionHost && member.HasSoulstone)
                     {
                         if (UiUtils.IconButton($"GridRoll_{member.CharacterName}", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("GroupRollForMember")))
@@ -1277,7 +1347,6 @@ namespace Soulstone.Windows
                         }
                     }
                 }
-
                 ImGui.EndTable();
             }
         }

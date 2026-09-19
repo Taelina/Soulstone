@@ -1,4 +1,5 @@
 using Soulstone.Datamodels;
+using Soulstone.Sync;
 using System;
 using System.Net.Http;
 using System.Text;
@@ -22,7 +23,7 @@ namespace Soulstone.Utils
 
             try
             {
-                var baseUri = serverUrl.TrimEnd('/');
+                var baseUri = RelayCrypto.NormalizeServerUrl(serverUrl);
                 var charNameEscaped = Uri.EscapeDataString(sheet.CharacterFullName.Trim());
                 var worldEscaped = !string.IsNullOrWhiteSpace(world) ? Uri.EscapeDataString(world.Trim()) : string.Empty;
 
@@ -50,7 +51,7 @@ namespace Soulstone.Utils
 
             try
             {
-                var baseUri = serverUrl.TrimEnd('/');
+                var baseUri = RelayCrypto.NormalizeServerUrl(serverUrl);
                 var charNameEscaped = Uri.EscapeDataString(characterName.Trim());
                 var worldEscaped = !string.IsNullOrWhiteSpace(world) ? Uri.EscapeDataString(world.Trim()) : string.Empty;
 
@@ -62,7 +63,7 @@ namespace Soulstone.Utils
                     if (response.IsSuccessStatusCode)
                     {
                         var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                        var sheet = JsonSerializer.Deserialize<CharacterSheet>(json);
+                        var sheet = JsonSerializer.Deserialize<CharacterSheet>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                         if (sheet != null)
                         {
                             sheet.hiddenFields ??= new();
@@ -78,7 +79,7 @@ namespace Soulstone.Utils
                 if (fallbackResponse.IsSuccessStatusCode)
                 {
                     var json = await fallbackResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                    var sheet = JsonSerializer.Deserialize<CharacterSheet>(json);
+                    var sheet = JsonSerializer.Deserialize<CharacterSheet>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                     if (sheet != null)
                     {
                         sheet.hiddenFields ??= new();
@@ -103,7 +104,7 @@ namespace Soulstone.Utils
 
             try
             {
-                var baseUri = serverUrl.TrimEnd('/');
+                var baseUri = RelayCrypto.NormalizeServerUrl(serverUrl);
                 var charNameEscaped = Uri.EscapeDataString(characterName.Trim());
                 var worldEscaped = !string.IsNullOrWhiteSpace(world) ? Uri.EscapeDataString(world.Trim()) : string.Empty;
 

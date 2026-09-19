@@ -386,5 +386,61 @@ namespace Soulstone.Tests.Datamodels
             deserialized.IsFieldHidden("CharacterSex").Should().BeTrue();
             deserialized.IsFieldHidden("CharacterFullName").Should().BeFalse();
         }
+
+        [Fact]
+        public void QuickLooksAndDistinctiveFeatures_PropertiesAndSerialization_PreservesAllValues()
+        {
+            var sheet = new CharacterSheet
+            {
+                CharacterFullName = "Y'shtola Rhul",
+                CharacterDistinctiveFeatures = "Sightless white eyes, glowing focus",
+                CharacterReputation = "Master of the arcane",
+                CharacterQuickLook1 = "Wears dark sorceress robes",
+                CharacterQuickLook2 = "Aura of immense aether",
+                CharacterQuickLook3 = "Carries Nightseeker staff",
+                CharacterQuickLook4 = "Always reads ancient tomes",
+                CharacterQuickLook5 = "Calm and composed demeanor"
+            };
+
+            string json = JsonSerializer.Serialize(sheet, new JsonSerializerOptions { WriteIndented = false });
+            var deserialized = JsonSerializer.Deserialize<CharacterSheet>(json);
+
+            deserialized.Should().NotBeNull();
+            deserialized!.CharacterFullName.Should().Be("Y'shtola Rhul");
+            deserialized.CharacterDistinctiveFeatures.Should().Be("Sightless white eyes, glowing focus");
+            deserialized.CharacterReputation.Should().Be("Master of the arcane");
+            deserialized.CharacterQuickLook1.Should().Be("Wears dark sorceress robes");
+            deserialized.CharacterQuickLook2.Should().Be("Aura of immense aether");
+            deserialized.CharacterQuickLook3.Should().Be("Carries Nightseeker staff");
+            deserialized.CharacterQuickLook4.Should().Be("Always reads ancient tomes");
+            deserialized.CharacterQuickLook5.Should().Be("Calm and composed demeanor");
+            deserialized.characterQuickLook1.Should().Be("Wears dark sorceress robes");
+            deserialized.characterQuickLook5.Should().Be("Calm and composed demeanor");
+        }
+
+        [Fact]
+        public void SaveAndLoadSheet_PreservesQuickLooksAndResources()
+        {
+            var sheet = new CharacterSheet
+            {
+                CharacterFullName = "Estinien Varline",
+                CharacterQuickLook1 = "Dragon lance on back",
+                CharacterQuickLook2 = "Drachen mail armor",
+                CharacterDistinctiveFeatures = "Piercing gaze, silver hair"
+            };
+            sheet.CharacterResources["Blood of the Dragon"] = new CharacterResource("Blood of the Dragon", 30, 30, resourceType: ResourceType.Counter);
+
+            CharacterSheet.SaveSheet(sheet);
+
+            var loaded = CharacterSheet.LoadSheet("Estinien Varline");
+            loaded.Should().NotBeNull();
+            loaded!.CharacterFullName.Should().Be("Estinien Varline");
+            loaded.CharacterQuickLook1.Should().Be("Dragon lance on back");
+            loaded.CharacterQuickLook2.Should().Be("Drachen mail armor");
+            loaded.CharacterDistinctiveFeatures.Should().Be("Piercing gaze, silver hair");
+            loaded.CharacterResources.Should().ContainKey("Blood of the Dragon");
+            loaded.CharacterResources["Blood of the Dragon"].CurrentValue.Should().Be(30);
+            loaded.CharacterResources["Blood of the Dragon"].ResourceType.Should().Be(ResourceType.Counter);
+        }
     }
 }

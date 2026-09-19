@@ -11,6 +11,7 @@ namespace Soulstone.Datamodels
         public string formula = string.Empty;
         public ResourceType resourceType = ResourceType.Bar;
         public bool isRollable = true;
+        public bool showInGroup = true;
 
         public string Name { get => name; set => name = value; }
         public int CurrentValue { get => currentValue; set => currentValue = value; }
@@ -19,11 +20,12 @@ namespace Soulstone.Datamodels
         public string Formula { get => formula; set => formula = value; }
         public ResourceType ResourceType { get => resourceType; set => resourceType = value; }
         public bool IsRollable { get => isRollable; set => isRollable = value; }
+        public bool ShowInGroup { get => showInGroup; set => showInGroup = value; }
         public int TotalMaxValue => MaxValue + TempBonus;
 
         public CharacterResource() { }
 
-        public CharacterResource(string name, int currentValue, int maxValue, int tempBonus = 0, string formula = "", ResourceType resourceType = ResourceType.Bar, bool isRollable = true)
+        public CharacterResource(string name, int currentValue, int maxValue, int tempBonus = 0, string formula = "", ResourceType resourceType = ResourceType.Bar, bool isRollable = true, bool showInGroup = true)
         {
             this.name = name;
             this.currentValue = currentValue;
@@ -32,6 +34,7 @@ namespace Soulstone.Datamodels
             this.formula = formula;
             this.resourceType = resourceType;
             this.isRollable = isRollable;
+            this.showInGroup = showInGroup;
         }
 
         public CharacterResource Clone()
@@ -44,7 +47,8 @@ namespace Soulstone.Datamodels
                 TempBonus = this.TempBonus,
                 Formula = this.Formula,
                 ResourceType = this.ResourceType,
-                IsRollable = this.IsRollable
+                IsRollable = this.IsRollable,
+                ShowInGroup = this.ShowInGroup
             };
         }
     }

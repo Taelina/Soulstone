@@ -80,8 +80,6 @@ namespace Soulstone.Windows
 
             DrawHeroCard();
             ImGui.Spacing();
-            /*DrawResourcesCollapsibleSection();
-            ImGui.Spacing();*/
             DrawIdentitySection();
             ImGui.Spacing();
             DrawOocSection();
@@ -202,27 +200,7 @@ namespace Soulstone.Windows
 
         private static Vector4 GetResourceColor(string name, string? colorHex = null)
         {
-            if (!string.IsNullOrWhiteSpace(colorHex) && colorHex.StartsWith("#") && colorHex.Length >= 7)
-            {
-                try
-                {
-                    byte r = Convert.ToByte(colorHex.Substring(1, 2), 16);
-                    byte g = Convert.ToByte(colorHex.Substring(3, 2), 16);
-                    byte b = Convert.ToByte(colorHex.Substring(5, 2), 16);
-                    return new Vector4(r / 255f, g / 255f, b / 255f, 0.85f);
-                }
-                catch { }
-            }
-
-            return name.ToLowerInvariant() switch
-            {
-                "health" or "hp" or "vie" or "santé" => new Vector4(0.2f, 0.7f, 0.3f, 0.85f),
-                "mana" or "mp" => new Vector4(0.2f, 0.45f, 0.85f, 0.85f),
-                "stamina" or "endurance" or "energy" => new Vector4(0.85f, 0.60f, 0.15f, 0.85f),
-                "rage" => new Vector4(0.85f, 0.20f, 0.20f, 0.85f),
-                "focus" or "sanity" => new Vector4(0.60f, 0.25f, 0.85f, 0.85f),
-                _ => new Vector4(0.25f, 0.65f, 0.65f, 0.85f)
-            };
+            return UiUtils.GetResourceColor(name, colorHex);
         }
 
         private void DrawVisibilityToggle(string fieldName)

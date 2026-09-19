@@ -34,6 +34,7 @@ namespace Soulstone.Windows
         private string modalResourceDesc = string.Empty;
         private bool modalResourceIsRequired = false;
         private bool modalResourceIsRollable = true;
+        private bool modalResourceShowInGroup = true;
         private int modalResourceTypeIndex = 0;
         private string modalErrorMessage = string.Empty;
 
@@ -537,6 +538,11 @@ namespace Soulstone.Windows
                                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                                     UiUtils.Badge("Core", new Vector4(0.35f, 0.28f, 0.12f, 0.7f), ImGuiColors.ParsedGold);
                                 }
+                                if (res.ShowInGroup)
+                                {
+                                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                                    UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("GroupOpenWindow"), new Vector4(0.15f, 0.35f, 0.25f, 0.7f), ImGuiColors.ParsedGreen);
+                                }
 
                                 // Type
                                 ImGui.TableNextColumn();
@@ -649,6 +655,7 @@ namespace Soulstone.Windows
             modalResourceDesc = string.Empty;
             modalResourceIsRequired = false;
             modalResourceIsRollable = true;
+            modalResourceShowInGroup = true;
             modalResourceTypeIndex = 0;
             modalErrorMessage = string.Empty;
             showResourceModal = true;
@@ -666,6 +673,7 @@ namespace Soulstone.Windows
             modalResourceDesc = res.Description ?? string.Empty;
             modalResourceIsRequired = res.IsRequired;
             modalResourceIsRollable = res.IsRollable;
+            modalResourceShowInGroup = res.ShowInGroup;
             modalResourceTypeIndex = (int)res.ResourceType;
             modalErrorMessage = string.Empty;
             showResourceModal = true;
@@ -766,6 +774,10 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
                 ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceIsRequired"), ref modalResourceIsRequired);
 
+                // Show in Group Management
+                ImGui.Spacing();
+                ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("ResourceShowInGroupLabel"), ref modalResourceShowInGroup);
+
                 if (modalResourceTypeIndex == 2)
                 {
                     ImGui.Spacing();
@@ -807,7 +819,8 @@ namespace Soulstone.Windows
                             modalResourceIsRequired,
                             modalResourceFormula.Trim(),
                             resType,
-                            modalResourceIsRollable
+                            modalResourceIsRollable,
+                            modalResourceShowInGroup
                         ));
 
                         showResourceModal = false;

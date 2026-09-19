@@ -5,6 +5,35 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-09-19
+
+### Added
+- **Dynamic Group Management Resources & Visibility Controls**:
+  - Replaced legacy hardcoded default "Health" and "Mana" progress bars in `GroupWindow` with dynamic, ruleset-defined active character resources in both card vitals and tactical grid views.
+  - Added granular per-resource visibility controls (`ShowInGroup`) to `ResourceDefinition` and `CharacterResource` configurable in `DiceSystemWindow` and `CharStatsWindow`.
+  - Added global group resource visibility setting (`ShowGroupResources`) in `Configuration`, `ConfigWindow`, and `GroupWindow` toolbar.
+  - Extended party synchronization payloads (`PresencePayload`, `ResourceUpdatePayload`, and `PartyMemberSyncData`) to broadcast resource visibility across peers.
+- **Unified Resource Presentation & Visual Styling**:
+  - Centralized resource bar coloring (`UiUtils.GetResourceColor`) and widget rendering across Group Management, RP Sheet, Remote Character Inspect, Character Stats, and Initiative Tracker.
+  - Added collapsible dynamic resources section to `CharacterWindow` and `CharacterInspectWindow`.
+- **Character Inspection & Quick Looks**:
+  - Added full support for serializing, publishing, and rendering Quick Glance Hooks (`CharacterQuickLook1..5`), distinctive features, and reputation in `CharacterInspectWindow`.
+  - Added retry and refresh action buttons to `CharacterInspectWindow` for quick re-fetching of remote character sheets.
+- **Default Relay & API Configuration**:
+  - Set default relay and character cloud API endpoint to `http://82.65.2.251:5077` across all lookup clients with automatic normalization for user-entered IPs and hostnames.
+
+### Fixed
+- **Character Sheet Deserialization**:
+  - Resolved `InvalidOperationException` property name collision on `CharacterSheet` JSON deserialization in `CharacterApiClient`.
+
+### Changed
+- **Version Manifests & Metadata**:
+  - Bumped version to `1.1.1.0` across `Soulstone.csproj`, `Soulstone.json`, and `SoulstoneRep.json`.
+- **Localization**:
+  - Added localized strings for group resource toggles and inspect retry actions across English and French dictionaries (`en.json` and `fr.json`).
+
+---
+
 ## [1.1.0] - 2026-09-19
 
 ### Added

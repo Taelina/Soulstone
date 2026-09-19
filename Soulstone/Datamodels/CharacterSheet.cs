@@ -115,7 +115,14 @@ namespace Soulstone.Datamodels
         public string CharacterOrigin { get => characterOrigin; set => characterOrigin = value; }
         public string CharacterAffiliation { get => characterAffiliation; set => characterAffiliation = value; }
         public string CharacterOccupation { get => characterOccupation; set => characterOccupation = value; }
+        public string CharacterReputation { get => characterReputation; set => characterReputation = value; }
         public string CharacterBackground { get => characterBackground; set => characterBackground = value; }
+        public string CharacterDistinctiveFeatures { get => characterDistinctiveFeatures; set => characterDistinctiveFeatures = value; }
+        public string CharacterQuickLook1 { get => characterQuickLook1; set => characterQuickLook1 = value; }
+        public string CharacterQuickLook2 { get => characterQuickLook2; set => characterQuickLook2 = value; }
+        public string CharacterQuickLook3 { get => characterQuickLook3; set => characterQuickLook3 = value; }
+        public string CharacterQuickLook4 { get => characterQuickLook4; set => characterQuickLook4 = value; }
+        public string CharacterQuickLook5 { get => characterQuickLook5; set => characterQuickLook5 = value; }
         public string CharacterNotes { get => characterNotes; set => characterNotes = value; }
         public string CharacterInfo { get => characterInfo; set => characterInfo = value; }
         public string PlayerAvailability { get => playerAvailability; set => playerAvailability = value; }
@@ -428,7 +435,7 @@ namespace Soulstone.Datamodels
                         {
                             initCur = initMax;
                         }
-                        res = new CharacterResource(def.Name, initCur, initMax, formula: def.Formula, resourceType: def.ResourceType, isRollable: def.IsRollable);
+                        res = new CharacterResource(def.Name, initCur, initMax, formula: def.Formula, resourceType: def.ResourceType, isRollable: def.IsRollable, showInGroup: def.ShowInGroup);
                         characterResources[def.Name] = res;
                     }
                     else
@@ -439,6 +446,7 @@ namespace Soulstone.Datamodels
                         }
                         res.ResourceType = def.ResourceType;
                         res.IsRollable = def.IsRollable;
+                        res.ShowInGroup = def.ShowInGroup;
                     }
                     result.Add(res);
                 }

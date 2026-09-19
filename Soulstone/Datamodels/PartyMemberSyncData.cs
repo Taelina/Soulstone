@@ -19,6 +19,7 @@ namespace Soulstone.Datamodels
         public Dictionary<string, int> CustomResources { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> CustomResourceMaxes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> CustomResourceTypes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, bool> CustomResourceShowInGroup { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public List<Buff> ActiveBuffs { get; set; } = new();
         public string LastRollSummary { get; set; } = string.Empty;
         public DateTime LastSeen { get; set; } = DateTime.UtcNow;
@@ -63,6 +64,10 @@ namespace Soulstone.Datamodels
             {
                 CustomResourceTypes = new Dictionary<string, int>(payload.CustomResourceTypes, StringComparer.OrdinalIgnoreCase);
             }
+            if (payload.CustomResourceShowInGroup != null)
+            {
+                CustomResourceShowInGroup = new Dictionary<string, bool>(payload.CustomResourceShowInGroup, StringComparer.OrdinalIgnoreCase);
+            }
             if (payload.ActiveBuffs != null)
             {
                 ActiveBuffs = new List<Buff>(payload.ActiveBuffs);
@@ -95,6 +100,10 @@ namespace Soulstone.Datamodels
             if (payload.CustomResourceTypes != null)
             {
                 CustomResourceTypes = new Dictionary<string, int>(payload.CustomResourceTypes, StringComparer.OrdinalIgnoreCase);
+            }
+            if (payload.CustomResourceShowInGroup != null)
+            {
+                CustomResourceShowInGroup = new Dictionary<string, bool>(payload.CustomResourceShowInGroup, StringComparer.OrdinalIgnoreCase);
             }
         }
 

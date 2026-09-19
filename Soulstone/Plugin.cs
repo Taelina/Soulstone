@@ -9,6 +9,7 @@ using Dalamud.Plugin.Ipc;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Game.Text.SeStringHandling;
 using Soulstone.Managers;
+using Soulstone.Sync;
 using System;
 using System.Threading.Tasks;
 using Soulstone.Utils;
@@ -167,7 +168,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 try
                 {
-                    var serverUrl = Configuration?.SyncServerUrl ?? "http://127.0.0.1:5077";
+                    var serverUrl = RelayCrypto.NormalizeServerUrl(Configuration?.SyncServerUrl);
                     var sheet = await CharacterApiClient.FetchCharacterSheetAsync(serverUrl, characterName, worldName).ConfigureAwait(false);
                     if (sheet != null)
                     {

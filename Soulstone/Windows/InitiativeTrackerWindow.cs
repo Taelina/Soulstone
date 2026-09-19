@@ -915,88 +915,39 @@ namespace Soulstone.Windows
             }
             ImGui.Spacing();
 
-            // HP
-            int curHp = sheet.characterHealthPoints;
-            int maxHp = sheet.characterMaxHealthPoints > 0 ? sheet.characterMaxHealthPoints : 100;
-            ImGui.TextColored(ImGuiColors.DalamudRed, LocalizationManager.Instance.GetLocalizedString("HealthLabel"));
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.StyledInputInt("NpcCurHp", ref curHp, step: 0, width: 70.0f)) sheet.characterHealthPoints = curHp;
-            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            ImGui.TextDisabled("/");
-            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.StyledInputInt("NpcMaxHp", ref maxHp, step: 0, width: 70.0f)) sheet.characterMaxHealthPoints = Math.Max(1, maxHp);
-
-            // Quick adjustment buttons
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.SmallButton("-5##HpM5")) sheet.characterHealthPoints = Math.Max(0, sheet.characterHealthPoints - 5);
-            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.SmallButton("-1##HpM1")) sheet.characterHealthPoints = Math.Max(0, sheet.characterHealthPoints - 1);
-            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.SmallButton("+1##HpP1")) sheet.characterHealthPoints += 1;
-            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.SmallButton("+5##HpP5")) sheet.characterHealthPoints += 5;
-
-            float hpRatio = maxHp > 0 ? Math.Clamp((float)sheet.characterHealthPoints / maxHp, 0f, 1f) : 0f;
-            UiUtils.DrawProgressBar(sheet.characterHealthPoints, maxHp, $"{sheet.characterHealthPoints} / {maxHp}", new Vector2(-1, 16.0f * ImGuiHelpers.GlobalScale), ImGuiColors.ParsedGreen);
-            ImGui.Spacing();
-
-            // MP
-            int curMp = sheet.characterManaPoints;
-            int maxMp = sheet.characterMaxManaPoints > 0 ? sheet.characterMaxManaPoints : 100;
-            ImGui.TextColored(ImGuiColors.ParsedBlue, LocalizationManager.Instance.GetLocalizedString("ManaLabel"));
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.StyledInputInt("NpcCurMp", ref curMp, step: 0, width: 70.0f)) sheet.characterManaPoints = curMp;
-            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            ImGui.TextDisabled("/");
-            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.StyledInputInt("NpcMaxMp", ref maxMp, step: 0, width: 70.0f)) sheet.characterMaxManaPoints = Math.Max(1, maxMp);
-
-            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.SmallButton("-5##MpM5")) sheet.characterManaPoints = Math.Max(0, sheet.characterManaPoints - 5);
-            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.SmallButton("-1##MpM1")) sheet.characterManaPoints = Math.Max(0, sheet.characterManaPoints - 1);
-            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.SmallButton("+1##MpP1")) sheet.characterManaPoints += 1;
-            ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.SmallButton("+5##MpP5")) sheet.characterManaPoints += 5;
-
-            float mpRatio = maxMp > 0 ? Math.Clamp((float)sheet.characterManaPoints / maxMp, 0f, 1f) : 0f;
-            UiUtils.DrawProgressBar(sheet.characterManaPoints, maxMp, $"{sheet.characterManaPoints} / {maxMp}", new Vector2(-1, 16.0f * ImGuiHelpers.GlobalScale), ImGuiColors.ParsedBlue);
-            ImGui.Spacing();
-
-            // Custom Resources
-            var customResources = sheet.GetEffectiveResources(diceSys);
-            if (customResources != null && customResources.Count > 0)
+            var resources = sheet.GetEffectiveResources(diceSys);
+            if (resources == null || resources.Count == 0)
             {
-                ImGui.Separator();
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader"));
+                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("DiceSysNoResources"));
+                return;
+            }
+
+            foreach (var res in resources)
+            {
+                int curRes = res.CurrentValue;
+                int maxRes = res.MaxValue > 0 ? res.MaxValue : 100;
+                var resDef = diceSys?.SystemResources.FirstOrDefault(d => string.Equals(d.Name, res.Name, StringComparison.OrdinalIgnoreCase));
+                var resColor = UiUtils.GetResourceColor(res.Name, resDef?.ColorHex);
+
+                ImGui.TextColored(resColor, res.Name);
+                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.StyledInputInt($"NpcCur_{res.Name}", ref curRes, step: 0, width: 70.0f)) sheet.SetResourceCurrent(res.Name, curRes);
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                ImGui.TextDisabled("/");
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.StyledInputInt($"NpcMax_{res.Name}", ref maxRes, step: 0, width: 70.0f)) sheet.SetResourceMax(res.Name, Math.Max(1, maxRes));
+
+                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.SmallButton($"-5##{res.Name}M5")) sheet.SetResourceCurrent(res.Name, Math.Max(0, res.CurrentValue - 5));
+                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.SmallButton($"-1##{res.Name}M1")) sheet.SetResourceCurrent(res.Name, Math.Max(0, res.CurrentValue - 1));
+                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.SmallButton($"+1##{res.Name}P1")) sheet.SetResourceCurrent(res.Name, res.CurrentValue + 1);
+                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.SmallButton($"+5##{res.Name}P5")) sheet.SetResourceCurrent(res.Name, res.CurrentValue + 5);
+
+                UiUtils.DrawProgressBar(res.CurrentValue, maxRes, $"{res.CurrentValue} / {maxRes}", new Vector2(-1, 16.0f * ImGuiHelpers.GlobalScale), resColor);
                 ImGui.Spacing();
-
-                foreach (var res in customResources)
-                {
-                    int curRes = res.CurrentValue;
-                    int maxRes = res.MaxValue > 0 ? res.MaxValue : 100;
-
-                    ImGui.TextColored(ImGuiColors.DalamudWhite, res.Name);
-                    ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.StyledInputInt($"NpcCur_{res.Name}", ref curRes, step: 0, width: 70.0f)) res.CurrentValue = curRes;
-                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.TextDisabled("/");
-                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.StyledInputInt($"NpcMax_{res.Name}", ref maxRes, step: 0, width: 70.0f)) res.MaxValue = Math.Max(1, maxRes);
-
-                    ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.SmallButton($"-5##{res.Name}M5")) res.CurrentValue = Math.Max(0, res.CurrentValue - 5);
-                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.SmallButton($"-1##{res.Name}M1")) res.CurrentValue = Math.Max(0, res.CurrentValue - 1);
-                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.SmallButton($"+1##{res.Name}P1")) res.CurrentValue += 1;
-                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.SmallButton($"+5##{res.Name}P5")) res.CurrentValue += 5;
-
-                    UiUtils.DrawProgressBar(res.CurrentValue, maxRes, $"{res.CurrentValue} / {maxRes}", new Vector2(-1, 16.0f * ImGuiHelpers.GlobalScale), ImGuiColors.ParsedGold);
-                    ImGui.Spacing();
-                }
             }
         }
 

@@ -274,7 +274,27 @@ namespace Soulstone.Tests.Datamodels
 
             system.SystemHasManaOrResourcePoints = true;
             var eff2 = system.GetEffectiveResources();
-            eff2.Should().ContainSingle(r => r.Name == "Mana");
+            eff2.Should().BeEmpty();
+
+            system.AddResource(new ResourceDefinition("Mana", 100, 100, "#3498db", "Mana Points"));
+            var eff3 = system.GetEffectiveResources();
+            eff3.Should().ContainSingle(r => r.Name == "Mana");
+        }
+
+        [Fact]
+        public void NewDiceSystem_And_CharacterSheet_HaveNoDefaultResources()
+        {
+            var system = new DiceSystem();
+            system.SystemResources.Should().BeEmpty();
+            system.GetEffectiveResources().Should().BeEmpty();
+
+            var sheet = new CharacterSheet();
+            sheet.CharacterResources.Should().BeEmpty();
+            sheet.GetEffectiveResources().Should().BeEmpty();
+
+            sheet.ApplyRulesetTemplate(system);
+            sheet.CharacterResources.Should().BeEmpty();
+            sheet.GetEffectiveResources(system).Should().BeEmpty();
         }
     }
 }

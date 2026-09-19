@@ -655,5 +655,13 @@
   "FieldVisibilityHiddenTooltip": "Masqué pour les autres (cliquer pour afficher)",
   "PublishSheetToServer": "Publier sur le serveur",
   "SheetPublishedSuccess": "Fiche de personnage publiée sur le serveur avec succès.",
-  "SheetPublishFailed": "Échec de la publication de la fiche sur le serveur."
+  "SheetPublishFailed": "Échec de la publication de la fiche sur le serveur.",
+  "GroupResources": "Ressources",
+  "GroupToggleResourcesTooltip": "Activer/désactiver l'affichage des ressources dans la gestion de groupe",
+  "ConfigGroupManagementHeader": "Gestion de groupe",
+  "ConfigShowGroupResourcesCheck": "Afficher les ressources dans la fenêtre de gestion de groupe",
+  "ResourceShowInGroupLabel": "Afficher dans la gestion de groupe",
+  "ResourceShowInGroupTooltip": "Affiche cette ressource dans la fenêtre de gestion de groupe",
+  "ResourceHideFromGroupTooltip": "Masquer cette ressource de la fenêtre de gestion de groupe",
+  "RetryButton": "Réessayer"
 }

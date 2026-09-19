@@ -87,12 +87,22 @@ namespace Soulstone.Windows
                 ImGui.TextColored(ImGuiColors.DPSRed, ErrorMessage);
                 ImGui.Spacing();
                 ImGui.TextUnformatted($"{InspectedCharacterName} ({(string.IsNullOrEmpty(InspectedWorldName) ? "?" : InspectedWorldName)})");
+                ImGui.Spacing();
+                if (UiUtils.IconTextButton("RetryInspectBtn", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("RetryButton"), size: new Vector2(110.0f * scale, 0)))
+                {
+                    plugin.InspectCharacter(InspectedCharacterName, InspectedWorldName);
+                }
                 return;
             }
 
             if (InspectedCharacter == null)
             {
                 ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("CharSheetNotFoundServer"));
+                ImGui.Spacing();
+                if (UiUtils.IconTextButton("RetryInspectBtn2", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("RetryButton"), size: new Vector2(110.0f * scale, 0)))
+                {
+                    plugin.InspectCharacter(InspectedCharacterName, InspectedWorldName);
+                }
                 return;
             }
 
@@ -139,6 +149,18 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 8.0f * scale);
                 string worldSuffix = !string.IsNullOrEmpty(InspectedWorldName) ? $" ({InspectedWorldName})" : "";
                 ImGui.TextColored(ImGuiColors.ParsedGold, $"{InspectedCharacterName}{worldSuffix}");
+
+                var refreshWidth = 24.0f * scale;
+                var rightX = ImGui.GetWindowContentRegionMax().X - refreshWidth;
+                if (ImGui.GetCursorPosX() < rightX)
+                    ImGui.SameLine(rightX);
+                else
+                    ImGui.SameLine();
+
+                if (UiUtils.IconButton("RefreshInspectBtn", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("RetryButton"), new Vector2(20, 20) * scale))
+                {
+                    plugin.InspectCharacter(InspectedCharacterName, InspectedWorldName);
+                }
             }
             ImGui.EndGroup();
 
@@ -249,6 +271,85 @@ namespace Soulstone.Windows
                     }
                 }
                 ImGui.EndGroup();
+            }
+        }
+
+        private void DrawResourcesCollapsibleSection()
+        {
+            if (InspectedCharacter == null) return;
+            var currentDiceSys = DiceSystemManager.Instance.CurrentDiceSystem;
+            var resources = InspectedCharacter.GetEffectiveResources(currentDiceSys);
+            if (resources.Count == 0) return;
+
+            var title = LocalizationManager.Instance.GetLocalizedString("ResourcesSectionTitle");
+            if (string.IsNullOrEmpty(title) || title == "ResourcesSectionTitle")
+                title = LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader");
+
+            var visibleResources = resources.Where(r => !InspectedCharacter.IsFieldHidden($"Resource_{r.Name}") && !InspectedCharacter.IsFieldHidden(r.Name)).ToList();
+            if (visibleResources.Count == 0) return;
+
+            if (UiUtils.StyledCollapsingHeader(title.Replace(":", "").Trim(), defaultOpen: true, icon: FontAwesomeIcon.Heartbeat, accentColor: ImGuiColors.ParsedGreen))
+            {
+                var scale = ImGuiHelpers.GlobalScale;
+                foreach (var res in visibleResources)
+                {
+                    var def = currentDiceSys?.SystemResources.FirstOrDefault(d => string.Equals(d.Name, res.Name, StringComparison.OrdinalIgnoreCase));
+                    var resCol = UiUtils.GetResourceColor(res.Name, def?.ColorHex);
+                    int effectiveMax = InspectedCharacter.GetEffectiveResourceMax(res.Name, currentDiceSys);
+                    int gearBonus = InspectedCharacter.GetGearStatBonus(res.Name) + InspectedCharacter.GetGearStatBonus($"Max {res.Name}") + InspectedCharacter.GetGearStatBonus($"Max{res.Name}");
+
+                    using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.11f, 0.12f, 0.15f, 0.90f)))
+                    using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(resCol.X, resCol.Y, resCol.Z, 0.45f)))
+                    using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
+                    using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 6.0f) * scale))
+                    using (var card = ImRaii.Child($"##InspectRes_{res.Name}", new Vector2(0, 42.0f * scale), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
+                    {
+                        if (card.Success)
+                        {
+                            var drawList = ImGui.GetWindowDrawList();
+                            var cardPos = ImGui.GetWindowPos();
+                            var cardSize = ImGui.GetWindowSize();
+
+                            drawList.AddRectFilled(
+                                cardPos + new Vector2(2.0f * scale, 4.0f * scale),
+                                cardPos + new Vector2(5.0f * scale, cardSize.Y - 4.0f * scale),
+                                ImGui.ColorConvertFloat4ToU32(resCol),
+                                1.5f * scale);
+
+                            ImGui.AlignTextToFramePadding();
+                            ImGui.TextColored(resCol, res.Name);
+                            ImGui.SameLine(0, 12.0f * scale);
+
+                            if (res.ResourceType == ResourceType.FlatNumber)
+                            {
+                                string valText = $"{effectiveMax}{(gearBonus != 0 ? $" (+{gearBonus})" : "")}";
+                                UiUtils.PillBadge(valText, new Vector4(resCol.X * 0.35f, resCol.Y * 0.35f, resCol.Z * 0.35f, 0.85f), resCol);
+                            }
+                            else if (res.ResourceType == ResourceType.Counter)
+                            {
+                                float barW = ImGui.GetContentRegionAvail().X;
+                                string overlay = effectiveMax > 0
+                                    ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" (+{gearBonus})" : "")}"
+                                    : $"{res.CurrentValue}";
+
+                                UiUtils.DrawSectionedBar(
+                                    res.CurrentValue,
+                                    effectiveMax > 0 ? effectiveMax : 1,
+                                    overlay,
+                                    new Vector2(barW, 20.0f * scale),
+                                    activeColor: resCol);
+                            }
+                            else // Bar
+                            {
+                                string overlay = effectiveMax > 0
+                                    ? $"{res.CurrentValue} / {effectiveMax}{(gearBonus != 0 ? $" (+{gearBonus})" : "")}"
+                                    : $"{res.CurrentValue}";
+                                UiUtils.DrawProgressBar(res.CurrentValue, effectiveMax > 0 ? effectiveMax : 1, overlay, new Vector2(-1, 20.0f * scale), resCol);
+                            }
+                        }
+                    }
+                    ImGui.Spacing();
+                }
             }
         }
 
@@ -430,7 +531,7 @@ namespace Soulstone.Windows
 
             if (validItems.Count == 0) return;
 
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("QuickLookSectionTitle").Replace(":", "").Trim(), defaultOpen: false, icon: FontAwesomeIcon.Eye, accentColor: ImGuiColors.ParsedGreen))
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("QuickLookSectionTitle").Replace(":", "").Trim(), defaultOpen: true, icon: FontAwesomeIcon.Eye, accentColor: ImGuiColors.ParsedGreen))
             {
                 var scale = ImGuiHelpers.GlobalScale;
                 foreach (var item in validItems)

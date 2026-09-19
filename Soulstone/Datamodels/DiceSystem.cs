@@ -99,26 +99,7 @@ namespace Soulstone.Datamodels
         public bool SystemHasManaOrResourcePoints
         {
             get => systemHasManaOrResourcePoints;
-            set
-            {
-                systemHasManaOrResourcePoints = value;
-                if (systemResources != null)
-                {
-                    bool hasMana = systemResources.Any(r => string.Equals(r.Name, "Mana", StringComparison.OrdinalIgnoreCase));
-                    if (value && !hasMana)
-                    {
-                        systemResources.Add(new ResourceDefinition("Mana", 100, 100, "#3498db", "Mana Points"));
-                    }
-                    else if (!value && hasMana)
-                    {
-                        var mana = systemResources.FirstOrDefault(r => string.Equals(r.Name, "Mana", StringComparison.OrdinalIgnoreCase));
-                        if (mana != null && string.Equals(mana.Description, "Mana Points", StringComparison.OrdinalIgnoreCase))
-                        {
-                            systemResources.Remove(mana);
-                        }
-                    }
-                }
-            }
+            set => systemHasManaOrResourcePoints = value;
         }
         public bool SystemHasClasses { get => systemHasClasses; set => systemHasClasses = value; }
         public bool SystemHasBonusTemp { get => systemHasBonusTemp; set => systemHasBonusTemp = value; }
@@ -172,10 +153,11 @@ namespace Soulstone.Datamodels
                         existing.Formula = res.Formula;
                         existing.ResourceType = res.ResourceType;
                         existing.IsRollable = res.IsRollable;
+                        existing.ShowInGroup = res.ShowInGroup;
                     }
                     else
                     {
-                        systemResources.Add(new ResourceDefinition(res.Name, res.MaxValue, res.CurrentValue, formula: res.Formula, resourceType: res.ResourceType, isRollable: res.IsRollable));
+                        systemResources.Add(new ResourceDefinition(res.Name, res.MaxValue, res.CurrentValue, formula: res.Formula, resourceType: res.ResourceType, isRollable: res.IsRollable, showInGroup: res.ShowInGroup));
                     }
                 }
             }

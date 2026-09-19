@@ -166,7 +166,10 @@ namespace Soulstone.Tests.Windows
                 "GroupFilterSoulstone", "GroupFilterLeader", "GroupFilterOutOfSync",
                 "GroupBatchRoll", "GroupBatchRollTitle", "GroupBatchRollSend", "GroupQuickRoll",
                 "GroupRollStat", "GroupRequestStat", "GroupSessionInfo", "GroupHostLabel",
-                "GroupConnectedMembers", "GroupJoinTab", "GroupHostTab", "GroupCopied"
+                "GroupConnectedMembers", "GroupJoinTab", "GroupHostTab", "GroupCopied",
+                "GroupResources", "GroupToggleResourcesTooltip", "ConfigGroupManagementHeader",
+                "ConfigShowGroupResourcesCheck", "ResourceShowInGroupLabel", "ResourceShowInGroupTooltip",
+                "ResourceHideFromGroupTooltip"
             };
 
             foreach (var key in groupKeys)
@@ -176,6 +179,53 @@ namespace Soulstone.Tests.Windows
                 Assert.False(string.IsNullOrWhiteSpace(en[key]), $"English translation for '{key}' should not be empty");
                 Assert.False(string.IsNullOrWhiteSpace(fr[key]), $"French translation for '{key}' should not be empty");
             }
+        }
+
+        [Fact]
+        public void PartyMemberSyncData_CustomResourcesAndGroupVisibility_AppliesCorrectly()
+        {
+            var member = new PartyMemberSyncData { CharacterName = "Alphinaud" };
+            var presence = new PresencePayload
+            {
+                CharacterName = "Alphinaud",
+                CustomResources = new Dictionary<string, int> { ["Aether"] = 50, ["Sanity"] = 80 },
+                CustomResourceMaxes = new Dictionary<string, int> { ["Aether"] = 100, ["Sanity"] = 100 },
+                CustomResourceTypes = new Dictionary<string, int> { ["Aether"] = (int)ResourceType.Bar, ["Sanity"] = (int)ResourceType.Counter },
+                CustomResourceShowInGroup = new Dictionary<string, bool> { ["Aether"] = true, ["Sanity"] = false }
+            };
+
+            member.ApplyPresence(presence);
+
+            member.CustomResources["Aether"].Should().Be(50);
+            member.CustomResourceShowInGroup["Aether"].Should().BeTrue();
+            member.CustomResources["Sanity"].Should().Be(80);
+            member.CustomResourceShowInGroup["Sanity"].Should().BeFalse();
+
+            var update = new ResourceUpdatePayload
+            {
+                CharacterName = "Alphinaud",
+                CustomResources = new Dictionary<string, int> { ["Aether"] = 60, ["Sanity"] = 85 },
+                CustomResourceMaxes = new Dictionary<string, int> { ["Aether"] = 100, ["Sanity"] = 100 },
+                CustomResourceTypes = new Dictionary<string, int> { ["Aether"] = (int)ResourceType.Bar, ["Sanity"] = (int)ResourceType.Counter },
+                CustomResourceShowInGroup = new Dictionary<string, bool> { ["Aether"] = true, ["Sanity"] = true }
+            };
+
+            member.ApplyResourceUpdate(update);
+
+            member.CustomResources["Aether"].Should().Be(60);
+            member.CustomResourceShowInGroup["Sanity"].Should().BeTrue();
+        }
+
+        [Fact]
+        public void Configuration_ShowGroupResources_DefaultsToTrue()
+        {
+            var config = new Soulstone.Configuration();
+            config.ShowGroupResources.Should().BeTrue();
+            config.showGroupResources.Should().BeTrue();
+
+            config.ShowGroupResources = false;
+            config.ShowGroupResources.Should().BeFalse();
+            config.showGroupResources.Should().BeFalse();
         }
 
         [Theory]

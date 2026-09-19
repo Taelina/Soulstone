@@ -13,6 +13,7 @@ namespace Soulstone.Datamodels
         public string formula = string.Empty;
         public ResourceType resourceType = ResourceType.Bar;
         public bool isRollable = true;
+        public bool showInGroup = true;
 
         public string Name { get => name; set => name = value; }
         public string Description { get => description; set => description = value; }
@@ -23,10 +24,11 @@ namespace Soulstone.Datamodels
         public string Formula { get => formula; set => formula = value; }
         public ResourceType ResourceType { get => resourceType; set => resourceType = value; }
         public bool IsRollable { get => isRollable; set => isRollable = value; }
+        public bool ShowInGroup { get => showInGroup; set => showInGroup = value; }
 
         public ResourceDefinition() { }
 
-        public ResourceDefinition(string name, int defaultMax = 100, int defaultCurrent = 100, string colorHex = "#2ecc71", string description = "", bool isRequired = false, string formula = "", ResourceType resourceType = ResourceType.Bar, bool isRollable = true)
+        public ResourceDefinition(string name, int defaultMax = 100, int defaultCurrent = 100, string colorHex = "#2ecc71", string description = "", bool isRequired = false, string formula = "", ResourceType resourceType = ResourceType.Bar, bool isRollable = true, bool showInGroup = true)
         {
             this.name = name;
             this.defaultMax = defaultMax;
@@ -37,6 +39,7 @@ namespace Soulstone.Datamodels
             this.formula = formula;
             this.resourceType = resourceType;
             this.isRollable = isRollable;
+            this.showInGroup = showInGroup;
         }
 
         public ResourceDefinition Clone()
@@ -51,7 +54,8 @@ namespace Soulstone.Datamodels
                 IsRequired = this.IsRequired,
                 Formula = this.Formula,
                 ResourceType = this.ResourceType,
-                IsRollable = this.IsRollable
+                IsRollable = this.IsRollable,
+                ShowInGroup = this.ShowInGroup
             };
         }
     }

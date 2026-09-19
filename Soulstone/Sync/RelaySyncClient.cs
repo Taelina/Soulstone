@@ -191,7 +191,8 @@ namespace Soulstone.Sync
 
         private static Uri ValidateServerUrl(string serverUrl)
         {
-            if (!Uri.TryCreate(serverUrl?.TrimEnd('/') + "/", UriKind.Absolute, out var uri) ||
+            string normalized = RelayCrypto.NormalizeServerUrl(serverUrl);
+            if (!Uri.TryCreate(normalized.TrimEnd('/') + "/", UriKind.Absolute, out var uri) ||
                 (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
                 throw new ArgumentException("Enter a valid HTTP(S) Soulstone relay URL.");
 

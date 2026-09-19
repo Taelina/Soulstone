@@ -18,19 +18,22 @@ namespace Soulstone.Tests.Datamodels
             defDefault.DefaultCurrent.Should().Be(100);
             defDefault.ColorHex.Should().Be("#2ecc71");
             defDefault.IsRequired.Should().BeFalse();
+            defDefault.ShowInGroup.Should().BeTrue();
 
-            var def = new ResourceDefinition("Stamina", 150, 150, "#e67e22", "Physical stamina", isRequired: true);
+            var def = new ResourceDefinition("Stamina", 150, 150, "#e67e22", "Physical stamina", isRequired: true, showInGroup: false);
             def.Name.Should().Be("Stamina");
             def.DefaultMax.Should().Be(150);
             def.DefaultCurrent.Should().Be(150);
             def.ColorHex.Should().Be("#e67e22");
             def.Description.Should().Be("Physical stamina");
             def.IsRequired.Should().BeTrue();
+            def.ShowInGroup.Should().BeFalse();
 
             var clone = def.Clone();
             clone.Name.Should().Be("Stamina");
             clone.DefaultMax.Should().Be(150);
             clone.ColorHex.Should().Be("#e67e22");
+            clone.ShowInGroup.Should().BeFalse();
         }
 
         [Fact]
@@ -42,13 +45,15 @@ namespace Soulstone.Tests.Datamodels
             resDefault.MaxValue.Should().Be(0);
             resDefault.TempBonus.Should().Be(0);
             resDefault.TotalMaxValue.Should().Be(0);
+            resDefault.ShowInGroup.Should().BeTrue();
 
-            var res = new CharacterResource("Mana", 80, 100, 20);
+            var res = new CharacterResource("Mana", 80, 100, 20, showInGroup: false);
             res.Name.Should().Be("Mana");
             res.CurrentValue.Should().Be(80);
             res.MaxValue.Should().Be(100);
             res.TempBonus.Should().Be(20);
             res.TotalMaxValue.Should().Be(120);
+            res.ShowInGroup.Should().BeFalse();
 
             var clone = res.Clone();
             clone.Name.Should().Be("Mana");
@@ -56,6 +61,7 @@ namespace Soulstone.Tests.Datamodels
             clone.MaxValue.Should().Be(100);
             clone.TempBonus.Should().Be(20);
             clone.TotalMaxValue.Should().Be(120);
+            clone.ShowInGroup.Should().BeFalse();
         }
 
         [Fact]

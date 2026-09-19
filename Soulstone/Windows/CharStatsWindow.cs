@@ -37,6 +37,7 @@ namespace Soulstone.Windows
         private int newResourceMaxValue = 100;
         private int newResourceType = 0;
         private bool newResourceIsRollable = false;
+        private bool newResourceShowInGroup = true;
 
         private string newAttributeName = "";
         private int newAttributeValue = 0;
@@ -349,6 +350,7 @@ namespace Soulstone.Windows
                         newResourceMaxValue = 100;
                         newResourceType = 0;
                         newResourceIsRollable = false;
+                        newResourceShowInGroup = true;
                         showResourcePopup = true;
                     }
                     ImGui.Spacing();
@@ -455,6 +457,20 @@ namespace Soulstone.Windows
                                 res.IsRollable = !res.IsRollable;
                             }
                             ImGui.PopStyleColor();
+
+                            ImGui.SameLine(0, 6.0f * scale);
+                            var groupIconCol = res.ShowInGroup ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudGrey;
+                            var groupTooltip = res.ShowInGroup
+                                ? LocalizationManager.Instance.GetLocalizedString("ResourceShowInGroupTooltip")
+                                : LocalizationManager.Instance.GetLocalizedString("ResourceHideFromGroupTooltip");
+
+                            ImGui.PushStyleColor(ImGuiCol.Text, groupIconCol);
+                            if (UiUtils.IconButton($"ToggleGroup_{res.Name}", FontAwesomeIcon.Users, groupTooltip, new Vector2(24, 22) * scale))
+                            {
+                                res.ShowInGroup = !res.ShowInGroup;
+                                PartySyncManager.Instance.BroadcastResourceUpdate();
+                            }
+                            ImGui.PopStyleColor();
                         }
                         else
                         {
@@ -472,6 +488,20 @@ namespace Soulstone.Windows
                             {
                                 currentCharacter.SetResourceMax(res.Name, maxVal);
                             }
+
+                            ImGui.SameLine(0, 6.0f * scale);
+                            var groupIconCol = res.ShowInGroup ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudGrey;
+                            var groupTooltip = res.ShowInGroup
+                                ? LocalizationManager.Instance.GetLocalizedString("ResourceShowInGroupTooltip")
+                                : LocalizationManager.Instance.GetLocalizedString("ResourceHideFromGroupTooltip");
+
+                            ImGui.PushStyleColor(ImGuiCol.Text, groupIconCol);
+                            if (UiUtils.IconButton($"ToggleGroup_{res.Name}", FontAwesomeIcon.Users, groupTooltip, new Vector2(24, 22) * scale))
+                            {
+                                res.ShowInGroup = !res.ShowInGroup;
+                                PartySyncManager.Instance.BroadcastResourceUpdate();
+                            }
+                            ImGui.PopStyleColor();
                         }
 
                         // Right action buttons (recalc, move up/down, delete)
@@ -653,27 +683,7 @@ namespace Soulstone.Windows
 
         private static Vector4 GetResourceColor(string name, string? colorHex = null)
         {
-            if (!string.IsNullOrWhiteSpace(colorHex) && colorHex.StartsWith("#") && colorHex.Length >= 7)
-            {
-                try
-                {
-                    byte r = Convert.ToByte(colorHex.Substring(1, 2), 16);
-                    byte g = Convert.ToByte(colorHex.Substring(3, 2), 16);
-                    byte b = Convert.ToByte(colorHex.Substring(5, 2), 16);
-                    return new Vector4(r / 255f, g / 255f, b / 255f, 0.85f);
-                }
-                catch { }
-            }
-
-            return name.ToLowerInvariant() switch
-            {
-                "health" or "hp" or "vie" or "santé" => new Vector4(0.2f, 0.7f, 0.3f, 0.85f),
-                "mana" or "mp" => new Vector4(0.2f, 0.45f, 0.85f, 0.85f),
-                "stamina" or "endurance" or "energy" => new Vector4(0.85f, 0.60f, 0.15f, 0.85f),
-                "rage" => new Vector4(0.85f, 0.20f, 0.20f, 0.85f),
-                "focus" or "sanity" => new Vector4(0.60f, 0.25f, 0.85f, 0.85f),
-                _ => new Vector4(0.25f, 0.65f, 0.65f, 0.85f)
-            };
+            return UiUtils.GetResourceColor(name, colorHex);
         }
 
         private static string FormatModifier(int value)
@@ -1674,6 +1684,9 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.Spacing();
+                ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("ResourceShowInGroupLabel"), ref newResourceShowInGroup);
+
+                ImGui.Spacing();
                 if (UiUtils.IconTextButton("AddResConfirmBtn", FontAwesomeIcon.Check, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), size: new Vector2(110, 0) * scale))
                 {
                     if (!string.IsNullOrWhiteSpace(newResourceName))
@@ -1681,7 +1694,8 @@ namespace Soulstone.Windows
                         var createdRes = new CharacterResource(newResourceName, newResourceMaxValue, newResourceMaxValue)
                         {
                             ResourceType = (ResourceType)newResourceType,
-                            IsRollable = newResourceIsRollable
+                            IsRollable = newResourceIsRollable,
+                            ShowInGroup = newResourceShowInGroup
                         };
                         currentCharacter.characterResources ??= new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
                         currentCharacter.characterResources[newResourceName] = createdRes;
@@ -1689,6 +1703,7 @@ namespace Soulstone.Windows
                         newResourceMaxValue = 100;
                         newResourceType = 0;
                         newResourceIsRollable = false;
+                        newResourceShowInGroup = true;
                         showResourcePopup = false;
                     }
                 }

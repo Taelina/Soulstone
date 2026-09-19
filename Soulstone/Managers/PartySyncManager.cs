@@ -46,19 +46,21 @@ namespace Soulstone.Managers
 
         public async Task<bool> PublishCharacterSheetAsync(CharacterSheet sheet, string? world = null)
         {
-            if (configuration == null || string.IsNullOrWhiteSpace(configuration.SyncServerUrl) || sheet == null)
+            if (sheet == null)
                 return false;
 
+            var serverUrl = RelayCrypto.NormalizeServerUrl(configuration?.SyncServerUrl);
             world ??= GetLocalPlayerWorld();
-            return await CharacterApiClient.UploadCharacterSheetAsync(configuration.SyncServerUrl, sheet, world).ConfigureAwait(false);
+            return await CharacterApiClient.UploadCharacterSheetAsync(serverUrl, sheet, world).ConfigureAwait(false);
         }
 
         public async Task<CharacterSheet?> FetchRemoteCharacterSheetAsync(string characterName, string? world = null)
         {
-            if (configuration == null || string.IsNullOrWhiteSpace(configuration.SyncServerUrl) || string.IsNullOrWhiteSpace(characterName))
+            if (string.IsNullOrWhiteSpace(characterName))
                 return null;
 
-            return await CharacterApiClient.FetchCharacterSheetAsync(configuration.SyncServerUrl, characterName, world).ConfigureAwait(false);
+            var serverUrl = RelayCrypto.NormalizeServerUrl(configuration?.SyncServerUrl);
+            return await CharacterApiClient.FetchCharacterSheetAsync(serverUrl, characterName, world).ConfigureAwait(false);
         }
 
         public void Init(Configuration config)
@@ -801,19 +803,21 @@ namespace Soulstone.Managers
             if (sheet != null)
             {
                 data.CurrentHp = sheet.characterHealthPoints;
-                data.MaxHp = sheet.characterMaxHealthPoints > 0 ? sheet.characterMaxHealthPoints : 100;
+                data.MaxHp = sheet.characterMaxHealthPoints;
                 data.CurrentMana = sheet.characterManaPoints;
-                data.MaxMana = sheet.characterMaxManaPoints > 0 ? sheet.characterMaxManaPoints : 100;
+                data.MaxMana = sheet.characterMaxManaPoints;
 
                 data.CustomResources.Clear();
                 data.CustomResourceMaxes.Clear();
                 data.CustomResourceTypes.Clear();
+                data.CustomResourceShowInGroup.Clear();
                 var resources = sheet.GetEffectiveResources(diceSys);
                 foreach (var res in resources)
                 {
                     data.CustomResources[res.Name] = res.CurrentValue;
                     data.CustomResourceMaxes[res.Name] = res.MaxValue;
                     data.CustomResourceTypes[res.Name] = (int)res.ResourceType;
+                    data.CustomResourceShowInGroup[res.Name] = res.ShowInGroup;
                 }
 
                 data.ActiveBuffs = sheet.activeBuffs != null ? new List<Buff>(sheet.activeBuffs) : new List<Buff>();
@@ -893,6 +897,7 @@ namespace Soulstone.Managers
                     payload.CustomResources[res.Name] = res.CurrentValue;
                     payload.CustomResourceMaxes[res.Name] = res.MaxValue;
                     payload.CustomResourceTypes[res.Name] = (int)res.ResourceType;
+                    payload.CustomResourceShowInGroup[res.Name] = res.ShowInGroup;
                 }
             }
 
@@ -1131,9 +1136,9 @@ namespace Soulstone.Managers
             {
                 CharacterName = GetLocalPlayerName(),
                 CurrentHp = sheet.characterHealthPoints,
-                MaxHp = sheet.characterMaxHealthPoints > 0 ? sheet.characterMaxHealthPoints : 100,
+                MaxHp = sheet.characterMaxHealthPoints,
                 CurrentMana = sheet.characterManaPoints,
-                MaxMana = sheet.characterMaxManaPoints > 0 ? sheet.characterMaxManaPoints : 100
+                MaxMana = sheet.characterMaxManaPoints
             };
 
             var resources = sheet.GetEffectiveResources(diceSys);
@@ -1144,6 +1149,7 @@ namespace Soulstone.Managers
                     payload.CustomResources[res.Name] = res.CurrentValue;
                     payload.CustomResourceMaxes[res.Name] = res.MaxValue;
                     payload.CustomResourceTypes[res.Name] = (int)res.ResourceType;
+                    payload.CustomResourceShowInGroup[res.Name] = res.ShowInGroup;
                 }
             }
 
