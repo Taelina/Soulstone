@@ -97,7 +97,6 @@ namespace Soulstone.Tests.Datamodels
         {
             var sheet = new CharacterSheet();
             sheet.characterResources["Health"] = new CharacterResource("Health", 20, 20);
-            sheet.SyncResourcesWithLegacyFields();
 
             Assert.Equal(20, sheet.GetEffectiveResourceMax("Health"));
 

@@ -102,10 +102,6 @@ namespace Soulstone.Tests.Datamodels
                 CharacterLevel = 90,
                 CharacterClass = "RDM",
                 CharacterExperiencePoints = 15000,
-                CharacterHealthPoints = 500,
-                CharacterMaxHealthPoints = 500,
-                CharacterManaPoints = 10000,
-                CharacterMaxManaPoints = 10000,
                 CharacterPictureUrl = "https://example.com/portrait.png",
                 CustomInventoryCapacity = 50
             };
@@ -142,10 +138,6 @@ namespace Soulstone.Tests.Datamodels
             sheet.CharacterLevel.Should().Be(90);
             sheet.CharacterClass.Should().Be("RDM");
             sheet.CharacterExperiencePoints.Should().Be(15000);
-            sheet.CharacterHealthPoints.Should().Be(500);
-            sheet.CharacterMaxHealthPoints.Should().Be(500);
-            sheet.CharacterManaPoints.Should().Be(10000);
-            sheet.CharacterMaxManaPoints.Should().Be(10000);
             sheet.CharacterPictureUrl.Should().Be("https://example.com/portrait.png");
             sheet.characterPictureUrl.Should().Be("https://example.com/portrait.png");
             sheet.CustomInventoryCapacity.Should().Be(50);

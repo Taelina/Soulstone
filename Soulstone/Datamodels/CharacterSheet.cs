@@ -72,10 +72,6 @@ namespace Soulstone.Datamodels
         public int characterLevel;
         public string characterClass = string.Empty;
         public int characterExperiencePoints;
-        public int characterHealthPoints = 0;
-        public int characterMaxHealthPoints = 0;
-        public int characterManaPoints = 0;
-        public int characterMaxManaPoints = 0;
 
         //Character Generic Resources fields
         public Dictionary<string, CharacterResource> characterResources = new Dictionary<string, CharacterResource>();
@@ -139,10 +135,6 @@ namespace Soulstone.Datamodels
         public int CharacterLevel { get => characterLevel; set => characterLevel = value; }
         public string CharacterClass { get => characterClass; set => characterClass = value; }
         public int CharacterExperiencePoints { get => characterExperiencePoints; set => characterExperiencePoints = value; }
-        public int CharacterHealthPoints { get => characterHealthPoints; set => characterHealthPoints = value; }
-        public int CharacterMaxHealthPoints { get => characterMaxHealthPoints; set => characterMaxHealthPoints = value; }
-        public int CharacterManaPoints { get => characterManaPoints; set => characterManaPoints = value; }
-        public int CharacterMaxManaPoints { get => characterMaxManaPoints; set => characterMaxManaPoints = value; }
         public string CharacterPictureUrl { get => characterPictureUrl; set => characterPictureUrl = value; }
         public List<Item> CharacterInventory { get => characterInventory; set => characterInventory = value; }
         public List<string> CustomItemTypes { get => customItemTypes; set => customItemTypes = value; }
@@ -200,33 +192,6 @@ namespace Soulstone.Datamodels
             SetFieldHidden(fieldName, !IsFieldHidden(fieldName));
         }
 
-        public void SyncResourcesWithLegacyFields()
-        {
-            characterResources ??= new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
-
-            if (characterResources.TryGetValue("Health", out var healthRes))
-            {
-                characterHealthPoints = healthRes.CurrentValue;
-                characterMaxHealthPoints = healthRes.MaxValue;
-            }
-            else
-            {
-                characterHealthPoints = 0;
-                characterMaxHealthPoints = 0;
-            }
-
-            if (characterResources.TryGetValue("Mana", out var manaRes))
-            {
-                characterManaPoints = manaRes.CurrentValue;
-                characterMaxManaPoints = manaRes.MaxValue;
-            }
-            else
-            {
-                characterManaPoints = 0;
-                characterMaxManaPoints = 0;
-            }
-        }
-
         public bool RemoveResource(string name)
         {
             if (characterResources == null) return false;
@@ -236,16 +201,6 @@ namespace Soulstone.Datamodels
             bool removed = characterResources.Remove(key);
             if (removed)
             {
-                if (string.Equals(name, "Health", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "HP", StringComparison.OrdinalIgnoreCase))
-                {
-                    characterHealthPoints = 0;
-                    characterMaxHealthPoints = 0;
-                }
-                else if (string.Equals(name, "Mana", StringComparison.OrdinalIgnoreCase) || string.Equals(name, "MP", StringComparison.OrdinalIgnoreCase))
-                {
-                    characterManaPoints = 0;
-                    characterMaxManaPoints = 0;
-                }
                 PartySyncManager.Instance.BroadcastResourceUpdate();
             }
             return removed;
@@ -356,15 +311,6 @@ namespace Soulstone.Datamodels
                 characterResources[name] = new CharacterResource(name, value, value);
             }
 
-            if (string.Equals(name, "Health", StringComparison.OrdinalIgnoreCase))
-            {
-                characterHealthPoints = value;
-            }
-            else if (string.Equals(name, "Mana", StringComparison.OrdinalIgnoreCase))
-            {
-                characterManaPoints = value;
-            }
-
             PartySyncManager.Instance.BroadcastResourceUpdate();
         }
 
@@ -378,15 +324,6 @@ namespace Soulstone.Datamodels
             else
             {
                 characterResources[name] = new CharacterResource(name, value, value);
-            }
-
-            if (string.Equals(name, "Health", StringComparison.OrdinalIgnoreCase))
-            {
-                characterMaxHealthPoints = value;
-            }
-            else if (string.Equals(name, "Mana", StringComparison.OrdinalIgnoreCase))
-            {
-                characterMaxManaPoints = value;
             }
 
             PartySyncManager.Instance.BroadcastResourceUpdate();
@@ -406,7 +343,6 @@ namespace Soulstone.Datamodels
         public List<CharacterResource> GetEffectiveResources(DiceSystem? diceSystem = null)
         {
             characterResources ??= new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
-            SyncResourcesWithLegacyFields();
 
             if (diceSystem != null)
             {
@@ -1079,14 +1015,6 @@ namespace Soulstone.Datamodels
                 {
                     baseMax = res.TotalMaxValue;
                 }
-                else if (string.Equals(resourceName, "Health", StringComparison.OrdinalIgnoreCase))
-                {
-                    baseMax = characterMaxHealthPoints;
-                }
-                else if (string.Equals(resourceName, "Mana", StringComparison.OrdinalIgnoreCase))
-                {
-                    baseMax = characterMaxManaPoints;
-                }
                 else if (diceSystem != null)
                 {
                     var def = diceSystem.GetEffectiveResources().FirstOrDefault(r => string.Equals(r.Name, resourceName, StringComparison.OrdinalIgnoreCase));
@@ -1119,14 +1047,6 @@ namespace Soulstone.Datamodels
             {
                 int evaluated = StatFormulaEvaluator.EvaluateToInt(formula, this, diceSystem, defaultValue: res.MaxValue > 0 ? res.MaxValue : 100);
                 res.MaxValue = evaluated;
-                if (string.Equals(resourceName, "Health", StringComparison.OrdinalIgnoreCase))
-                {
-                    characterMaxHealthPoints = evaluated;
-                }
-                else if (string.Equals(resourceName, "Mana", StringComparison.OrdinalIgnoreCase))
-                {
-                    characterMaxManaPoints = evaluated;
-                }
             }
         }
 
@@ -1406,8 +1326,6 @@ namespace Soulstone.Datamodels
                     {
                         loadedSheet.hiddenFields = new List<string>();
                     }
-
-                    loadedSheet.SyncResourcesWithLegacyFields();
 
                     return loadedSheet;
                 }

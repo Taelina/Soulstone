@@ -67,7 +67,6 @@ namespace Soulstone.Utils
                         if (sheet != null)
                         {
                             sheet.hiddenFields ??= new();
-                            sheet.SyncResourcesWithLegacyFields();
                             return sheet;
                         }
                     }
@@ -83,7 +82,6 @@ namespace Soulstone.Utils
                     if (sheet != null)
                     {
                         sheet.hiddenFields ??= new();
-                        sheet.SyncResourcesWithLegacyFields();
                         return sheet;
                     }
                 }

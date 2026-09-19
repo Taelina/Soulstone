@@ -426,7 +426,7 @@ namespace Soulstone.Utils
             {
                 if (sheet.CharacterResources != null && sheet.CharacterResources.TryGetValue("Health", out var hpRes))
                     return hpRes.CurrentValue;
-                return sheet.CharacterHealthPoints;
+                return 0;
             }
             if (cleanName.Equals("MaxHealth", StringComparison.OrdinalIgnoreCase) ||
                 cleanName.Equals("MaxHP", StringComparison.OrdinalIgnoreCase) ||
@@ -435,7 +435,7 @@ namespace Soulstone.Utils
             {
                 if (sheet.CharacterResources != null && sheet.CharacterResources.TryGetValue("Health", out var hpRes))
                     return sheet.GetEffectiveResourceMax("Health", diceSystem);
-                return sheet.CharacterMaxHealthPoints;
+                return 0;
             }
 
             // Mana properties
@@ -448,7 +448,7 @@ namespace Soulstone.Utils
             {
                 if (sheet.CharacterResources != null && sheet.CharacterResources.TryGetValue("Mana", out var mpRes))
                     return mpRes.CurrentValue;
-                return sheet.CharacterManaPoints;
+                return 0;
             }
             if (cleanName.Equals("MaxMana", StringComparison.OrdinalIgnoreCase) ||
                 cleanName.Equals("MaxMP", StringComparison.OrdinalIgnoreCase) ||
@@ -457,7 +457,7 @@ namespace Soulstone.Utils
             {
                 if (sheet.CharacterResources != null && sheet.CharacterResources.TryGetValue("Mana", out var mpRes))
                     return sheet.GetEffectiveResourceMax("Mana", diceSystem);
-                return sheet.CharacterMaxManaPoints;
+                return 0;
             }
 
             // Initiative

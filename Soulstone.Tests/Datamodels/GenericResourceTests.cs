@@ -90,18 +90,11 @@ namespace Soulstone.Tests.Datamodels
         }
 
         [Fact]
-        public void CharacterSheet_GenericResourcesAndLegacyFieldsSync()
+        public void CharacterSheet_GenericResourcesManagement()
         {
             var sheet = new CharacterSheet();
             sheet.CharacterResources["Health"] = new CharacterResource("Health", 75, 120);
             sheet.CharacterResources["Mana"] = new CharacterResource("Mana", 40, 60);
-
-            sheet.SyncResourcesWithLegacyFields();
-
-            sheet.CharacterHealthPoints.Should().Be(75);
-            sheet.CharacterMaxHealthPoints.Should().Be(120);
-            sheet.CharacterManaPoints.Should().Be(40);
-            sheet.CharacterMaxManaPoints.Should().Be(60);
 
             sheet.CharacterResources.Should().ContainKey("Health");
             sheet.CharacterResources["Health"].CurrentValue.Should().Be(75);
@@ -113,11 +106,9 @@ namespace Soulstone.Tests.Datamodels
 
             // Updating via SetResourceCurrent / SetResourceMax
             sheet.SetResourceCurrent("Health", 90);
-            sheet.CharacterHealthPoints.Should().Be(90);
             sheet.CharacterResources["Health"].CurrentValue.Should().Be(90);
 
             sheet.SetResourceMax("Health", 150);
-            sheet.CharacterMaxHealthPoints.Should().Be(150);
             sheet.CharacterResources["Health"].MaxValue.Should().Be(150);
 
             // Adding a custom resource like Focus
@@ -150,7 +141,6 @@ namespace Soulstone.Tests.Datamodels
             };
             sheet.CharacterResources["Health"] = new CharacterResource("Health", 80, 100);
             sheet.CharacterResources["Mana"] = new CharacterResource("Mana", 120, 150);
-            sheet.SyncResourcesWithLegacyFields();
 
             sheet.SetResourceCurrent("Shield", 50);
             sheet.SetResourceMax("Shield", 50);
@@ -166,10 +156,12 @@ namespace Soulstone.Tests.Datamodels
 
             deserialized.Should().NotBeNull();
             deserialized!.CharacterFullName.Should().Be("Mage Hero");
-            deserialized.CharacterHealthPoints.Should().Be(80);
-            deserialized.CharacterMaxHealthPoints.Should().Be(100);
-            deserialized.CharacterManaPoints.Should().Be(120);
-            deserialized.CharacterMaxManaPoints.Should().Be(150);
+            deserialized.CharacterResources.Should().ContainKey("Health");
+            deserialized.CharacterResources["Health"].CurrentValue.Should().Be(80);
+            deserialized.CharacterResources["Health"].MaxValue.Should().Be(100);
+            deserialized.CharacterResources.Should().ContainKey("Mana");
+            deserialized.CharacterResources["Mana"].CurrentValue.Should().Be(120);
+            deserialized.CharacterResources["Mana"].MaxValue.Should().Be(150);
             deserialized.CharacterResources.Should().ContainKey("Shield");
             deserialized.CharacterResources["Shield"].CurrentValue.Should().Be(50);
 
@@ -264,7 +256,6 @@ namespace Soulstone.Tests.Datamodels
             var sheet = new CharacterSheet();
             sheet.CharacterResources["Health"] = new CharacterResource("Health", 100, 100);
             sheet.CharacterResources["Mana"] = new CharacterResource("Mana", 50, 50);
-            sheet.SyncResourcesWithLegacyFields();
 
             sheet.CharacterResources.Should().ContainKey("Health");
             sheet.CharacterResources.Should().ContainKey("Mana");
@@ -272,18 +263,10 @@ namespace Soulstone.Tests.Datamodels
             // Remove Health
             sheet.RemoveResource("Health").Should().BeTrue();
             sheet.CharacterResources.Should().NotContainKey("Health");
-            sheet.CharacterHealthPoints.Should().Be(0);
-            sheet.CharacterMaxHealthPoints.Should().Be(0);
 
             // Remove Mana
             sheet.RemoveResource("Mana").Should().BeTrue();
             sheet.CharacterResources.Should().NotContainKey("Mana");
-            sheet.CharacterManaPoints.Should().Be(0);
-            sheet.CharacterMaxManaPoints.Should().Be(0);
-
-            // Subsequent sync should NOT re-add Health or Mana when they have been deleted (max == 0)
-            sheet.SyncResourcesWithLegacyFields();
-            sheet.CharacterResources.Should().BeEmpty();
 
             // DiceSystem can also delete any resource
             var system = new DiceSystem();

@@ -259,8 +259,8 @@ namespace Soulstone.Tests.Managers
             p.CharacterSheet.Should().BeNull();
 
             var sheet = new CharacterSheet { CharacterFullName = "Goblin Minion" };
-            sheet.CharacterHealthPoints = 30;
-            sheet.CharacterMaxHealthPoints = 30;
+            sheet.SetResourceMax("Health", 30);
+            sheet.SetResourceCurrent("Health", 30);
 
             manager.AttachSheetToParticipant(p.Id, sheet);
             p.CharacterSheet.Should().BeSameAs(sheet);

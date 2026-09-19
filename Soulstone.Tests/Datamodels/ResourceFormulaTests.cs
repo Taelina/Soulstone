@@ -181,13 +181,11 @@ namespace Soulstone.Tests.Datamodels
 
             sheet.RecalculateResourceMax("Health");
             sheet.CharacterResources["Health"].MaxValue.Should().Be(120); // 100 + 10 * 2
-            sheet.CharacterMaxHealthPoints.Should().Be(120);
 
             // Change Constitution and recalculate all
             sheet.CharacterAttributes["Constitution"].Value = 16;
             sheet.RecalculateAllResourceMaxes();
             sheet.CharacterResources["Health"].MaxValue.Should().Be(132); // 100 + 16 * 2
-            sheet.CharacterMaxHealthPoints.Should().Be(132);
         }
 
         [Fact]

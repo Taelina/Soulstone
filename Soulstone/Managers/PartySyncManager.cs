@@ -802,10 +802,10 @@ namespace Soulstone.Managers
 
             if (sheet != null)
             {
-                data.CurrentHp = sheet.characterHealthPoints;
-                data.MaxHp = sheet.characterMaxHealthPoints;
-                data.CurrentMana = sheet.characterManaPoints;
-                data.MaxMana = sheet.characterMaxManaPoints;
+                data.CurrentHp = sheet.characterResources != null && sheet.characterResources.TryGetValue("Health", out var hpRes) ? hpRes.CurrentValue : 0;
+                data.MaxHp = sheet.characterResources != null && sheet.characterResources.TryGetValue("Health", out var hpMax) ? hpMax.MaxValue : 0;
+                data.CurrentMana = sheet.characterResources != null && sheet.characterResources.TryGetValue("Mana", out var mpRes) ? mpRes.CurrentValue : 0;
+                data.MaxMana = sheet.characterResources != null && sheet.characterResources.TryGetValue("Mana", out var mpMax) ? mpMax.MaxValue : 0;
 
                 data.CustomResources.Clear();
                 data.CustomResourceMaxes.Clear();
@@ -882,10 +882,10 @@ namespace Soulstone.Managers
                 CharacterName = GetLocalPlayerName(),
                 WorldName = GetLocalPlayerWorld(),
                 RulesetName = diceSys?.systemName ?? string.Empty,
-                CurrentHp = sheet?.characterHealthPoints ?? 0,
-                MaxHp = sheet?.characterMaxHealthPoints ?? 0,
-                CurrentMana = sheet?.characterManaPoints ?? 0,
-                MaxMana = sheet?.characterMaxManaPoints ?? 0,
+                CurrentHp = sheet?.characterResources != null && sheet.characterResources.TryGetValue("Health", out var hpRes) ? hpRes.CurrentValue : 0,
+                MaxHp = sheet?.characterResources != null && sheet.characterResources.TryGetValue("Health", out var hpMax) ? hpMax.MaxValue : 0,
+                CurrentMana = sheet?.characterResources != null && sheet.characterResources.TryGetValue("Mana", out var mpRes) ? mpRes.CurrentValue : 0,
+                MaxMana = sheet?.characterResources != null && sheet.characterResources.TryGetValue("Mana", out var mpMax) ? mpMax.MaxValue : 0,
                 ActiveBuffs = sheet?.activeBuffs != null ? new List<Buff>(sheet.activeBuffs) : new List<Buff>()
             };
 
@@ -1135,10 +1135,10 @@ namespace Soulstone.Managers
             var payload = new ResourceUpdatePayload
             {
                 CharacterName = GetLocalPlayerName(),
-                CurrentHp = sheet.characterHealthPoints,
-                MaxHp = sheet.characterMaxHealthPoints,
-                CurrentMana = sheet.characterManaPoints,
-                MaxMana = sheet.characterMaxManaPoints
+                CurrentHp = sheet.characterResources != null && sheet.characterResources.TryGetValue("Health", out var hpRes) ? hpRes.CurrentValue : 0,
+                MaxHp = sheet.characterResources != null && sheet.characterResources.TryGetValue("Health", out var hpMax) ? hpMax.MaxValue : 0,
+                CurrentMana = sheet.characterResources != null && sheet.characterResources.TryGetValue("Mana", out var mpRes) ? mpRes.CurrentValue : 0,
+                MaxMana = sheet.characterResources != null && sheet.characterResources.TryGetValue("Mana", out var mpMax) ? mpMax.MaxValue : 0
             };
 
             var resources = sheet.GetEffectiveResources(diceSys);
