@@ -17,6 +17,7 @@ public class MainWindow : Window, IDisposable
     private readonly CharacterWindow charwin;
     private readonly DiceWindow dicewin;
     private readonly CharStatsWindow statwin;
+    private readonly FeatsWindow featwin;
     private readonly GearWindow gearwin;
     private readonly AugmentationsWindow augwin;
     private readonly InventoryWindow invwin;
@@ -37,6 +38,7 @@ public class MainWindow : Window, IDisposable
         this.charwin = new CharacterWindow(plugin);
         this.dicewin = new DiceWindow(plugin);
         this.statwin = new CharStatsWindow(plugin);
+        this.featwin = new FeatsWindow(plugin);
         this.gearwin = new GearWindow(plugin);
         this.augwin = new AugmentationsWindow(plugin);
         this.invwin = new InventoryWindow(plugin);
@@ -87,6 +89,19 @@ public class MainWindow : Window, IDisposable
                     if (child.Success)
                     {
                         statwin.DrawCharStats();
+                    }
+                }
+                ImGui.EndTabItem();
+            }
+
+            var featTitle = $"{LocalizationManager.Instance.GetLocalizedString("FeatTab")}###FeatSheet";
+            if (ImGui.BeginTabItem(featTitle))
+            {
+                using (var child = ImRaii.Child("##FeatTabContent", new Vector2(0, 0), false))
+                {
+                    if (child.Success)
+                    {
+                        featwin.DrawFeatsTab();
                     }
                 }
                 ImGui.EndTabItem();

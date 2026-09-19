@@ -89,13 +89,6 @@ namespace Soulstone.Datamodels
 
                 try
                 {
-                    var rollMessage = new Dalamud.Game.Text.XivChatEntry
-                    {
-                        Message = detailedRoll ? roll.RollDetailedResultString : roll.RollResultString,
-                        Type = Dalamud.Game.Text.XivChatType.Echo
-                    };
-                    Messages.SendMessage(rollMessage);
-
                     string actor = !string.IsNullOrWhiteSpace(Name) ? Name : "Combatant";
                     string rollValue = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue;
                     string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, rollValue);

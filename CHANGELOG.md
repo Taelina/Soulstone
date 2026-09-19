@@ -5,6 +5,39 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-19
+
+### Added
+- **Feats & Traits Management**:
+  - Added dedicated `Feat` data model supporting custom names, descriptions, categories/types (Traits, Perks, Flaws, Feats), and customizable stat/ability modifiers.
+  - Added `FeatsWindow` with full creation, editing, removal, search, category filtering, and modifier configuration tools.
+  - Seamlessly integrated Feats collections into `CharacterSheet` with full JSON persistence and backward compatibility.
+- **Character Cloud Registry & Remote Sheet Inspection**:
+  - Added RESTful character sheet publishing and lookup API in `Soulstone.SyncServer` via `CharacterSheetRegistry` (`/api/characters`, `/api/characters/{characterId}`).
+  - Added `CharacterApiClient` for asynchronous HTTP communication between the plugin and the synchronization server.
+  - Added `CharacterInspectWindow` allowing players and Dungeon Masters to inspect remote player character sheets, profiles, and vitals without requiring an active WebSocket party session.
+- **Dice Roll History & Audit Logging**:
+  - Added `DiceHistoryManager` providing a comprehensive, persistent audit trail for all dice rolls with timestamps, rolling player names, formulas, notation, breakdowns, and final totals.
+  - Integrated roll history review and filtering directly within `DiceWindow`.
+- **Field-Level Character Sheet Visibility & Privacy Toggles**:
+  - Implemented granular field-level privacy controls (`IsFieldHidden`, `ToggleFieldHidden`, `HiddenFields`) across `CharacterSheet`.
+  - Added intuitive visibility toggle buttons (eye/eye-slash) to character identity, appearance, OOC notes, quick-look hooks, and background/relationship sections in `CharacterWindow`.
+- **Modern Card-Based UI Redesign & Enhanced Widgets**:
+  - Redesigned UI presentation in `UiUtils` with modern card containers, accent stripes, styled collapsing headers, pill badges, and interactive sectioned counters.
+  - Overhauled layout and responsiveness across `CharacterWindow`, `CharStatsWindow`, `GroupWindow`, `GearWindow`, `InventoryWindow`, `AugmentationsWindow`, `DiceWindow`, and `DiceSystemWindow`.
+- **Item & Gear Enhancements**:
+  - Extended `Item` and `GearItem` datamodels with item quality tiers, slot validations, enhanced formula bonuses, and durability tracking.
+
+### Changed
+- **Version Manifests & Metadata**:
+  - Bumped version to `1.1.0.0` across `Soulstone.csproj`, `Soulstone.json`, and `SoulstoneRep.json`.
+- **Localization**:
+  - Added complete English and French dictionaries (`en.json` and `fr.json`) for Feats, Character Inspection, Dice History, and Privacy Toggles.
+- **Documentation**:
+  - Updated `README.md`, `docs/DOCUMENTATION.md`, `Soulstone.SyncServer/README.md`, `docs/DEPLOYMENT.md`, and `docs/FORMULA_SOLVER.md` reflecting all 1.1.0 capabilities and architecture additions.
+
+---
+
 ## [1.0.5] - 2026-09-13
 
 ### Added

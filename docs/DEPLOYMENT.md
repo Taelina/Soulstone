@@ -20,7 +20,7 @@ This guide provides comprehensive, step-by-step instructions for installing, con
    - [Static DHCP Reservation](#static-dhcp-reservation)
    - [Port Forwarding](#port-forwarding)
    - [Dynamic DNS (DDNS)](#dynamic-dns-ddns)
-6. [TLS / HTTPS Reverse Proxy Setup](#6-tls--https-reverse-proxy-setup)
+6. [TLS / HTTPS Reverse Proxy Setup (Optional)](#6-tls--https-reverse-proxy-setup-optional)
    - [Option A: Cloudflare Tunnel (Recommended - No Port Forwarding Required)](#option-a-cloudflare-tunnel-recommended)
    - [Option B: Caddy Reverse Proxy (Automated Let's Encrypt)](#option-b-caddy-reverse-proxy)
    - [Option C: NGINX + Certbot](#option-c-nginx--certbot)
@@ -35,25 +35,38 @@ This guide provides comprehensive, step-by-step instructions for installing, con
 ┌───────────────────────────────────────────────────────────────────┐
 │                      Internet / External Players                  │
 │       (Soulstone Dalamud Plugin Instances: Party Members & DM)    │
-└─────────────────────────────────┬─────────────────────────────────┘
-                                  │ HTTPS / WSS (Port 443)
-                                  ▼
-┌───────────────────────────────────────────────────────────────────┐
-│                   TLS Termination / Reverse Proxy                 │
-│              (Cloudflare Tunnel / Caddy / Nginx / Traefik)        │
-└─────────────────────────────────┬─────────────────────────────────┘
-                                  │ HTTP / WS (Port 5077)
-                                  ▼
+└─────────────────┬───────────────────────────────┬─────────────────┘
+                  │                               │
+       (Option A: Direct HTTP / WS)      (Option B: HTTPS / WSS)
+                  │ (Port 5077)                   │ (Port 443)
+                  │                               ▼
+                  │                 ┌───────────────────────────────┐
+                  │                 │   TLS Reverse Proxy (Optional)│
+                  │                 │  (Cloudflare / Caddy / NGINX) │
+                  │                 └─────────────┬─────────────────┘
+                  │                               │ (Port 5077)
+                  ▼                               ▼
 ┌───────────────────────────────────────────────────────────────────┐
 │                    Soulstone.SyncServer (ASP.NET)                 │
 │  - In-memory WebSocket session relay                              │
+│  - In-memory Character Sheet Cloud Registry                       │
+│  - Full HTTP (`http://`) & HTTPS (`https://`) support             │
 │  - Zero persistence, zero logging of credentials/payloads         │
 │  - Health Check: GET /health                                      │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-- **Transport Security**: The Soulstone Dalamud plugin requires `https://` / `wss://` for any non-localhost address.
-- **Data Privacy**: All character data, dice rolls, and shared resource bars are end-to-end encrypted (AES-GCM for group broadcasts, RSA-2048 for DM-only stats). The relay server operates in memory and only routes encrypted envelopes.
+- **Transport Flexibility**: The Soulstone Dalamud plugin natively supports both plain HTTP/WS (`http://`, `ws://`) and secure HTTPS/WSS (`https://`, `wss://`) endpoints without requiring HTTPS or localhost restrictions. Direct IP connections (LAN, port-forwarded WAN, or VPN networks like Tailscale / WireGuard) work directly with plain HTTP.
+- **Transport Security**: All character data, dice rolls, and shared resource bars are end-to-end encrypted (AES-GCM for group broadcasts, RSA-2048 for DM-only stats). The relay server operates in memory and only routes encrypted envelopes.
+- **REST & Relay API Surface**:
+  - `GET /health` — Health check endpoint.
+  - `POST /api/sessions` — Creates a party sync room session.
+  - `PUT /api/sessions/{sessionId}/invite` — Registers an invite payload with host bearer token.
+  - `GET /api/invites/{inviteId}` — Resolves invite payload for joining party members.
+  - `GET /api/sessions/{sessionId}/connect` — WebSocket relay upgrade endpoint.
+  - `PUT /api/characters/{characterName}[/{worldName}]` — Registers/updates a character sheet JSON profile.
+  - `GET /api/characters/{characterName}[/{worldName}]` — Retrieves a stored character sheet JSON profile.
+  - `DELETE /api/characters/{characterName}[/{worldName}]` — Deletes a stored character sheet.
 
 ---
 
@@ -287,10 +300,10 @@ Create port forwarding rules to direct incoming traffic from your public IP to y
 
 | Rule Name | Protocol | External (WAN) Port | Internal IP Address | Internal (LAN) Port |
 | :--- | :--- | :--- | :--- | :--- |
-| **Soulstone HTTP/TLS (Proxy)** | TCP | `80` & `443` | `192.168.1.150` | `80` & `443` |
-| **Soulstone Direct (Unencrypted - dev only)** | TCP | `5077` | `192.168.1.150` | `5077` |
+| **Soulstone Direct (HTTP/WS)** | TCP | `5077` | `192.168.1.150` | `5077` |
+| **Soulstone Reverse Proxy (TLS)** | TCP | `80` & `443` | `192.168.1.150` | `80` & `443` |
 
-> ⚠️ **Important**: The Soulstone plugin rejects unencrypted remote HTTP/WS connections. Port `443` (HTTPS/WSS) via a reverse proxy is strongly recommended for production use.
+> 💡 **Note**: The Soulstone plugin natively supports direct `http://` and `ws://` connections on port `5077`. If you prefer using a custom domain with SSL certificates (port `443`), set up an optional reverse proxy as described in Section 6.
 
 ### Dynamic DNS (DDNS)
 Most home ISPs provide dynamic public IP addresses that change over time. Use a DDNS service so players can connect to a domain name instead of an IP:
@@ -300,9 +313,9 @@ Most home ISPs provide dynamic public IP addresses that change over time. Use a 
 
 ---
 
-## 6. TLS / HTTPS Reverse Proxy Setup
+## 6. TLS / HTTPS Reverse Proxy Setup (Optional)
 
-Because the Soulstone client requires secure WebSocket (`wss://`) and HTTPS (`https://`) connections for non-localhost hosts, a reverse proxy handles TLS certificates automatically.
+While Soulstone works directly with plain HTTP/WS, setting up an optional reverse proxy allows you to use custom domain names, automatic TLS certificate management, and DDoS protection through Cloudflare.
 
 ---
 
@@ -411,50 +424,64 @@ sudo certbot --nginx -d sync.yourdomain.com
 ## 7. Verification & Client Connection
 
 ### 1. Verify Health Endpoint
-From a device outside your local network (e.g. mobile phone on 4G/5G), run:
+From a device outside or inside your local network, run:
 ```bash
+# Direct HTTP check
+curl -i http://<your-host-ip-or-domain>:5077/health
+
+# Or via HTTPS reverse proxy
 curl -i https://sync.yourdomain.com/health
 ```
 Expected output:
 ```http
 HTTP/1.1 200 OK
-Content-Type: text/plain
+Content-Type: application/json
 
-Healthy
+{"status":"healthy"}
 ```
 
 ### 2. Configure the Soulstone Plugin in FFXIV
 
 1. Open FFXIV and type `/soulstone` to open the plugin window.
 2. Navigate to **Settings (`ConfigWindow`)** -> **Party Synchronization**.
-3. In **Sync Server URL**, enter your public endpoint:
-   ```
-   https://sync.yourdomain.com
-   ```
+3. In **Sync Server URL**, enter your endpoint:
+   - **Direct HTTP (LAN, IP, or Port Forwarding):**
+     ```
+     http://192.168.1.150:5077
+     ```
+     or
+     ```
+     http://my-soulstone-sync.duckdns.org:5077
+     ```
+   - **HTTPS Domain (via Reverse Proxy):**
+     ```
+     https://sync.yourdomain.com
+     ```
 4. **As the DM / Host:**
    - Click **Create Sync Session**.
-   - Copy the generated **Invite Link** and send it to your party members over Discord / private message. It combines this relay URL and a random 16-character validation code in one value, for example `https://sync.yourdomain.com/join/AbCdEf1234567890`.
+   - Copy the generated **Invite Link** and send it to your party members over Discord / private message. It combines this relay URL and a random 16-character validation code in one value, for example `http://192.168.1.150:5077/join/AbCdEf1234567890` or `https://sync.yourdomain.com/join/AbCdEf1234567890`.
 5. **As a Party Member:**
    - Paste the complete **Invite Link** and click **Join Session**; no separate server URL is needed.
-   - The plugin will connect over `wss://` and synchronize resource bars, rolls, and initiative turns automatically.
+   - The plugin will connect over `ws://` (for HTTP) or `wss://` (for HTTPS) and synchronize resource bars, rolls, and initiative turns automatically.
 
 ---
 
 ## 8. Troubleshooting & FAQ
 
-### Q: Why does the plugin show "Remote sync server requires HTTPS / WSS"?
-**A**: For security and token protection, Soulstone refuses unencrypted HTTP/WS connections when connecting to non-loopback addresses (`localhost` / `127.0.0.1`). Ensure your reverse proxy has a valid SSL certificate (via Cloudflare, Caddy, or Let's Encrypt).
+### Q: Can I use plain HTTP / direct IP without HTTPS?
+**A**: Yes! Soulstone fully supports direct `http://` and `ws://` endpoints. You can connect via local IP (`http://192.168.1.x:5077`), public IP, VPN (Tailscale, WireGuard, ZeroTier), or Dynamic DNS domain without setting up SSL certificates. HTTPS is recommended when exposing the server publicly on the open internet with custom domains, but is completely optional.
 
 ### Q: The health check works in browser, but WebSocket fails to connect.
 **A**: Ensure your reverse proxy supports WebSocket upgrades:
 - In NGINX, verify `proxy_set_header Upgrade $http_upgrade;` and `proxy_set_header Connection "upgrade";` are present.
 - In Cloudflare, ensure WebSockets are enabled under **Network** settings in the Cloudflare dashboard.
+- If using direct HTTP, ensure port `5077` is open in host and router firewalls.
 
 ### Q: Do players need to open any ports?
-**A**: No. Only the server host needs port forwarding or a tunnel. Players connect outward via standard HTTPS/WSS (port 443).
+**A**: No. Only the server host needs port forwarding or a tunnel. Players connect outward via standard HTTP/WS (port 5077) or HTTPS/WSS (port 443).
 
 ### Q: How much RAM / CPU does the relay use?
 **A**: The server is extremely lightweight. It typically consumes less than **30 MB of RAM** and negligible CPU, making it suitable for low-cost VPS instances or a Raspberry Pi.
 
 ### Q: What happens if the server restarts during a session?
-**A**: Sessions are kept strictly in memory for maximum privacy. If the server restarts, the DM simply clicks **Create Sync Session** to generate a new session code for the party.
+**A**: Sessions and character registry caches are kept strictly in memory for maximum privacy. If the server restarts, the DM simply clicks **Create Sync Session** to generate a new session code for the party.

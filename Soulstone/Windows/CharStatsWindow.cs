@@ -606,6 +606,8 @@ namespace Soulstone.Windows
                     if (res.TempBonus != 0) ImGui.Text($"• Temp Bonus: {FormatModifier(res.TempBonus)}");
                     if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
                     if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                    int resFeatBonus = currentCharacter.GetFeatStatBonus(res.Name) + currentCharacter.GetFeatStatBonus($"Max {res.Name}") + currentCharacter.GetFeatStatBonus($"Max{res.Name}");
+                    if (resFeatBonus != 0) ImGui.TextColored(ImGuiColors.ParsedPurple, $"• Feat Bonus: {FormatModifier(resFeatBonus)}");
                     ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective: {effectiveMax}");
                     ImGui.Separator();
                     ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {res.Name}");
@@ -619,6 +621,8 @@ namespace Soulstone.Windows
                     if (res.TempBonus != 0) ImGui.Text($"• Temp Max: {FormatModifier(res.TempBonus)}");
                     if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
                     if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                    int resFeatBonus2 = currentCharacter.GetFeatStatBonus(res.Name) + currentCharacter.GetFeatStatBonus($"Max {res.Name}") + currentCharacter.GetFeatStatBonus($"Max{res.Name}");
+                    if (resFeatBonus2 != 0) ImGui.TextColored(ImGuiColors.ParsedPurple, $"• Feat Bonus: {FormatModifier(resFeatBonus2)}");
                     ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective Max: {effectiveMax}");
                 }
                 ImGui.EndTooltip();
@@ -828,8 +832,9 @@ namespace Soulstone.Windows
                                 int permVal = hasBonusPerm ? attribute.Value.PermBonus : 0;
                                 int gearBonus = currentCharacter.GetGearStatBonus(attribute.Key);
                                 int buffBonus = currentCharacter.GetBuffStatBonus(attribute.Key);
+                                int featBonus = currentCharacter.GetFeatStatBonus(attribute.Key);
                                 int epicVal = showEpic ? attribute.Value.EpicBonus : 0;
-                                int totalVal = baseVal + tempVal + permVal + gearBonus + buffBonus;
+                                int totalVal = baseVal + tempVal + permVal + gearBonus + buffBonus + featBonus;
 
                                 float rightItemsWidth = (hasSaves ? 58.0f : 30.0f) * ImGuiHelpers.GlobalScale;
                                 string baseText = baseVal.ToString();
@@ -854,6 +859,11 @@ namespace Soulstone.Windows
                                 {
                                     string buffText = FormatModifier(buffBonus);
                                     rightItemsWidth += ImGui.CalcTextSize(buffText).X + 16.0f * ImGuiHelpers.GlobalScale;
+                                }
+                                if (featBonus != 0)
+                                {
+                                    string featText = FormatModifier(featBonus);
+                                    rightItemsWidth += ImGui.CalcTextSize(featText).X + 16.0f * ImGuiHelpers.GlobalScale;
                                 }
                                 if (epicVal > 0)
                                 {
@@ -906,6 +916,15 @@ namespace Soulstone.Windows
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(buffBonus)}");
                                 }
 
+                                if (featBonus != 0)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    var featCol = featBonus > 0 ? ImGuiColors.ParsedPurple : ImGuiColors.DalamudRed;
+                                    var featBg = featBonus > 0 ? new Vector4(0.24f, 0.12f, 0.32f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                                    UiUtils.Badge(FormatModifier(featBonus), featBg, featCol);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(featBonus)}");
+                                }
+
                                 if (epicVal > 0)
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
@@ -953,6 +972,8 @@ namespace Soulstone.Windows
                                         ImGui.Text($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(tempVal)}");
                                     if (gearBonus != 0)
                                         ImGui.TextColored(ImGuiColors.ParsedBlue, $"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(gearBonus)}");
+                                    if (featBonus != 0)
+                                        ImGui.TextColored(ImGuiColors.ParsedPurple, $"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(featBonus)}");
                                     if (showEpic && epicVal > 0)
                                         ImGui.TextColored(ImGuiColors.DalamudViolet, $"{LocalizationManager.Instance.GetLocalizedString("StatEpicTooltip")}: ★{epicVal}");
                                     ImGui.Separator();
@@ -1081,10 +1102,12 @@ namespace Soulstone.Windows
                             }
                             int skillGearBonus = currentCharacter.GetGearStatBonus(skill.Value.skillName);
                             int skillBuffBonus = currentCharacter.GetBuffStatBonus(skill.Value.skillName);
+                            int skillFeatBonus = currentCharacter.GetFeatStatBonus(skill.Value.skillName);
                             int attrGearBonus = hasLinkedAttr ? currentCharacter.GetGearStatBonus(skill.Value.linkedAttribute) : 0;
                             int attrBuffBonus = hasLinkedAttr ? currentCharacter.GetBuffStatBonus(skill.Value.linkedAttribute) : 0;
-                            int effectiveAttrVal = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus;
-                            int totalModifier = skill.Value.skillModifier + skillGearBonus + skillBuffBonus + (hasLinkedAttr ? effectiveAttrVal : 0);
+                            int attrFeatBonus = hasLinkedAttr ? currentCharacter.GetFeatStatBonus(skill.Value.linkedAttribute) : 0;
+                            int effectiveAttrVal = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus + attrFeatBonus;
+                            int totalModifier = skill.Value.skillModifier + skillGearBonus + skillBuffBonus + skillFeatBonus + (hasLinkedAttr ? effectiveAttrVal : 0);
 
                             if (editingStats)
                             {
@@ -1153,7 +1176,13 @@ namespace Soulstone.Windows
                                     rightItemsWidth += ImGui.CalcTextSize(buffText).X + 16.0f * ImGuiHelpers.GlobalScale;
                                 }
 
-                                string? totalModText = (hasLinkedAttr || skillGearBonus != 0 || skillBuffBonus != 0) ? FormatModifier(totalModifier) : null;
+                                if (skillFeatBonus != 0)
+                                {
+                                    string featText = FormatModifier(skillFeatBonus);
+                                    rightItemsWidth += ImGui.CalcTextSize(featText).X + 16.0f * ImGuiHelpers.GlobalScale;
+                                }
+
+                                string? totalModText = (hasLinkedAttr || skillGearBonus != 0 || skillBuffBonus != 0 || skillFeatBonus != 0) ? FormatModifier(totalModifier) : null;
                                 if (totalModText != null)
                                 {
                                     rightItemsWidth += ImGui.CalcTextSize(totalModText).X + 16.0f * ImGuiHelpers.GlobalScale;
@@ -1184,6 +1213,15 @@ namespace Soulstone.Windows
                                     var buffBg = skillBuffBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
                                     UiUtils.Badge(FormatModifier(skillBuffBonus), buffBg, buffCol);
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(skillBuffBonus)}");
+                                }
+
+                                if (skillFeatBonus != 0)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    var featCol = skillFeatBonus > 0 ? ImGuiColors.ParsedPurple : ImGuiColors.DalamudRed;
+                                    var featBg = skillFeatBonus > 0 ? new Vector4(0.24f, 0.12f, 0.32f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                                    UiUtils.Badge(FormatModifier(skillFeatBonus), featBg, featCol);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(skillFeatBonus)}");
                                 }
 
                                 if (totalModText != null)
@@ -1227,6 +1265,8 @@ namespace Soulstone.Windows
                                     ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}: {baseModText}");
                                     if (skillGearBonus != 0)
                                         ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(skillGearBonus)}");
+                                    if (skillFeatBonus != 0)
+                                        ImGui.TextColored(ImGuiColors.ParsedPurple, $"• {LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(skillFeatBonus)}");
                                     if (hasLinkedAttr)
                                     {
                                         ImGui.Text($"• {skill.Value.linkedAttribute} ({LocalizationManager.Instance.GetLocalizedString("AttributeLabel")}): {FormatModifier(attributeValue)}");
@@ -1366,21 +1406,25 @@ namespace Soulstone.Windows
                             }
                             int abilityGearBonus = currentCharacter.GetGearStatBonus(ability.Value.abilityName);
                             int abilityBuffBonus = currentCharacter.GetBuffStatBonus(ability.Value.abilityName);
+                            int abilityFeatBonus = currentCharacter.GetFeatStatBonus(ability.Value.abilityName);
                             int attrGearBonus = hasLinkedAttr ? currentCharacter.GetGearStatBonus(ability.Value.linkedAttribute) : 0;
                             int attrBuffBonus = hasLinkedAttr ? currentCharacter.GetBuffStatBonus(ability.Value.linkedAttribute) : 0;
+                            int attrFeatBonus = hasLinkedAttr ? currentCharacter.GetFeatStatBonus(ability.Value.linkedAttribute) : 0;
                             int skillValue = ability.Value.linkedSkill != null ? ability.Value.linkedSkill.skillModifier : 0;
                             int skillGearBonus = 0;
                             int skillBuffBonus = 0;
+                            int skillFeatBonus = 0;
                             bool hasLinkedSkill = ability.Value.linkedSkill != null && !string.IsNullOrEmpty(ability.Value.linkedSkill.skillName);
                             if (hasLinkedSkill && ability.Value.linkedSkill != null)
                             {
                                 skillGearBonus = currentCharacter.GetGearStatBonus(ability.Value.linkedSkill.skillName);
                                 skillBuffBonus = currentCharacter.GetBuffStatBonus(ability.Value.linkedSkill.skillName);
+                                skillFeatBonus = currentCharacter.GetFeatStatBonus(ability.Value.linkedSkill.skillName);
                             }
 
-                            int effectiveAttrValue = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus;
-                            int effectiveSkillValue = skillValue + skillGearBonus + skillBuffBonus;
-                            int totalModifier = ability.Value.abilityModifier + abilityGearBonus + abilityBuffBonus + (hasLinkedAttr ? effectiveAttrValue : 0) + (hasLinkedSkill ? effectiveSkillValue : 0);
+                            int effectiveAttrValue = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus + attrFeatBonus;
+                            int effectiveSkillValue = skillValue + skillGearBonus + skillBuffBonus + skillFeatBonus;
+                            int totalModifier = ability.Value.abilityModifier + abilityGearBonus + abilityBuffBonus + abilityFeatBonus + (hasLinkedAttr ? effectiveAttrValue : 0) + (hasLinkedSkill ? effectiveSkillValue : 0);
 
                             if (editingStats)
                             {
@@ -1459,7 +1503,13 @@ namespace Soulstone.Windows
                                     rightItemsWidth += ImGui.CalcTextSize(buffText).X + 16.0f * ImGuiHelpers.GlobalScale;
                                 }
 
-                                string? totalModText = (hasLinkedAttr || hasLinkedSkill || abilityGearBonus != 0 || abilityBuffBonus != 0) ? FormatModifier(totalModifier) : null;
+                                if (abilityFeatBonus != 0)
+                                {
+                                    string featText = FormatModifier(abilityFeatBonus);
+                                    rightItemsWidth += ImGui.CalcTextSize(featText).X + 16.0f * ImGuiHelpers.GlobalScale;
+                                }
+
+                                string? totalModText = (hasLinkedAttr || hasLinkedSkill || abilityGearBonus != 0 || abilityBuffBonus != 0 || abilityFeatBonus != 0) ? FormatModifier(totalModifier) : null;
                                 if (totalModText != null)
                                 {
                                     rightItemsWidth += ImGui.CalcTextSize(totalModText).X + 16.0f * ImGuiHelpers.GlobalScale;
@@ -1490,6 +1540,15 @@ namespace Soulstone.Windows
                                     var buffBg = abilityBuffBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
                                     UiUtils.Badge(FormatModifier(abilityBuffBonus), buffBg, buffCol);
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(abilityBuffBonus)}");
+                                }
+
+                                if (abilityFeatBonus != 0)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    var featCol = abilityFeatBonus > 0 ? ImGuiColors.ParsedPurple : ImGuiColors.DalamudRed;
+                                    var featBg = abilityFeatBonus > 0 ? new Vector4(0.24f, 0.12f, 0.32f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                                    UiUtils.Badge(FormatModifier(abilityFeatBonus), featBg, featCol);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(abilityFeatBonus)}");
                                 }
 
                                 if (totalModText != null)
@@ -1524,6 +1583,8 @@ namespace Soulstone.Windows
                                     ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}: {baseModText}");
                                     if (abilityGearBonus != 0)
                                         ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(abilityGearBonus)}");
+                                    if (abilityFeatBonus != 0)
+                                        ImGui.TextColored(ImGuiColors.ParsedPurple, $"• {LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(abilityFeatBonus)}");
                                     if (hasLinkedAttr)
                                     {
                                         ImGui.Text($"• {ability.Value.linkedAttribute} ({LocalizationManager.Instance.GetLocalizedString("AttributeLabel")}): {FormatModifier(attributeValue)}");

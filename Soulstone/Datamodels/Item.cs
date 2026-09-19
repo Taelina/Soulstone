@@ -1,4 +1,5 @@
 ﻿using Dalamud.Game.Text;
+using Soulstone.Managers;
 using Soulstone.Utils;
 using System;
 using System.Collections.Generic;
@@ -41,6 +42,7 @@ namespace Soulstone.Datamodels
         public float weight = 0.0f;
         public string rarity = "Common";
         public bool isUsable = false;
+        public bool isConsumable = true;
         public string useFormula = string.Empty;
         public Dictionary<string, string> customProperties = new();
 
@@ -55,6 +57,7 @@ namespace Soulstone.Datamodels
         public float Weight { get => weight; set => weight = value; }
         public string Rarity { get => rarity; set => rarity = value; }
         public bool IsUsable { get => isUsable; set => isUsable = value; }
+        public bool IsConsumable { get => isConsumable; set => isConsumable = value; }
         public string UseFormula { get => useFormula; set => useFormula = value; }
         public Dictionary<string, string> CustomProperties { get => customProperties; set => customProperties = value; }
 
@@ -63,7 +66,7 @@ namespace Soulstone.Datamodels
             customProperties = new Dictionary<string, string>();
         }
 
-        public Item(string name, string description = "", string effect = "", string itemType = "Miscellaneous", int quantity = 1, string imageUrl = "", bool isUsable = false, string useFormula = "")
+        public Item(string name, string description = "", string effect = "", string itemType = "Miscellaneous", int quantity = 1, string imageUrl = "", bool isUsable = false, string useFormula = "", bool isConsumable = true)
         {
             this.id = Guid.NewGuid().ToString();
             this.name = name;
@@ -74,6 +77,7 @@ namespace Soulstone.Datamodels
             this.imageUrl = imageUrl;
             this.isUsable = isUsable;
             this.useFormula = useFormula;
+            this.isConsumable = isConsumable;
             this.customProperties = new Dictionary<string, string>();
         }
 
@@ -92,6 +96,7 @@ namespace Soulstone.Datamodels
                 Weight = this.Weight,
                 Rarity = this.Rarity,
                 IsUsable = this.IsUsable,
+                IsConsumable = this.IsConsumable,
                 UseFormula = this.UseFormula,
                 CustomProperties = new Dictionary<string, string>(this.CustomProperties)
             };
@@ -188,7 +193,7 @@ namespace Soulstone.Datamodels
                 };
             }
 
-            if (Quantity <= 0)
+            if (IsConsumable && Quantity <= 0)
             {
                 return new ItemUseResult
                 {
@@ -198,18 +203,22 @@ namespace Soulstone.Datamodels
                 };
             }
 
-            Quantity--;
-            if (Quantity <= 0 && sheet != null)
+            if (IsConsumable)
             {
-                sheet.RemoveItem(Id);
+                Quantity--;
+                if (Quantity <= 0 && sheet != null)
+                {
+                    sheet.RemoveItem(Id);
+                }
             }
 
             string resultText;
             int? formulaTotal = null;
+            FormulaResult eval = default;
 
             if (!string.IsNullOrWhiteSpace(UseFormula))
             {
-                var eval = EvaluateUseFormula(UseFormula);
+                eval = EvaluateUseFormula(UseFormula);
                 if (eval.Success)
                 {
                     formulaTotal = eval.Total;
@@ -235,12 +244,24 @@ namespace Soulstone.Datamodels
 
             try
             {
-                XivChatEntry chatEntry = new XivChatEntry
+                if (formulaTotal.HasValue && !string.IsNullOrWhiteSpace(eval.Details))
                 {
-                    Message = resultText,
-                    Type = XivChatType.Echo
-                };
-                Messages.SendMessage(chatEntry);
+                    PartySyncManager.Instance.BroadcastDiceRoll(
+                        Name,
+                        formulaTotal.Value,
+                        eval.Details,
+                        echoText: LocalizationManager.Instance.GetLocalizedString("RollEchoResult", Name, resultText)
+                    );
+                }
+                else
+                {
+                    XivChatEntry chatEntry = new XivChatEntry
+                    {
+                        Message = resultText,
+                        Type = XivChatType.Echo
+                    };
+                    Messages.SendMessage(chatEntry);
+                }
             }
             catch
             {

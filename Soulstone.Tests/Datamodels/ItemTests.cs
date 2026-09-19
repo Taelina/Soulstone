@@ -243,7 +243,7 @@ namespace Soulstone.Tests.Datamodels
         public void Use_WhenLastQuantity_RemovesFromCharacterSheet()
         {
             var sheet = new CharacterSheet();
-            var item = new Item("Elixir") { Quantity = 1, IsUsable = true, UseFormula = "10" };
+            var item = new Item("Elixir") { Quantity = 1, IsUsable = true, IsConsumable = true, UseFormula = "10" };
             sheet.AddItem(item);
 
             var result = item.Use(sheet);
@@ -251,6 +251,82 @@ namespace Soulstone.Tests.Datamodels
             result.Success.Should().BeTrue();
             item.Quantity.Should().Be(0);
             sheet.CharacterInventory.Should().NotContain(i => i.Id == item.Id);
+        }
+
+        [Fact]
+        public void Use_WhenNotConsumable_RollsFormulaAndDoesNotDecrementQuantity()
+        {
+            var sheet = new CharacterSheet();
+            var weapon = new Item("Flametongue", description: "A fiery blade", effect: "Deals 2d6 fire damage", itemType: "Weapon")
+            {
+                Quantity = 1,
+                IsUsable = true,
+                IsConsumable = false,
+                UseFormula = "2d6+3"
+            };
+            sheet.AddItem(weapon);
+
+            var result = weapon.Use(sheet);
+
+            result.Success.Should().BeTrue();
+            result.RemainingQuantity.Should().Be(1);
+            weapon.Quantity.Should().Be(1);
+            result.FormulaResult.Should().BeInRange(5, 15);
+            result.Message.Should().Contain("Flametongue");
+            sheet.CharacterInventory.Should().Contain(i => i.Id == weapon.Id);
+        }
+
+        [Fact]
+        public void Clone_PreservesIsConsumable()
+        {
+            var nonConsumable = new Item("Wand of Magic Missiles")
+            {
+                IsUsable = true,
+                IsConsumable = false,
+                UseFormula = "3d4+3"
+            };
+
+            var clone = nonConsumable.Clone();
+
+            clone.IsConsumable.Should().BeFalse();
+            clone.IsUsable.Should().BeTrue();
+            clone.UseFormula.Should().Be("3d4+3");
+        }
+
+        [Fact]
+        public void GearItem_Clone_PreservesIsConsumable()
+        {
+            var gear = new GearItem("Vorpal Sword", slot: "MainHand")
+            {
+                IsUsable = true,
+                IsConsumable = false,
+                UseFormula = "1d8+4"
+            };
+
+            var clone = gear.Clone();
+
+            clone.IsConsumable.Should().BeFalse();
+            clone.IsUsable.Should().BeTrue();
+            clone.UseFormula.Should().Be("1d8+4");
+        }
+
+        [Fact]
+        public void JsonSerialization_PreservesIsConsumable()
+        {
+            var item = new Item("Enchanted Ring")
+            {
+                IsUsable = true,
+                IsConsumable = false,
+                UseFormula = "1d20+2"
+            };
+
+            var json = item.ToJson();
+            var deserialized = Item.FromJson(json);
+
+            deserialized.Should().NotBeNull();
+            deserialized!.IsConsumable.Should().BeFalse();
+            deserialized.IsUsable.Should().BeTrue();
+            deserialized.UseFormula.Should().Be("1d20+2");
         }
 
         #endregion

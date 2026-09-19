@@ -483,7 +483,14 @@ namespace Soulstone.Windows
                 if (item.IsUsable)
                 {
                     ImGui.SameLine();
-                    UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("InventoryItemUsableBadge"), new Vector4(0.2f, 0.5f, 0.3f, 0.5f), ImGuiColors.ParsedGreen);
+                    if (item.IsConsumable)
+                    {
+                        UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("InventoryItemConsumableBadge"), new Vector4(0.2f, 0.5f, 0.3f, 0.5f), ImGuiColors.ParsedGreen);
+                    }
+                    else
+                    {
+                        UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("InventoryItemReusableBadge"), new Vector4(0.2f, 0.4f, 0.6f, 0.5f), ImGuiColors.ParsedBlue);
+                    }
                 }
 
                 if (item is GearItem gear)
@@ -637,10 +644,15 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
             }
 
-            // Use Button
+            // Use / Roll Button
             if (item.IsUsable)
             {
-                if (UiUtils.IconTextButton("UseBtn", FontAwesomeIcon.Magic, LocalizationManager.Instance.GetLocalizedString("InventoryItemUse")))
+                string actionBtnText = !item.IsConsumable
+                    ? LocalizationManager.Instance.GetLocalizedString("InventoryItemRoll")
+                    : LocalizationManager.Instance.GetLocalizedString("InventoryItemUse");
+                var actionIcon = !item.IsConsumable ? FontAwesomeIcon.DiceD20 : FontAwesomeIcon.Magic;
+
+                if (UiUtils.IconTextButton("UseBtn", actionIcon, actionBtnText))
                 {
                     item.Use(sheet);
                     if (item.Quantity <= 0)
@@ -803,10 +815,17 @@ namespace Soulstone.Windows
 
                 ImGui.Spacing();
 
-                // Usable Flag & Use Formula
+                // Usable Flag, Consumable Flag & Use Formula
                 ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("InventoryItemIsUsable"), ref editingItem.isUsable);
                 if (editingItem.isUsable)
                 {
+                    ImGui.SameLine(0, 16.0f * ImGuiHelpers.GlobalScale);
+                    ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("InventoryItemIsConsumable"), ref editingItem.isConsumable);
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InventoryItemIsConsumableTooltip"));
+                    }
+
                     ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemFormula"));
                     UiUtils.StyledInputText("EditItemFormula", ref editingItem.useFormula, 100, width: -1.0f, hint: LocalizationManager.Instance.GetLocalizedString("InventoryItemFormulaHint"));
                 }
@@ -829,6 +848,7 @@ namespace Soulstone.Windows
                         gear.Quantity = editingItem.Quantity;
                         gear.MaxStack = 1;
                         gear.IsUsable = editingItem.IsUsable;
+                        gear.IsConsumable = editingItem.IsConsumable;
                         gear.UseFormula = editingItem.UseFormula;
                         gear.CustomProperties = new Dictionary<string, string>(editingItem.CustomProperties);
                         editingItem = gear;
@@ -918,13 +938,14 @@ namespace Soulstone.Windows
                         gear.Quantity = editingItem.Quantity;
                         gear.MaxStack = 1;
                         gear.IsUsable = editingItem.IsUsable;
+                        gear.IsConsumable = editingItem.IsConsumable;
                         gear.UseFormula = editingItem.UseFormula;
                         gear.CustomProperties = new Dictionary<string, string>(editingItem.CustomProperties);
                         editingItem = gear;
                     }
                     else if (!isItemGear && editingItem is GearItem)
                     {
-                        var plainItem = new Item(editingItem.Name, editingItem.Description, editingItem.Effect, editingItem.ItemType, editingItem.Quantity, editingItem.ImageUrl, editingItem.IsUsable, editingItem.UseFormula);
+                        var plainItem = new Item(editingItem.Name, editingItem.Description, editingItem.Effect, editingItem.ItemType, editingItem.Quantity, editingItem.ImageUrl, editingItem.IsUsable, editingItem.UseFormula, editingItem.IsConsumable);
                         plainItem.Id = editingItem.Id;
                         plainItem.Rarity = editingItem.Rarity;
                         plainItem.Weight = editingItem.Weight;

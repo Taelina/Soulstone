@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 
 namespace Soulstone.Windows
 {
@@ -79,8 +80,8 @@ namespace Soulstone.Windows
 
             DrawHeroCard();
             ImGui.Spacing();
-            DrawResourcesCollapsibleSection();
-            ImGui.Spacing();
+            /*DrawResourcesCollapsibleSection();
+            ImGui.Spacing();*/
             DrawIdentitySection();
             ImGui.Spacing();
             DrawOocSection();
@@ -224,11 +225,34 @@ namespace Soulstone.Windows
             };
         }
 
-        private void DrawPropertyCard(string label, string? value, FontAwesomeIcon icon, Vector4 accentColor, float width = -1f)
+        private void DrawVisibilityToggle(string fieldName)
+        {
+            if (currentCharacter == null) return;
+            var scale = ImGuiHelpers.GlobalScale;
+            var isHidden = currentCharacter.IsFieldHidden(fieldName);
+            var icon = isHidden ? FontAwesomeIcon.EyeSlash : FontAwesomeIcon.Eye;
+            var tooltip = isHidden
+                ? LocalizationManager.Instance.GetLocalizedString("FieldVisibilityHiddenTooltip")
+                : LocalizationManager.Instance.GetLocalizedString("FieldVisibilityVisibleTooltip");
+
+            if (UiUtils.IconButton($"##Vis_{fieldName}", icon, tooltip, new Vector2(20, 20) * scale))
+            {
+                currentCharacter.ToggleFieldHidden(fieldName);
+            }
+        }
+
+        private void DrawFieldLabelWithToggle(string label, string fieldName)
+        {
+            ImGui.TextColored(ImGuiColors.DalamudGrey, label);
+            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+            DrawVisibilityToggle(fieldName);
+        }
+
+        private void DrawPropertyCard(string label, string? value, FontAwesomeIcon icon, Vector4 accentColor, float width = -1f, string? fieldName = null)
         {
             var scale = ImGuiHelpers.GlobalScale;
             var cardWidth = width > 0 ? width : ImGui.GetContentRegionAvail().X;
-            var cardHeight = 44.0f * scale;
+            var cardHeight = 55.0f * scale;
 
             using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.11f, 0.12f, 0.15f, 0.90f)))
             using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.22f, 0.25f, 0.32f, 0.65f)))
@@ -256,6 +280,17 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 6.0f * scale);
                     ImGui.TextColored(ImGuiColors.DalamudGrey, label.Replace(":", "").Trim());
 
+                    if (!string.IsNullOrEmpty(fieldName))
+                    {
+                        var toggleW = 22.0f * scale;
+                        var rightX = ImGui.GetWindowContentRegionMax().X - toggleW;
+                        if (ImGui.GetCursorPosX() < rightX)
+                            ImGui.SameLine(rightX);
+                        else
+                            ImGui.SameLine();
+                        DrawVisibilityToggle(fieldName);
+                    }
+
                     // Value line
                     var displayVal = !string.IsNullOrWhiteSpace(value) ? value : "-";
                     var valCol = !string.IsNullOrWhiteSpace(value) ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey2;
@@ -264,7 +299,7 @@ namespace Soulstone.Windows
             }
         }
 
-        private void DrawStoryBlock(string title, string? content, FontAwesomeIcon icon, Vector4 accentColor)
+        private void DrawStoryBlock(string title, string? content, FontAwesomeIcon icon, Vector4 accentColor, string? fieldName = null)
         {
             var scale = ImGuiHelpers.GlobalScale;
             var availWidth = ImGui.GetContentRegionAvail().X;
@@ -293,6 +328,18 @@ namespace Soulstone.Windows
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * scale);
                     ImGui.TextColored(accentColor, title.Replace(":", "").Trim());
+
+                    if (!string.IsNullOrEmpty(fieldName))
+                    {
+                        var toggleW = 22.0f * scale;
+                        var rightX = ImGui.GetWindowContentRegionMax().X - toggleW;
+                        if (ImGui.GetCursorPosX() < rightX)
+                            ImGui.SameLine(rightX);
+                        else
+                            ImGui.SameLine();
+                        DrawVisibilityToggle(fieldName);
+                    }
+
                     ImGui.Separator();
                     ImGui.Spacing();
 
@@ -352,6 +399,23 @@ namespace Soulstone.Windows
                     if (UiUtils.IconButton("SaveCharBtn", FontAwesomeIcon.Save, LocalizationManager.Instance.GetLocalizedString("SaveCharsheetButton")))
                     {
                         CharacterSheet.SaveSheet(currentCharacter);
+                    }
+
+                    ImGui.SameLine(0, 6.0f * scale);
+                    if (UiUtils.IconButton("PublishCharBtn", FontAwesomeIcon.CloudUploadAlt, LocalizationManager.Instance.GetLocalizedString("PublishSheetToServer")))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            var success = await PartySyncManager.Instance.PublishCharacterSheetAsync(currentCharacter).ConfigureAwait(false);
+                            if (success)
+                            {
+                                Messages.PrintEcho(LocalizationManager.Instance.GetLocalizedString("SheetPublishedSuccess"));
+                            }
+                            else
+                            {
+                                Messages.PrintEcho(LocalizationManager.Instance.GetLocalizedString("SheetPublishFailed"));
+                            }
+                        });
                     }
                 }
 
@@ -525,63 +589,63 @@ namespace Soulstone.Windows
                     using var table = ImRaii.Table("##IdentityEditTable", 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
                     if (table.Success)
                     {
-                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                         ImGui.TableSetupColumn("Value1", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                         ImGui.TableSetupColumn("Value2", ImGuiTableColumnFlags.WidthStretch, 1.0f);
 
                         // Row 1: Full name & Nickname
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharFullnameField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharFullnameField"), "CharacterFullName");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterFullName, "FullName", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharNicknameField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharNicknameField"), "CharacterNickName");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterNickName, "NickName", editingCharsheet, -1f);
 
                         // Row 2: Specie & Sub-specie
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharSpecieField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharSpecieField"), "CharacterRace");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterRace, "CharacterRace", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharSubSpecieField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharSubSpecieField"), "CharacterSubRace");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterSubRace, "CharacterSubRace", editingCharsheet, -1f);
 
                         // Row 3: Class & Age
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharClassField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharClassField"), "CharacterJob");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterJob, "CharacterJob", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharAgeField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharAgeField"), "CharacterAge");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterAge, "CharacterAge", editingCharsheet, -1f);
 
                         // Row 4: Sex & Gender
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharSexField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharSexField"), "CharacterSex");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterSex, "CharacterSex", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharGenderField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharGenderField"), "CharacterGender");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterGender, "CharacterGender", editingCharsheet, -1f);
 
                         // Row 5: Pronouns & Linked System
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharPronounsField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharPronounsField"), "CharacterPronouns");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterPronouns, "CharacterPronouns", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"), "CharacterLinkedSystem");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.linkedDiceSystem, "CharacterLinkedSystem", editingCharsheet, -1f);
                     }
@@ -592,29 +656,29 @@ namespace Soulstone.Windows
                     if (table.Success)
                     {
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharFullnameField"), currentCharacter.characterFullName, FontAwesomeIcon.IdCard, ImGuiColors.ParsedGold);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharFullnameField"), currentCharacter.characterFullName, FontAwesomeIcon.IdCard, ImGuiColors.ParsedGold, fieldName: "CharacterFullName");
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharNicknameField"), currentCharacter.characterNickName, FontAwesomeIcon.QuoteRight, ImGuiColors.ParsedGold);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharNicknameField"), currentCharacter.characterNickName, FontAwesomeIcon.QuoteRight, ImGuiColors.ParsedGold, fieldName: "CharacterNickName");
 
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSpecieField"), currentCharacter.characterRace, FontAwesomeIcon.Dna, ImGuiColors.DalamudViolet);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSpecieField"), currentCharacter.characterRace, FontAwesomeIcon.Dna, ImGuiColors.DalamudViolet, fieldName: "CharacterRace");
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSubSpecieField"), currentCharacter.characterSubRace, FontAwesomeIcon.Dna, ImGuiColors.DalamudViolet);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSubSpecieField"), currentCharacter.characterSubRace, FontAwesomeIcon.Dna, ImGuiColors.DalamudViolet, fieldName: "CharacterSubRace");
 
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharClassField"), currentCharacter.characterJob, FontAwesomeIcon.UserShield, ImGuiColors.ParsedBlue);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharClassField"), currentCharacter.characterJob, FontAwesomeIcon.UserShield, ImGuiColors.ParsedBlue, fieldName: "CharacterJob");
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharAgeField"), currentCharacter.characterAge, FontAwesomeIcon.HourglassHalf, ImGuiColors.DalamudWhite);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharAgeField"), currentCharacter.characterAge, FontAwesomeIcon.HourglassHalf, ImGuiColors.DalamudWhite, fieldName: "CharacterAge");
 
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSexField"), currentCharacter.characterSex, FontAwesomeIcon.VenusMars, ImGuiColors.ParsedGreen);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSexField"), currentCharacter.characterSex, FontAwesomeIcon.VenusMars, ImGuiColors.ParsedGreen, fieldName: "CharacterSex");
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharGenderField"), currentCharacter.characterGender, FontAwesomeIcon.VenusMars, ImGuiColors.ParsedGreen);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharGenderField"), currentCharacter.characterGender, FontAwesomeIcon.VenusMars, ImGuiColors.ParsedGreen, fieldName: "CharacterGender");
 
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharPronounsField"), currentCharacter.characterPronouns, FontAwesomeIcon.CommentDots, ImGuiColors.ParsedGreen);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharPronounsField"), currentCharacter.characterPronouns, FontAwesomeIcon.CommentDots, ImGuiColors.ParsedGreen, fieldName: "CharacterPronouns");
                         ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"), currentCharacter.linkedDiceSystem, FontAwesomeIcon.DiceD20, ImGuiColors.ParsedGold);
+                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"), currentCharacter.linkedDiceSystem, FontAwesomeIcon.DiceD20, ImGuiColors.ParsedGold, fieldName: "CharacterLinkedSystem");
                     }
                 }
             }
@@ -631,34 +695,34 @@ namespace Soulstone.Windows
                     using var table = ImRaii.Table("##OOCTable", 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
                     if (table.Success)
                     {
-                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                         ImGui.TableSetupColumn("Value1", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                         ImGui.TableSetupColumn("Value2", ImGuiTableColumnFlags.WidthStretch, 1.0f);
 
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("PlayerAvailability"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("PlayerAvailability"), "PlayerAvailability");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.playerAvailability, "PlayerAvailability", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("PlayerTimezone"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("PlayerTimezone"), "PlayerTimezone");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.playerTimezone, "PlayerTimezone", editingCharsheet, -1f);
 
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo"), "CharacterInfo");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterInfo, "CharacterInfo", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharNotesField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharNotesField"), "CharacterNotes");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterNotes, "CharacterNotes", editingCharsheet, -1f);
                     }
 
                     ImGui.Spacing();
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("PlayerOOCNotes"));
+                    DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("PlayerOOCNotes"), "PlayerNotes");
                     UiUtils.ManageBigInputField(ref currentCharacter.playerNotes, "PlayerNotes", editingCharsheet, 60.0f);
                 }
                 else
@@ -668,21 +732,21 @@ namespace Soulstone.Windows
                         if (table.Success)
                         {
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerAvailability"), currentCharacter.playerAvailability, FontAwesomeIcon.Clock, ImGuiColors.ParsedBlue);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerAvailability"), currentCharacter.playerAvailability, FontAwesomeIcon.Clock, ImGuiColors.ParsedBlue, fieldName: "PlayerAvailability");
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerTimezone"), currentCharacter.playerTimezone, FontAwesomeIcon.Globe, ImGuiColors.ParsedBlue);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerTimezone"), currentCharacter.playerTimezone, FontAwesomeIcon.Globe, ImGuiColors.ParsedBlue, fieldName: "PlayerTimezone");
 
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo"), currentCharacter.characterInfo, FontAwesomeIcon.UserCircle, ImGuiColors.ParsedBlue);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo"), currentCharacter.characterInfo, FontAwesomeIcon.UserCircle, ImGuiColors.ParsedBlue, fieldName: "CharacterInfo");
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharNotesField"), currentCharacter.characterNotes, FontAwesomeIcon.StickyNote, ImGuiColors.ParsedBlue);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharNotesField"), currentCharacter.characterNotes, FontAwesomeIcon.StickyNote, ImGuiColors.ParsedBlue, fieldName: "CharacterNotes");
                         }
                     }
 
                     if (!string.IsNullOrWhiteSpace(currentCharacter.playerNotes))
                     {
                         ImGui.Spacing();
-                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("PlayerOOCNotes"), currentCharacter.playerNotes, FontAwesomeIcon.StickyNote, ImGuiColors.ParsedBlue);
+                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("PlayerOOCNotes"), currentCharacter.playerNotes, FontAwesomeIcon.StickyNote, ImGuiColors.ParsedBlue, fieldName: "PlayerNotes");
                     }
                 }
             }
@@ -699,58 +763,58 @@ namespace Soulstone.Windows
                     using var table = ImRaii.Table("##AppearanceTable", 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
                     if (table.Success)
                     {
-                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                         ImGui.TableSetupColumn("Value1", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                         ImGui.TableSetupColumn("Value2", ImGuiTableColumnFlags.WidthStretch, 1.0f);
 
                         // Row 1: Height & Weight
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharHeightField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharHeightField"), "CharacterHeight");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterHeight, "CharacterHeight", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharWeightField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharWeightField"), "CharacterWeight");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterWeight, "CharacterWeight", editingCharsheet, -1f);
 
                         // Row 2: Body type & Complexion
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharBuildField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharBuildField"), "CharacterBuild");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterBuild, "CharacterBuild", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharSkinColorField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharSkinColorField"), "CharacterSkinTone");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterSkinTone, "CharacterSkinTone", editingCharsheet, -1f);
 
                         // Row 3: Eye color & Hair color
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharEyeColorField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharEyeColorField"), "CharacterEyeColor");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterEyeColor, "CharacterEyeColor", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharHairColorField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharHairColorField"), "CharacterHairColor");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterHairColor, "CharacterHairColor", editingCharsheet, -1f);
 
                         // Row 4: Scars & Tattoos
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharScarsField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharScarsField"), "CharacterScars");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterScars, "CharacterScars", editingCharsheet, -1f);
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharTatooField"));
+                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharTatooField"), "CharacterTattoos");
                         ImGui.TableNextColumn();
                         UiUtils.ManageInputField(ref currentCharacter.characterTattoos, "CharacterTattoos", editingCharsheet, -1f);
                     }
 
                     ImGui.Spacing();
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharOtherQuirkField"));
+                    DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharOtherQuirkField"), "CharacterDistinctiveFeatures");
                     UiUtils.ManageBigInputField(ref currentCharacter.characterDistinctiveFeatures, "CharacterDistinctiveFeatures", editingCharsheet, 50.0f);
                 }
                 else
@@ -760,31 +824,31 @@ namespace Soulstone.Windows
                         if (table.Success)
                         {
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharHeightField"), currentCharacter.characterHeight, FontAwesomeIcon.RulerVertical, ImGuiColors.DalamudViolet);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharHeightField"), currentCharacter.characterHeight, FontAwesomeIcon.RulerVertical, ImGuiColors.DalamudViolet, fieldName: "CharacterHeight");
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharWeightField"), currentCharacter.characterWeight, FontAwesomeIcon.WeightHanging, ImGuiColors.DalamudViolet);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharWeightField"), currentCharacter.characterWeight, FontAwesomeIcon.WeightHanging, ImGuiColors.DalamudViolet, fieldName: "CharacterWeight");
 
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharBuildField"), currentCharacter.characterBuild, FontAwesomeIcon.UserTag, ImGuiColors.DalamudViolet);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharBuildField"), currentCharacter.characterBuild, FontAwesomeIcon.UserTag, ImGuiColors.DalamudViolet, fieldName: "CharacterBuild");
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSkinColorField"), currentCharacter.characterSkinTone, FontAwesomeIcon.Palette, ImGuiColors.DalamudViolet);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSkinColorField"), currentCharacter.characterSkinTone, FontAwesomeIcon.Palette, ImGuiColors.DalamudViolet, fieldName: "CharacterSkinTone");
 
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharEyeColorField"), currentCharacter.characterEyeColor, FontAwesomeIcon.Eye, ImGuiColors.DalamudViolet);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharEyeColorField"), currentCharacter.characterEyeColor, FontAwesomeIcon.Eye, ImGuiColors.DalamudViolet, fieldName: "CharacterEyeColor");
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharHairColorField"), currentCharacter.characterHairColor, FontAwesomeIcon.Magic, ImGuiColors.DalamudViolet);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharHairColorField"), currentCharacter.characterHairColor, FontAwesomeIcon.Magic, ImGuiColors.DalamudViolet, fieldName: "CharacterHairColor");
 
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharScarsField"), currentCharacter.characterScars, FontAwesomeIcon.Cut, ImGuiColors.DalamudViolet);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharScarsField"), currentCharacter.characterScars, FontAwesomeIcon.Cut, ImGuiColors.DalamudViolet, fieldName: "CharacterScars");
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharTatooField"), currentCharacter.characterTattoos, FontAwesomeIcon.PaintBrush, ImGuiColors.DalamudViolet);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharTatooField"), currentCharacter.characterTattoos, FontAwesomeIcon.PaintBrush, ImGuiColors.DalamudViolet, fieldName: "CharacterTattoos");
                         }
                     }
 
                     if (!string.IsNullOrWhiteSpace(currentCharacter.characterDistinctiveFeatures))
                     {
                         ImGui.Spacing();
-                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharOtherQuirkField"), currentCharacter.characterDistinctiveFeatures, FontAwesomeIcon.Star, ImGuiColors.DalamudViolet);
+                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharOtherQuirkField"), currentCharacter.characterDistinctiveFeatures, FontAwesomeIcon.Star, ImGuiColors.DalamudViolet, fieldName: "CharacterDistinctiveFeatures");
                     }
                 }
             }
@@ -801,7 +865,7 @@ namespace Soulstone.Windows
                     using var table = ImRaii.Table("##QuickLookTable", 2, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
                     if (table.Success)
                     {
-                        ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 120.0f * ImGuiHelpers.GlobalScale);
+                        ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 140.0f * ImGuiHelpers.GlobalScale);
                         ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch, 1.0f);
 
                         string[] qlLabels = {
@@ -848,6 +912,14 @@ namespace Soulstone.Windows
                                 UiUtils.Badge($"#{i + 1}", new Vector4(0.18f, 0.40f, 0.28f, 0.85f), ImGuiColors.ParsedGreen);
                                 ImGui.SameLine(0, 8.0f * scale);
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, val);
+
+                                var toggleW = 22.0f * scale;
+                                var rightX = ImGui.GetWindowContentRegionMax().X - toggleW;
+                                if (ImGui.GetCursorPosX() < rightX)
+                                    ImGui.SameLine(rightX);
+                                else
+                                    ImGui.SameLine();
+                                DrawVisibilityToggle($"CharacterQuickLook{i + 1}");
                             }
                         }
                         ImGui.Spacing();
@@ -865,7 +937,7 @@ namespace Soulstone.Windows
         {
             ImGui.TableNextRow();
             ImGui.TableNextColumn();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, label);
+            DrawFieldLabelWithToggle(label, fieldName);
             ImGui.TableNextColumn();
             UiUtils.ManageInputField(ref field, fieldName, editingCharsheet, -1f);
         }
@@ -882,41 +954,41 @@ namespace Soulstone.Windows
                     {
                         if (table.Success)
                         {
-                            ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 120.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                             ImGui.TableSetupColumn("Value1", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                            ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 120.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
                             ImGui.TableSetupColumn("Value2", ImGuiTableColumnFlags.WidthStretch, 1.0f);
 
                             // Row 1: Birthplace & Origin
                             ImGui.TableNextRow();
                             ImGui.TableNextColumn();
-                            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField"));
+                            DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField"), "CharacterHomeland");
                             ImGui.TableNextColumn();
                             UiUtils.ManageInputField(ref currentCharacter.characterHomeland, "CharacterHomeland", editingCharsheet, -1f);
                             ImGui.TableNextColumn();
-                            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharOriginField"));
+                            DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharOriginField"), "CharacterOrigin");
                             ImGui.TableNextColumn();
                             UiUtils.ManageInputField(ref currentCharacter.characterOrigin, "CharacterOrigin", editingCharsheet, -1f);
 
                             // Row 2: Affiliation & Occupation
                             ImGui.TableNextRow();
                             ImGui.TableNextColumn();
-                            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharAffiliationField"));
+                            DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharAffiliationField"), "CharacterAffiliation");
                             ImGui.TableNextColumn();
                             UiUtils.ManageInputField(ref currentCharacter.characterAffiliation, "CharacterAffiliation", editingCharsheet, -1f);
                             ImGui.TableNextColumn();
-                            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharWorkField"));
+                            DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharWorkField"), "CharacterOccupation");
                             ImGui.TableNextColumn();
                             UiUtils.ManageInputField(ref currentCharacter.characterOccupation, "CharacterOccupation", editingCharsheet, -1f);
                         }
                     }
 
                     ImGui.Spacing();
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharReputationField"));
+                    DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharReputationField"), "CharacterReputation");
                     UiUtils.ManageBigInputField(ref currentCharacter.characterReputation, "CharacterReputation", editingCharsheet, 50.0f);
 
                     ImGui.Spacing();
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharBackgroundField"));
+                    DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharBackgroundField"), "CharacterBackground");
                     UiUtils.ManageBigInputField(ref currentCharacter.characterBackground, "CharacterBackground", editingCharsheet, 90.0f);
                 }
                 else
@@ -926,27 +998,27 @@ namespace Soulstone.Windows
                         if (table.Success)
                         {
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField"), currentCharacter.characterHomeland, FontAwesomeIcon.MapMarkerAlt, ImGuiColors.ParsedGold);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField"), currentCharacter.characterHomeland, FontAwesomeIcon.MapMarkerAlt, ImGuiColors.ParsedGold, fieldName: "CharacterHomeland");
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharOriginField"), currentCharacter.characterOrigin, FontAwesomeIcon.GlobeAmericas, ImGuiColors.ParsedGold);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharOriginField"), currentCharacter.characterOrigin, FontAwesomeIcon.GlobeAmericas, ImGuiColors.ParsedGold, fieldName: "CharacterOrigin");
 
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharAffiliationField"), currentCharacter.characterAffiliation, FontAwesomeIcon.Building, ImGuiColors.ParsedGold);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharAffiliationField"), currentCharacter.characterAffiliation, FontAwesomeIcon.Building, ImGuiColors.ParsedGold, fieldName: "CharacterAffiliation");
                             ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharWorkField"), currentCharacter.characterOccupation, FontAwesomeIcon.Briefcase, ImGuiColors.ParsedGold);
+                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharWorkField"), currentCharacter.characterOccupation, FontAwesomeIcon.Briefcase, ImGuiColors.ParsedGold, fieldName: "CharacterOccupation");
                         }
                     }
 
                     if (!string.IsNullOrWhiteSpace(currentCharacter.characterReputation))
                     {
                         ImGui.Spacing();
-                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharReputationField"), currentCharacter.characterReputation, FontAwesomeIcon.Award, ImGuiColors.ParsedGold);
+                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharReputationField"), currentCharacter.characterReputation, FontAwesomeIcon.Award, ImGuiColors.ParsedGold, fieldName: "CharacterReputation");
                     }
 
                     if (!string.IsNullOrWhiteSpace(currentCharacter.characterBackground))
                     {
                         ImGui.Spacing();
-                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharBackgroundField"), currentCharacter.characterBackground, FontAwesomeIcon.BookOpen, ImGuiColors.ParsedGold);
+                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharBackgroundField"), currentCharacter.characterBackground, FontAwesomeIcon.BookOpen, ImGuiColors.ParsedGold, fieldName: "CharacterBackground");
                     }
                 }
 
@@ -969,24 +1041,24 @@ namespace Soulstone.Windows
                     DrawRelationCard("Family", ImGuiColors.ParsedGold,
                         LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab"),
                         currentCharacter.characterFamily ??= new Dictionary<string, string>(),
-                        () => showFamilyPopup = true, boxHeight);
+                        () => showFamilyPopup = true, boxHeight, "CharacterFamily");
 
                     ImGui.TableNextColumn();
                     DrawRelationCard("Friends", ImGuiColors.ParsedGreen,
                         LocalizationManager.Instance.GetLocalizedString("CharFriendsTab"),
                         currentCharacter.characterFriends ??= new Dictionary<string, string>(),
-                        () => showFriendsPopup = true, boxHeight);
+                        () => showFriendsPopup = true, boxHeight, "CharacterFriends");
 
                     ImGui.TableNextColumn();
                     DrawRelationCard("Enemies", ImGuiColors.DPSRed,
                         LocalizationManager.Instance.GetLocalizedString("CharEnemiesTab"),
                         currentCharacter.characterEnnemies ??= new Dictionary<string, string>(),
-                        () => showEnemiesPopup = true, boxHeight);
+                        () => showEnemiesPopup = true, boxHeight, "CharacterEnnemies");
                 }
             }
         }
 
-        private void DrawRelationCard(string id, Vector4 color, string title, Dictionary<string, string> relations, Action onAddClick, float height)
+        private void DrawRelationCard(string id, Vector4 color, string title, Dictionary<string, string> relations, Action onAddClick, float height, string fieldName)
         {
             using (var child = ImRaii.Child($"##{id}Card", new Vector2(0, height), true))
             {
@@ -995,6 +1067,8 @@ namespace Soulstone.Windows
                     ImGui.TextColored(color, title.Replace(":", "").Trim());
                     ImGui.SameLine();
                     UiUtils.Badge(relations.Count.ToString(), new Vector4(0.2f, 0.2f, 0.2f, 0.5f), ImGuiColors.DalamudGrey);
+                    ImGui.SameLine();
+                    DrawVisibilityToggle(fieldName);
 
                     var addBtnWidth = 24.0f * ImGuiHelpers.GlobalScale;
                     var rightX = ImGui.GetWindowContentRegionMax().X - addBtnWidth;

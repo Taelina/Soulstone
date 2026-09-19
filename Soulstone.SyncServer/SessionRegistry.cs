@@ -375,12 +375,15 @@ public sealed class RelayClient : IDisposable
     }
 }
 
-public sealed class SessionCleanupService(SessionRegistry sessions, TimeProvider timeProvider) : BackgroundService
+public sealed class SessionCleanupService(SessionRegistry sessions, CharacterSheetRegistry sheets, TimeProvider timeProvider) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1), timeProvider);
         while (await timer.WaitForNextTickAsync(stoppingToken))
+        {
             await sessions.RemoveExpiredAsync(stoppingToken);
+            sheets.CleanupExpired();
+        }
     }
 }

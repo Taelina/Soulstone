@@ -245,7 +245,7 @@ namespace Soulstone.Utils
                     string target = parts[0].Trim();
                     string prop = parts[1].Trim();
 
-                    // Gear / Buff prefix
+                    // Gear / Buff / Feat prefix
                     if (target.Equals("Gear", StringComparison.OrdinalIgnoreCase) ||
                         target.Equals("GearBonus", StringComparison.OrdinalIgnoreCase) ||
                         target.Equals("Equipment", StringComparison.OrdinalIgnoreCase))
@@ -258,6 +258,12 @@ namespace Soulstone.Utils
                         target.Equals("Debuff", StringComparison.OrdinalIgnoreCase))
                     {
                         return sheet.GetBuffStatBonus(prop);
+                    }
+                    if (target.Equals("Feat", StringComparison.OrdinalIgnoreCase) ||
+                        target.Equals("Feats", StringComparison.OrdinalIgnoreCase) ||
+                        target.Equals("FeatBonus", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return sheet.GetFeatStatBonus(prop);
                     }
                     if (target.Equals("Base", StringComparison.OrdinalIgnoreCase))
                     {
@@ -315,6 +321,8 @@ namespace Soulstone.Utils
                                 return sheet.GetGearStatBonus(aKey);
                             if (prop.Equals("Buff", StringComparison.OrdinalIgnoreCase))
                                 return sheet.GetBuffStatBonus(aKey);
+                            if (prop.Equals("Feat", StringComparison.OrdinalIgnoreCase) || prop.Equals("FeatBonus", StringComparison.OrdinalIgnoreCase))
+                                return sheet.GetFeatStatBonus(aKey);
                             if (prop.Equals("Effective", StringComparison.OrdinalIgnoreCase))
                                 return sheet.GetEffectiveAttributeValue(aKey);
                         }
@@ -358,6 +366,8 @@ namespace Soulstone.Utils
                                 return sheet.GetGearStatBonus(sKey);
                             if (prop.Equals("Buff", StringComparison.OrdinalIgnoreCase))
                                 return sheet.GetBuffStatBonus(sKey);
+                            if (prop.Equals("Feat", StringComparison.OrdinalIgnoreCase) || prop.Equals("FeatBonus", StringComparison.OrdinalIgnoreCase))
+                                return sheet.GetFeatStatBonus(sKey);
                             if (prop.Equals("Total", StringComparison.OrdinalIgnoreCase) || prop.Equals("Effective", StringComparison.OrdinalIgnoreCase))
                                 return sheet.GetEffectiveSkillTotal(sKey, diceSystem);
                         }
@@ -376,6 +386,8 @@ namespace Soulstone.Utils
                                 return sheet.GetGearStatBonus(abKey);
                             if (prop.Equals("Buff", StringComparison.OrdinalIgnoreCase))
                                 return sheet.GetBuffStatBonus(abKey);
+                            if (prop.Equals("Feat", StringComparison.OrdinalIgnoreCase) || prop.Equals("FeatBonus", StringComparison.OrdinalIgnoreCase))
+                                return sheet.GetFeatStatBonus(abKey);
                             if (prop.Equals("Total", StringComparison.OrdinalIgnoreCase) || prop.Equals("Effective", StringComparison.OrdinalIgnoreCase))
                                 return sheet.GetEffectiveAbilityModifier(abKey);
                         }
@@ -490,6 +502,14 @@ namespace Soulstone.Utils
                 cleanName.Equals("DebuffCount", StringComparison.OrdinalIgnoreCase))
             {
                 return sheet.ActiveBuffs?.Count ?? 0;
+            }
+
+            // Feats count
+            if (cleanName.Equals("FeatsCount", StringComparison.OrdinalIgnoreCase) ||
+                cleanName.Equals("FeatCount", StringComparison.OrdinalIgnoreCase) ||
+                cleanName.Equals("ActiveFeatsCount", StringComparison.OrdinalIgnoreCase))
+            {
+                return sheet.CharacterFeats?.Count(f => f.IsActive) ?? 0;
             }
 
             // Augmentations count

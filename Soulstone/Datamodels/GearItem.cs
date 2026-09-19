@@ -91,6 +91,7 @@ namespace Soulstone.Datamodels
                 Weight = this.Weight,
                 Rarity = this.Rarity,
                 IsUsable = this.IsUsable,
+                IsConsumable = this.IsConsumable,
                 UseFormula = this.UseFormula,
                 Slot = this.Slot,
                 IsAugmentation = this.IsAugmentation,

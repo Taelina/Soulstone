@@ -1051,7 +1051,6 @@ namespace Soulstone.Windows
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, attr.Name);
                             try
                             {
-                                Messages.SendMessage(new XivChatEntry { Message = roll.RollResultString, Type = XivChatType.Echo });
                                 string actor = !string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? sheet.CharacterFullName : "NPC";
                                 string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, $"{attr.Name} -> {roll.RollResultString.TextValue}");
                                 PartySyncManager.Instance.BroadcastDiceRoll(attr.Name, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: echo, characterName: actor);
@@ -1119,7 +1118,6 @@ namespace Soulstone.Windows
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, skill.skillName);
                             try
                             {
-                                Messages.SendMessage(new XivChatEntry { Message = roll.RollResultString, Type = XivChatType.Echo });
                                 string actor = !string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? sheet.CharacterFullName : "NPC";
                                 string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, $"{skill.skillName} -> {roll.RollResultString.TextValue}");
                                 PartySyncManager.Instance.BroadcastDiceRoll(skill.skillName, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: echo, characterName: actor);
@@ -1182,7 +1180,6 @@ namespace Soulstone.Windows
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, abil.abilityName);
                             try
                             {
-                                Messages.SendMessage(new XivChatEntry { Message = roll.RollResultString, Type = XivChatType.Echo });
                                 string actor = !string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? sheet.CharacterFullName : "NPC";
                                 string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, $"{abil.abilityName} -> {roll.RollResultString.TextValue}");
                                 PartySyncManager.Instance.BroadcastDiceRoll(abil.abilityName, roll.RollResult, string.Join(", ", roll.IndividualRolls), echoText: echo, characterName: actor);

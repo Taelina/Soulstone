@@ -10,6 +10,7 @@ using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.Game.Text.SeStringHandling;
 using Soulstone.Managers;
 using System;
+using System.Threading.Tasks;
 using Soulstone.Utils;
 
 namespace Soulstone;
@@ -28,6 +29,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPartyList PartyList { get; set; } = null!;
     [PluginService] internal static IObjectTable ObjectTable { get; set; } = null!;
     [PluginService] internal static IFramework Framework { get; set; } = null!;
+    [PluginService] internal static IContextMenu ContextMenu { get; set; } = null!;
 
     private const string CommandName = "/soulstone";
 
@@ -40,6 +42,7 @@ public sealed class Plugin : IDalamudPlugin
     private ConfigWindow ConfigWindow { get; init; }
     public InitiativeTrackerWindow InitiativeTrackerWindow { get; init; }
     public GroupWindow GroupWindow { get; init; }
+    internal CharacterInspectWindow CharacterInspectWindow { get; init; }
 
     public ImGuiFileBrowserWindow fileBrowserWindow;
 
@@ -56,6 +59,7 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow = new MainWindow(this);
         InitiativeTrackerWindow = new InitiativeTrackerWindow(this);
         GroupWindow = new GroupWindow(this);
+        CharacterInspectWindow = new CharacterInspectWindow(this);
         fileBrowserWindow = new ImGuiFileBrowserWindow();
         fileBrowserWindow.SetConfiguration(Configuration);
         dataLocation = PluginInterface.GetPluginLocDirectory();
@@ -66,6 +70,7 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(InitiativeTrackerWindow);
         WindowSystem.AddWindow(GroupWindow);
+        WindowSystem.AddWindow(CharacterInspectWindow);
         WindowSystem.AddWindow(fileBrowserWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -83,6 +88,11 @@ public sealed class Plugin : IDalamudPlugin
         // Adds another button doing the same but for the main ui of the plugin
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUi;
 
+        if (ContextMenu != null)
+        {
+            ContextMenu.OnMenuOpened += OnContextMenuOpened;
+        }
+
         Framework.Update += OnFrameworkUpdate;
         ClientState.Login += OnLogin;
         ClientState.Logout += OnLogout;
@@ -92,6 +102,11 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
+            if (ContextMenu != null)
+            {
+                ContextMenu.OnMenuOpened -= OnContextMenuOpened;
+            }
+
             Framework.Update -= OnFrameworkUpdate;
             ClientState.Login -= OnLogin;
             ClientState.Logout -= OnLogout;
@@ -107,6 +122,7 @@ public sealed class Plugin : IDalamudPlugin
             MainWindow.Dispose();
             InitiativeTrackerWindow.Dispose();
             GroupWindow.Dispose();
+            CharacterInspectWindow.Dispose();
             PartySyncManager.Instance.Dispose();
 
             CommandManager.RemoveHandler(CommandName);
@@ -114,6 +130,64 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception ex)
         {
             Log?.Error(ex, "Failed to dispose plugin resources cleanly");
+        }
+    }
+
+    private void OnContextMenuOpened(Dalamud.Game.Gui.ContextMenu.IMenuOpenedArgs args)
+    {
+        try
+        {
+            if (args.Target is Dalamud.Game.Gui.ContextMenu.MenuTargetDefault target && !string.IsNullOrWhiteSpace(target.TargetName))
+            {
+                var charName = target.TargetName;
+                var worldName = target.TargetHomeWorld.ValueNullable?.Name.ExtractText();
+
+                args.AddMenuItem(new Dalamud.Game.Gui.ContextMenu.MenuItem
+                {
+                    Name = LocalizationManager.Instance.GetLocalizedString("ContextMenuInspectRoleplay"),
+                    PrefixChar = 'S',
+                    PrefixColor = 543,
+                    OnClicked = _ => InspectCharacter(charName, worldName)
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log?.Error(ex, "Failed to handle context menu opened event");
+        }
+    }
+
+    public void InspectCharacter(string characterName, string? worldName)
+    {
+        try
+        {
+            InitManagers();
+            CharacterInspectWindow.OpenLoading(characterName, worldName);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var serverUrl = Configuration?.SyncServerUrl ?? "http://127.0.0.1:5077";
+                    var sheet = await CharacterApiClient.FetchCharacterSheetAsync(serverUrl, characterName, worldName).ConfigureAwait(false);
+                    if (sheet != null)
+                    {
+                        CharacterInspectWindow.OpenFor(characterName, worldName, sheet);
+                    }
+                    else
+                    {
+                        CharacterInspectWindow.SetError(characterName, worldName, LocalizationManager.Instance.GetLocalizedString("CharSheetNotFoundServer"));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log?.Error(ex, $"Failed to fetch character sheet for '{characterName}'");
+                    CharacterInspectWindow.SetError(characterName, worldName, LocalizationManager.Instance.GetLocalizedString("CharSheetNotFoundServer"));
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Log?.Error(ex, $"Error inspecting character '{characterName}'");
         }
     }
 

@@ -340,5 +340,51 @@ namespace Soulstone.Tests.Datamodels
             sheet.GetEffectiveSkills(emptySystem).Should().ContainKey("OldUnusedSkill");
             sheet.GetEffectiveAbilities(emptySystem).Should().ContainKey("OldAbility");
         }
+
+        [Fact]
+        public void FieldVisibility_IsHiddenAndToggle_WorksCorrectly()
+        {
+            var sheet = new CharacterSheet();
+
+            // Default: no hidden fields
+            sheet.IsFieldHidden("CharacterAge").Should().BeFalse();
+            sheet.IsFieldHidden("PlayerNotes").Should().BeFalse();
+
+            // Hide fields
+            sheet.SetFieldHidden("CharacterAge", true);
+            sheet.IsFieldHidden("CharacterAge").Should().BeTrue();
+            sheet.IsFieldHidden("characterage").Should().BeTrue(); // Case insensitive
+
+            // Toggle
+            sheet.ToggleFieldHidden("PlayerNotes");
+            sheet.IsFieldHidden("PlayerNotes").Should().BeTrue();
+            sheet.ToggleFieldHidden("PlayerNotes");
+            sheet.IsFieldHidden("PlayerNotes").Should().BeFalse();
+
+            // Unhide
+            sheet.SetFieldHidden("CharacterAge", false);
+            sheet.IsFieldHidden("CharacterAge").Should().BeFalse();
+        }
+
+        [Fact]
+        public void FieldVisibility_SerializesAndDeserializesHiddenFields()
+        {
+            var sheet = new CharacterSheet
+            {
+                CharacterFullName = "Alphinaud Leveilleur",
+                CharacterAge = "16",
+                CharacterSex = "Male"
+            };
+            sheet.SetFieldHidden("CharacterAge", true);
+            sheet.SetFieldHidden("CharacterSex", true);
+
+            string json = JsonSerializer.Serialize(sheet);
+            var deserialized = JsonSerializer.Deserialize<CharacterSheet>(json);
+
+            deserialized.Should().NotBeNull();
+            deserialized!.IsFieldHidden("CharacterAge").Should().BeTrue();
+            deserialized.IsFieldHidden("CharacterSex").Should().BeTrue();
+            deserialized.IsFieldHidden("CharacterFullName").Should().BeFalse();
+        }
     }
 }

@@ -42,6 +42,24 @@ namespace Soulstone.Managers
         public bool IsConnected => relayClient.IsConnected;
         public bool IsSessionHost => configuration != null && !string.IsNullOrWhiteSpace(configuration.SyncHostToken);
         public string InviteCode => configuration?.SyncInviteCode ?? string.Empty;
+        public Configuration? Configuration => configuration;
+
+        public async Task<bool> PublishCharacterSheetAsync(CharacterSheet sheet, string? world = null)
+        {
+            if (configuration == null || string.IsNullOrWhiteSpace(configuration.SyncServerUrl) || sheet == null)
+                return false;
+
+            world ??= GetLocalPlayerWorld();
+            return await CharacterApiClient.UploadCharacterSheetAsync(configuration.SyncServerUrl, sheet, world).ConfigureAwait(false);
+        }
+
+        public async Task<CharacterSheet?> FetchRemoteCharacterSheetAsync(string characterName, string? world = null)
+        {
+            if (configuration == null || string.IsNullOrWhiteSpace(configuration.SyncServerUrl) || string.IsNullOrWhiteSpace(characterName))
+                return null;
+
+            return await CharacterApiClient.FetchCharacterSheetAsync(configuration.SyncServerUrl, characterName, world).ConfigureAwait(false);
+        }
 
         public void Init(Configuration config)
         {

@@ -108,13 +108,6 @@ namespace Soulstone.Windows
                         {
                             var roll = sheet.RollInitiative(currentSystem, advantage, disadvantage, detailedRoll);
                             InitiativeTrackerManager.Instance.AddOrUpdateCurrentCharacter(sheet, currentSystem, roll.RollResult, mod);
-                            PartySyncManager.Instance.BroadcastDiceRoll(
-                                "Initiative",
-                                roll.RollResult,
-                                string.Join(", ", roll.IndividualRolls),
-                                echoText: detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue,
-                                isPrivate: rollPrivate
-                            );
                         }
                     }
 
@@ -414,12 +407,6 @@ namespace Soulstone.Windows
                 if (DR != null)
                 {
                     var resultSeString = !detailedRoll ? DR.RollResultString : DR.RollDetailedResultString;
-                    XivChatEntry rollMessage = new XivChatEntry
-                    {
-                        Message = resultSeString,
-                        Type = XivChatType.Echo
-                    };
-                    Messages.SendMessage(rollMessage);
                     PartySyncManager.Instance.BroadcastDiceRoll(
                         rollInputText,
                         DR.RollResult,

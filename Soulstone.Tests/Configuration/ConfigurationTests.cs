@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using FluentAssertions;
 using Moq;
 using Xunit;
@@ -21,8 +23,6 @@ namespace Soulstone.Tests.Configuration
         {
             // Act
             var config = new Soulstone.Configuration();
-
-            // Assert
             config.Version.Should().Be(0);
             config.IsConfigWindowMovable.Should().BeTrue();
             config.SomePropertyToBeSavedAndWithADefault.Should().BeTrue();
@@ -108,6 +108,19 @@ namespace Soulstone.Tests.Configuration
 
             // Assert
             mockPluginInterface.Verify(x => x.SavePluginConfig(config), Times.Once);
+        }
+        [Fact]
+        public void ContextMenuItem_HasGreenLetterSPrefix()
+        {
+            var item = new Dalamud.Game.Gui.ContextMenu.MenuItem
+            {
+                Name = "Consult RP Sheet",
+                PrefixChar = 'S',
+                PrefixColor = 543
+            };
+
+            item.Prefix.Should().Be(Dalamud.Game.Text.SeIconChar.BoxedLetterS);
+            item.PrefixColor.Should().Be(543);
         }
     }
 }

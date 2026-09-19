@@ -31,7 +31,14 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 - **Detailed Appearance**: Height, weight, build, eye color, hair color, skin tone, scars, tattoos, and distinctive quirks.
 - **Quick Look Hooks**: 5 customizable quick glance descriptors for immediate roleplay hooks visible to fellow players.
 - **Background & Lore**: Birthplace, origin, affiliation, occupation, social reputation (with custom tooltips), and full background biography.
-- **Social Network & Relationships**: Categorized relationship lists (**Family**, **Friends**, **Enemies**, **Allies**) with customizable descriptions and statuses.
+- **Social Network & Relationships**: Categorized relationship lists (**Family**, **Friends**, **Enemies**) with customizable descriptions and statuses.
+- **Granular Privacy & Visibility Controls**: Toggle individual field visibility (eye/eye-slash) to keep private details hidden from public or group views.
+
+### 🌟 Feats, Perks & Traits
+- **Custom Character Feats**: Define unique traits, perks, racial abilities, specializations, and flaws.
+- **Category & Type Filtering**: Organize feats by category (Feat, Trait, Perk, Flaw, Boon) with fast keyword search.
+- **Stat & Modifier Integration**: Configure direct modifiers to attributes, skills, and resources associated with individual feats.
+- **Detailed Descriptions & Tooltips**: Rich text descriptions and notes displayed in clean, card-based views.
 
 ### 📊 Dynamic Stats, Attributes & Abilities
 - **Custom Attributes**: Define core attributes (e.g. Strength, Dexterity, Intelligence) with base values and bonuses.
@@ -54,12 +61,13 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 - **Integrated NPC Character Sheets**: Attach full character sheets to any combatant—create blank sheets on the fly or load premade JSON templates from disk, with an in-tracker inspector modal for vitals, attributes, skills, and buffs.
 - **In-Tracker Stats & Effects**: Manage participant HP, temporary buffs, status conditions, and notes directly from the tracker window.
 
-### 🔐 Encrypted Group Synchronization
+### 🔐 Encrypted Group Synchronization & Cloud Registry
 - **Out-of-Game Transport**: Soulstone synchronization uses its standalone WebSocket relay (`Soulstone.SyncServer`).
 - **Private Group Sessions**: The DM creates a session and shares one short invite link outside the game. Its 16-character validation code unlocks an opaque, in-memory invite on that relay; incoming identities are checked against the local FFXIV party roster.
 - **Accurate Role Resolution**: Explicit DM / Party Leader detection ensures non-host members are never misidentified as DM.
 - **DM Coordination**: The DM can request rolls, roll for players, distribute rulesets, and control shared initiative state.
 - **Scoped Data Sharing**: Resource bars and roll results are shared with the session, while full character stats are encrypted specifically for the DM.
+- **Remote Character Sheet Inspection**: Publish character sheets to the sync relay registry and inspect other players' sheets and vitals without requiring an active party session.
 - **Self-Hosted Relay**: `Soulstone.SyncServer` runs unattended as a .NET application, single-file executable, service, or container. See [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
 
 ### 🎒 Inventory & Item Management
@@ -87,6 +95,7 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
   - **Percentile System (d100)**: Roll-under target system with degree of success/failure calculations based on intervals (e.g. Call of Cthulhu).
 - **Supported Dice Types**: d4, d6, d8, d10, d12, d20, d100, and arbitrary multi-dice expressions (e.g. `4d6k3`, `2d8+5`).
 - **Customizable System Rules**: Configure Advantage/Disadvantage, temporary & permanent bonuses, epic attributes, dynamic skill linking, formula initiative, and success thresholds.
+- **Persistent Dice Roll History**: Built-in audit trail recording roll events with timestamps, character names, expressions, detailed breakdowns, and totals.
 - **System Persistence**: Automatically persists and restores the last active dice system across plugin restarts.
 
 ### 💬 Chat Integration & Broadcasting
@@ -104,6 +113,7 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 
 ### 🌐 Localization & Customization
 - **Bilingual Interface**: Full localization support for both **English** and **French (Français)** with dynamic instant switching.
+- **Card-Based UI**: Modern, accessible UI with styled headers, custom badges, sectioned bars, and clean responsive layouts.
 - **Configurable Settings**: Customizable chat outputs, window toggles, font scaling, confirmation dialogs, and display options.
 
 ---
@@ -122,14 +132,16 @@ You can also access Soulstone windows, configuration, and tools through the **Da
 
 | Window / Tab | Description |
 | :--- | :--- |
-| **RP Sheet (`CharacterWindow`)** | Character identity, appearance, biography, quick glance hooks, and relationships. |
+| **RP Sheet (`CharacterWindow`)** | Character identity, appearance, biography, quick glance hooks, privacy toggles, and relationships. |
 | **Stat Sheet (`CharStatsWindow`)** | Dynamic HP/MP/resources, attributes, skills, abilities, and quick roll cards. |
+| **Feats & Traits (`FeatsWindow`)** | Character feats, perks, racial traits, flaws, and custom stat modifiers. |
 | **Inventory (`InventoryWindow`)** | Item management, categories, weight, value, search, and item inspection. |
 | **Gear (`GearWindow`)** | Equipment slots, equipped items, and passive stat bonuses. |
 | **Augmentations (`AugmentationsWindow`)** | Cyberware and magitek installations, slot allocations, and essence tracking. |
 | **Initiative Tracker (`InitiativeTrackerWindow`)** | Turn-based combat tracking, rounds, health management, order sorting, and attached NPC sheets. |
-| **Group Sync (`GroupWindow`)** | Encrypted WebSocket party synchronization, shared resources, DM controls, and private sheet inspection. |
-| **Dice Rolling (`DiceWindow`)** | Quick dice roller with expression evaluator, advantage toggles, initiative quick-card, and chat broadcast. |
+| **Group Sync (`GroupWindow`)** | Encrypted WebSocket party synchronization, shared resources, DM controls, and session state. |
+| **Character Inspect (`CharacterInspectWindow`)** | Remote character sheet viewer for inspecting published player profiles. |
+| **Dice Rolling (`DiceWindow`)** | Quick dice roller with expression evaluator, advantage toggles, roll history log, and chat broadcast. |
 | **Dice System (`DiceSystemWindow`)** | Tabletop RPG rule engine configuration, thresholds, and default resource setups. |
 | **Settings (`ConfigWindow`)** | Plugin preferences, localization selection, and chat formatting options. |
 

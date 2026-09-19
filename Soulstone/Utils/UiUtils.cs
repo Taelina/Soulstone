@@ -321,7 +321,7 @@ namespace Soulstone.Utils
                 flags |= ImGuiTreeNodeFlags.DefaultOpen;
             }
 
-            string headerLabel = icon.HasValue ? $"      {label}" : label;
+            string headerLabel = icon.HasValue ? $"            {label}" : label;
 
             using (ImRaii.PushColor(ImGuiCol.Header, headerBg))
             using (ImRaii.PushColor(ImGuiCol.HeaderHovered, headerHover))
@@ -350,7 +350,7 @@ namespace Soulstone.Utils
                     ImGui.PushFont(UiBuilder.IconFont);
                     var iconStr = icon.Value.ToIconString();
                     var iconH = ImGui.CalcTextSize(iconStr).Y;
-                    var iconPos = startPos + new Vector2(24.0f * scale, (headerHeight - iconH) * 0.5f);
+                    var iconPos = startPos + new Vector2(44.0f * scale, (headerHeight - iconH) * 0.5f);
                     drawList.AddText(iconPos, ImGui.ColorConvertFloat4ToU32(accent), iconStr);
                     ImGui.PopFont();
                 }
@@ -1302,6 +1302,126 @@ namespace Soulstone.Utils
                 if (modToRemove != null)
                 {
                     item.RemoveStatModifier(modToRemove);
+                }
+            }
+        }
+
+        public static void DrawStatModifierEditor(
+            Feat feat,
+            CharacterSheet? sheet,
+            DiceSystem? system,
+            StatModifierEditorState state,
+            string idPrefix = "ModEditor")
+        {
+            string[] categories = new[]
+            {
+                LocalizationManager.Instance.GetLocalizedString("StatCategoryAttribute"),
+                LocalizationManager.Instance.GetLocalizedString("StatCategorySkill"),
+                LocalizationManager.Instance.GetLocalizedString("StatCategoryAbility"),
+                LocalizationManager.Instance.GetLocalizedString("StatCategoryResource"),
+                LocalizationManager.Instance.GetLocalizedString("StatCategoryCustom")
+            };
+
+            List<string> availableStats = new();
+            if (state.SelectedCategoryIndex == 0) // Attribute
+            {
+                if (sheet?.characterAttributes != null && sheet.characterAttributes.Count > 0)
+                {
+                    availableStats = sheet.characterAttributes.Keys.ToList();
+                }
+            }
+            else if (state.SelectedCategoryIndex == 1) // Skill
+            {
+                if (sheet?.characterSkills != null && sheet.characterSkills.Count > 0)
+                {
+                    availableStats = sheet.characterSkills.Keys.ToList();
+                }
+            }
+            else if (state.SelectedCategoryIndex == 2) // Ability
+            {
+                if (sheet?.characterAbilities != null && sheet.characterAbilities.Count > 0)
+                {
+                    availableStats = sheet.characterAbilities.Keys.ToList();
+                }
+            }
+            else if (state.SelectedCategoryIndex == 3) // Resource
+            {
+                var resList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (sheet?.characterResources != null)
+                {
+                    foreach (var r in sheet.characterResources.Keys) resList.Add(r);
+                }
+                if (system != null)
+                {
+                    foreach (var r in system.GetEffectiveResources()) resList.Add(r.Name);
+                }
+                if (resList.Count == 0)
+                {
+                    resList.Add("Health");
+                    resList.Add("Mana");
+                }
+                availableStats = resList.ToList();
+            }
+
+            ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("StatModifiersLabel"));
+
+            if (StyledCombo($"##{idPrefix}_CategoryCombo", ref state.SelectedCategoryIndex, categories, width: 120.0f))
+            {
+                state.SelectedStatIndex = 0;
+            }
+
+            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+            string chosenStatName = string.Empty;
+
+            if (state.SelectedCategoryIndex < 4 && availableStats.Count > 0)
+            {
+                if (state.SelectedStatIndex >= availableStats.Count) state.SelectedStatIndex = 0;
+                var statsArr = availableStats.ToArray();
+                StyledCombo($"##{idPrefix}_StatCombo", ref state.SelectedStatIndex, statsArr, width: 140.0f);
+                chosenStatName = statsArr[state.SelectedStatIndex];
+            }
+            else
+            {
+                UiUtils.StyledInputText($"{idPrefix}_CustomStatName", ref state.CustomStatName, 50, width: 140.0f, hint: LocalizationManager.Instance.GetLocalizedString("StatNameHint"));
+                chosenStatName = state.CustomStatName.Trim();
+            }
+
+            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+            UiUtils.StyledInputInt($"{idPrefix}_ModVal", ref state.ModifierValue, step: 0, width: 60.0f);
+
+            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+            if (UiUtils.IconTextButton($"{idPrefix}_AddBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddStatModifierButton")))
+            {
+                if (!string.IsNullOrWhiteSpace(chosenStatName))
+                {
+                    feat.SetStatModifier(chosenStatName, state.ModifierValue);
+                    state.CustomStatName = string.Empty;
+                    state.ModifierValue = 1;
+                }
+            }
+
+            if (feat.StatModifiers != null && feat.StatModifiers.Count > 0)
+            {
+                ImGui.Spacing();
+                string? modToRemove = null;
+                foreach (var mod in feat.StatModifiers)
+                {
+                    var modCol = mod.Value >= 0 ? ImGuiColors.ParsedBlue : ImGuiColors.DalamudRed;
+                    var modBg = mod.Value >= 0 ? new Vector4(0.12f, 0.22f, 0.38f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                    string modText = $"{(mod.Value >= 0 ? "+" : "")}{mod.Value} {mod.Key}";
+                    Badge(modText, modBg, modCol);
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                    if (IconButton($"{idPrefix}_DelMod_{mod.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
+                    {
+                        modToRemove = mod.Key;
+                    }
+                    ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                }
+                ImGui.NewLine();
+
+                if (modToRemove != null)
+                {
+                    feat.RemoveStatModifier(modToRemove);
                 }
             }
         }

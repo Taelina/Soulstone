@@ -375,6 +375,26 @@ namespace Soulstone.Windows
                                         ImGui.NewLine();
                                     }
 
+                                    if (equipped.IsUsable || !string.IsNullOrWhiteSpace(equipped.UseFormula))
+                                    {
+                                        ImGui.Spacing();
+                                        if (!string.IsNullOrWhiteSpace(equipped.UseFormula))
+                                        {
+                                            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemFormula"));
+                                            ImGui.SameLine(0, 6.0f * scale);
+                                            UiUtils.Badge(equipped.UseFormula, new Vector4(0.2f, 0.4f, 0.6f, 0.4f), ImGuiColors.ParsedBlue);
+                                        }
+
+                                        string rollBtnText = !equipped.IsConsumable
+                                            ? LocalizationManager.Instance.GetLocalizedString("InventoryItemRoll")
+                                            : LocalizationManager.Instance.GetLocalizedString("InventoryItemUse");
+                                        var rollIcon = !equipped.IsConsumable ? FontAwesomeIcon.DiceD20 : FontAwesomeIcon.Magic;
+                                        if (UiUtils.IconTextButton("GearRollBtn", rollIcon, rollBtnText))
+                                        {
+                                            equipped.Use(sheet);
+                                        }
+                                    }
+
                                     ImGui.Spacing();
                                     if (UiUtils.IconTextButton("InspectUnequipBtn", FontAwesomeIcon.SignOutAlt, LocalizationManager.Instance.GetLocalizedString("UnequipButton")))
                                     {

@@ -114,14 +114,16 @@ The solver resolves attributes with all temporary, permanent, gear, and buff bon
 - `Max<Resource>` (e.g. `MaxHealth`, `MaxMana`, `MaxStamina`): Explicit effective maximum.
 - `Current<Resource>` or `Cur<Resource>` (e.g. `CurrentHealth`, `CurrentMana`, `CurStamina`): Current resource value.
 
-### Equipment, Cyberware & Buff Bonuses
+### Equipment, Cyberware, Feats & Buff Bonuses
 
 | Identifier | Description |
 | :--- | :--- |
 | `Gear.<StatName>`, `GearBonus.<StatName>` | Total passive bonus granted to `<StatName>` by equipped gear |
 | `Buff.<StatName>`, `BuffBonus.<StatName>` | Total active bonus granted to `<StatName>` by active buffs/debuffs |
+| `Feat.<StatName>`, `FeatBonus.<StatName>` | Total bonus granted to `<StatName>` by active character feats |
 | `GearCount`, `EquippedGearCount` | Number of currently equipped gear items |
 | `AugmentationsCount`, `CyberwareCount` | Number of installed cyberware / augmentations |
+| `FeatsCount`, `TraitsCount` | Number of configured character feats/traits |
 | `BuffCount`, `ActiveBuffsCount` | Number of active status effects on the character |
 
 ### Inventory & Collections

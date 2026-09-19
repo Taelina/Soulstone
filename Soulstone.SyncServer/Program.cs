@@ -19,6 +19,7 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["urls"]))
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<SessionRegistry>();
+builder.Services.AddSingleton<CharacterSheetRegistry>();
 builder.Services.AddHostedService<SessionCleanupService>();
 builder.Services.AddRateLimiter(options =>
 {
@@ -78,6 +79,67 @@ app.MapPut("/api/sessions/{sessionId}/invite", (
 app.MapGet("/api/invites/{inviteId}", (string inviteId, SessionRegistry sessions) =>
     sessions.TryResolveInvite(inviteId, out string? payload)
         ? Results.Ok(new InviteResolutionResponse(payload!))
+        : Results.NotFound());
+
+app.MapPut("/api/characters/{characterName}/{worldName}", async (
+    string characterName,
+    string worldName,
+    HttpRequest request,
+    CharacterSheetRegistry sheets) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var payload = await reader.ReadToEndAsync();
+    if (string.IsNullOrWhiteSpace(payload))
+        return Results.BadRequest();
+
+    return sheets.TryStore(characterName, worldName, payload)
+        ? Results.NoContent()
+        : Results.BadRequest();
+});
+
+app.MapPut("/api/characters/{characterName}", async (
+    string characterName,
+    HttpRequest request,
+    CharacterSheetRegistry sheets) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var payload = await reader.ReadToEndAsync();
+    if (string.IsNullOrWhiteSpace(payload))
+        return Results.BadRequest();
+
+    return sheets.TryStore(characterName, null, payload)
+        ? Results.NoContent()
+        : Results.BadRequest();
+});
+
+app.MapGet("/api/characters/{characterName}/{worldName}", (
+    string characterName,
+    string worldName,
+    CharacterSheetRegistry sheets) =>
+    sheets.TryGet(characterName, worldName, out var payload)
+        ? Results.Content(payload, "application/json")
+        : Results.NotFound());
+
+app.MapGet("/api/characters/{characterName}", (
+    string characterName,
+    CharacterSheetRegistry sheets) =>
+    sheets.TryGet(characterName, null, out var payload)
+        ? Results.Content(payload, "application/json")
+        : Results.NotFound());
+
+app.MapDelete("/api/characters/{characterName}/{worldName}", (
+    string characterName,
+    string worldName,
+    CharacterSheetRegistry sheets) =>
+    sheets.TryDelete(characterName, worldName)
+        ? Results.NoContent()
+        : Results.NotFound());
+
+app.MapDelete("/api/characters/{characterName}", (
+    string characterName,
+    CharacterSheetRegistry sheets) =>
+    sheets.TryDelete(characterName, null)
+        ? Results.NoContent()
         : Results.NotFound());
 
 app.Map("/api/sessions/{sessionId}/connect", WebSocketRelay.HandleAsync);

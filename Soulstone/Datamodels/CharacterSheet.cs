@@ -83,6 +83,12 @@ namespace Soulstone.Datamodels
         //Character Active Buffs / Debuffs
         public List<Buff> activeBuffs = new List<Buff>();
 
+        //Character Feats
+        public List<Feat> characterFeats = new List<Feat>();
+
+        //Field Visibility (fields hidden from other players when viewing sheet)
+        public List<string> hiddenFields = new List<string>();
+
         //Character Dynamic ability fields
         public Dictionary<string, Attribute> characterAttributes = new Dictionary<string, Attribute>();
         public Dictionary<string, Skill> characterSkills = new Dictionary<string, Skill>();
@@ -138,6 +144,8 @@ namespace Soulstone.Datamodels
         public Dictionary<string, string> EquippedAugmentations { get => equippedAugmentations; set => equippedAugmentations = value; }
         public Dictionary<string, CharacterResource> CharacterResources { get => characterResources; set => characterResources = value; }
         public List<Buff> ActiveBuffs { get => activeBuffs; set => activeBuffs = value; }
+        public List<Feat> CharacterFeats { get => characterFeats; set => characterFeats = value; }
+        public List<string> HiddenFields { get => hiddenFields; set => hiddenFields = value; }
 
         public CharacterSheet()
         {
@@ -153,6 +161,36 @@ namespace Soulstone.Datamodels
             equippedAugmentations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             characterResources = new Dictionary<string, CharacterResource>(StringComparer.OrdinalIgnoreCase);
             activeBuffs = new List<Buff>();
+            characterFeats = new List<Feat>();
+            hiddenFields = new List<string>();
+        }
+
+        public bool IsFieldHidden(string fieldName)
+        {
+            if (hiddenFields == null || string.IsNullOrWhiteSpace(fieldName)) return false;
+            return hiddenFields.Contains(fieldName, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public void SetFieldHidden(string fieldName, bool hidden)
+        {
+            if (string.IsNullOrWhiteSpace(fieldName)) return;
+            hiddenFields ??= new List<string>();
+            if (hidden)
+            {
+                if (!IsFieldHidden(fieldName))
+                {
+                    hiddenFields.Add(fieldName);
+                }
+            }
+            else
+            {
+                hiddenFields.RemoveAll(f => string.Equals(f, fieldName, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        public void ToggleFieldHidden(string fieldName)
+        {
+            SetFieldHidden(fieldName, !IsFieldHidden(fieldName));
         }
 
         public void SyncResourcesWithLegacyFields()
@@ -805,6 +843,65 @@ namespace Soulstone.Datamodels
             return bonuses;
         }
 
+        public void AddFeat(Feat feat)
+        {
+            if (feat == null) return;
+            characterFeats ??= new List<Feat>();
+            characterFeats.Add(feat);
+        }
+
+        public bool RemoveFeat(string featId)
+        {
+            if (string.IsNullOrWhiteSpace(featId) || characterFeats == null) return false;
+            int removed = characterFeats.RemoveAll(f => string.Equals(f.Id, featId, StringComparison.OrdinalIgnoreCase));
+            return removed > 0;
+        }
+
+        public Feat? GetFeat(string featId)
+        {
+            if (string.IsNullOrWhiteSpace(featId) || characterFeats == null) return null;
+            return characterFeats.FirstOrDefault(f => string.Equals(f.Id, featId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public int GetFeatStatBonus(string statName)
+        {
+            if (string.IsNullOrWhiteSpace(statName) || characterFeats == null) return 0;
+            int totalBonus = 0;
+            foreach (var feat in characterFeats)
+            {
+                if (!feat.IsActive) continue;
+                totalBonus += feat.GetStatModifier(statName);
+                if (!string.Equals(statName, "All", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(statName, "Global", StringComparison.OrdinalIgnoreCase))
+                {
+                    totalBonus += feat.GetStatModifier("All") + feat.GetStatModifier("Global");
+                }
+            }
+            return totalBonus;
+        }
+
+        public Dictionary<string, int> GetAllFeatStatBonuses()
+        {
+            var bonuses = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (characterFeats == null) return bonuses;
+            foreach (var feat in characterFeats)
+            {
+                if (!feat.IsActive || feat.StatModifiers == null) continue;
+                foreach (var kv in feat.StatModifiers)
+                {
+                    if (bonuses.ContainsKey(kv.Key))
+                    {
+                        bonuses[kv.Key] += kv.Value;
+                    }
+                    else
+                    {
+                        bonuses[kv.Key] = kv.Value;
+                    }
+                }
+            }
+            return bonuses;
+        }
+
         public List<Buff> TickBuffs(int turns = 1)
         {
             var expired = new List<Buff>();
@@ -830,7 +927,7 @@ namespace Soulstone.Datamodels
             {
                 baseVal = attr.TotalValue;
             }
-            return baseVal + GetGearStatBonus(attrName) + GetBuffStatBonus(attrName);
+            return baseVal + GetGearStatBonus(attrName) + GetBuffStatBonus(attrName) + GetFeatStatBonus(attrName);
         }
 
         public int GetEffectiveSkillModifier(string skillName)
@@ -840,7 +937,7 @@ namespace Soulstone.Datamodels
             {
                 baseMod = skill.SkillModifier;
             }
-            return baseMod + GetGearStatBonus(skillName) + GetBuffStatBonus(skillName);
+            return baseMod + GetGearStatBonus(skillName) + GetBuffStatBonus(skillName) + GetFeatStatBonus(skillName);
         }
 
         public int GetEffectiveSkillTotal(string skillName, DiceSystem? diceSystem = null)
@@ -848,7 +945,8 @@ namespace Soulstone.Datamodels
             if (characterSkills == null || !characterSkills.TryGetValue(skillName, out var skill)) return 0;
             int skillGearBonus = GetGearStatBonus(skillName);
             int skillBuffBonus = GetBuffStatBonus(skillName);
-            int total = skill.skillModifier + skillGearBonus + skillBuffBonus;
+            int skillFeatBonus = GetFeatStatBonus(skillName);
+            int total = skill.skillModifier + skillGearBonus + skillBuffBonus + skillFeatBonus;
             if (diceSystem?.dynamicSkillAttributeLinking != true && diceSystem?.skillLinkedToOneAttribute != false && !string.IsNullOrEmpty(skill.linkedAttribute))
             {
                 total += GetEffectiveAttributeValue(skill.linkedAttribute);
@@ -859,20 +957,22 @@ namespace Soulstone.Datamodels
         public int GetInitiativeModifier(DiceSystem? diceSystem)
         {
             int initBuff = GetBuffStatBonus("Initiative");
-            if (diceSystem == null) return initBuff;
+            int initFeat = GetFeatStatBonus("Initiative");
+            int extraMod = initBuff + initFeat;
+            if (diceSystem == null) return extraMod;
             if (diceSystem.InitiativeStatType == InitiativeStatType.Formula && !string.IsNullOrWhiteSpace(diceSystem.InitiativeFormula))
             {
-                return StatFormulaEvaluator.EvaluateToInt(diceSystem.InitiativeFormula, this, diceSystem, defaultValue: 0) + initBuff;
+                return StatFormulaEvaluator.EvaluateToInt(diceSystem.InitiativeFormula, this, diceSystem, defaultValue: 0) + extraMod;
             }
             if (diceSystem.InitiativeStatType == InitiativeStatType.Attribute && !string.IsNullOrEmpty(diceSystem.InitiativeStatName))
             {
-                return GetEffectiveAttributeValue(diceSystem.InitiativeStatName) + initBuff;
+                return GetEffectiveAttributeValue(diceSystem.InitiativeStatName) + extraMod;
             }
             if (diceSystem.InitiativeStatType == InitiativeStatType.Skill && !string.IsNullOrEmpty(diceSystem.InitiativeStatName))
             {
-                return GetEffectiveSkillTotal(diceSystem.InitiativeStatName, diceSystem) + initBuff;
+                return GetEffectiveSkillTotal(diceSystem.InitiativeStatName, diceSystem) + extraMod;
             }
-            return initBuff;
+            return extraMod;
         }
 
         public DiceRoll RollInitiative(DiceSystem? diceSystem, bool advantage = false, bool disadvantage = false, bool detailedRoll = false)
@@ -897,13 +997,6 @@ namespace Soulstone.Datamodels
 
             try
             {
-                var rollMessage = new Dalamud.Game.Text.XivChatEntry
-                {
-                    Message = detailedRoll ? roll.RollDetailedResultString : roll.RollResultString,
-                    Type = Dalamud.Game.Text.XivChatType.Echo
-                };
-                Messages.SendMessage(rollMessage);
-
                 string actor = !string.IsNullOrWhiteSpace(CharacterFullName) ? CharacterFullName : "Character";
                 string rollValue = detailedRoll ? roll.RollDetailedResultString.TextValue : roll.RollResultString.TextValue;
                 string echo = LocalizationManager.Instance.GetLocalizedString("InitiativeRollEchoFormat", actor, rollValue);
@@ -929,6 +1022,7 @@ namespace Soulstone.Datamodels
             int baseMod = ability.abilityModifier;
             int abilityBonus = GetGearStatBonus(ability.abilityName);
             int abilityBuffBonus = GetBuffStatBonus(ability.abilityName);
+            int abilityFeatBonus = GetFeatStatBonus(ability.abilityName);
             int attrBonus = 0;
             if (!string.IsNullOrEmpty(ability.linkedAttribute))
             {
@@ -939,7 +1033,7 @@ namespace Soulstone.Datamodels
             {
                 skillBonus = GetEffectiveSkillModifier(ability.linkedSkill.skillName);
             }
-            return baseMod + abilityBonus + abilityBuffBonus + attrBonus + skillBonus;
+            return baseMod + abilityBonus + abilityBuffBonus + abilityFeatBonus + attrBonus + skillBonus;
         }
 
         public int GetEffectiveResourceMax(string resourceName, DiceSystem? diceSystem = null)
@@ -994,7 +1088,8 @@ namespace Soulstone.Datamodels
 
             int gearBonus = GetGearStatBonus(resourceName) + GetGearStatBonus($"Max {resourceName}") + GetGearStatBonus($"Max{resourceName}");
             int buffBonus = GetBuffStatBonus(resourceName) + GetBuffStatBonus($"Max {resourceName}") + GetBuffStatBonus($"Max{resourceName}");
-            return baseMax + gearBonus + buffBonus;
+            int featBonus = GetFeatStatBonus(resourceName) + GetFeatStatBonus($"Max {resourceName}") + GetFeatStatBonus($"Max{resourceName}");
+            return baseMax + gearBonus + buffBonus + featBonus;
         }
 
         public void RecalculateResourceMax(string resourceName, DiceSystem? diceSystem = null)
@@ -1294,6 +1389,16 @@ namespace Soulstone.Datamodels
                         loadedSheet.activeBuffs = new List<Buff>();
                     }
 
+                    if (loadedSheet.characterFeats == null)
+                    {
+                        loadedSheet.characterFeats = new List<Feat>();
+                    }
+
+                    if (loadedSheet.hiddenFields == null)
+                    {
+                        loadedSheet.hiddenFields = new List<string>();
+                    }
+
                     loadedSheet.SyncResourcesWithLegacyFields();
 
                     return loadedSheet;
@@ -1331,6 +1436,11 @@ namespace Soulstone.Datamodels
                     {
                         PartySyncManager.Instance.BroadcastResourceUpdate();
                         PartySyncManager.Instance.BroadcastPrivateStats();
+                    }
+
+                    if (PartySyncManager.Instance.Configuration != null && !string.IsNullOrWhiteSpace(PartySyncManager.Instance.Configuration.SyncServerUrl))
+                    {
+                        _ = PartySyncManager.Instance.PublishCharacterSheetAsync(sheet);
                     }
                 }
                 catch (Exception syncEx)

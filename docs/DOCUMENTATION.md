@@ -36,10 +36,13 @@ Soulstone follows a modular, reactive desktop-in-game architecture designed spec
 │ - CharacterManager  │  │ - MainWindow       │  │ - StatFormulaEvaluator│
 │ - DiceSystemManager │  │ - CharacterWindow  │  │ - DiceRoll            │
 │ - InitiativeTracker │  │ - CharStatsWindow  │  │ - Messages / Chat     │
-│ - LocalizationMgr   │  │ - InventoryWindow  │  │ - UiUtils / Raii      │
-│                     │  │ - GearWindow       │  │ - ImageHelper         │
-│                     │  │ - AugmentationsWin │  │ - ImGuiFileWindow     │
+│ - LocalizationMgr   │  │ - FeatsWindow      │  │ - UiUtils / Raii      │
+│ - DiceHistoryManager│  │ - InventoryWindow  │  │ - ImageHelper         │
+│ - PartySyncManager  │  │ - GearWindow       │  │ - ImGuiFileWindow     │
+│                     │  │ - AugmentationsWin │  │ - CharacterApiClient  │
 │                     │  │ - InitiativeWin    │  │                       │
+│                     │  │ - GroupWindow      │  │                       │
+│                     │  │ - InspectWindow    │  │                       │
 │                     │  │ - DiceWindow       │  │                       │
 │                     │  │ - DiceSystemWindow │  │                       │
 │                     │  │ - ConfigWindow     │  │                       │
@@ -52,6 +55,7 @@ Soulstone follows a modular, reactive desktop-in-game architecture designed spec
                     │ - CharacterSheet            │
                     │ - DiceSystem                │
                     │ - Attribute, Skill, Ability │
+                    │ - Feat (Traits/Perks/Flaws) │
                     │ - CharacterResource         │
                     │ - ResourceDefinition        │
                     │ - Item, GearItem            │
@@ -79,6 +83,7 @@ Soulstone/
 │   ├── CharacterResource.cs         # Dynamic character resource instances (HP/MP/custom)
 │   ├── CharacterSheet.cs            # Complete character profile, stats, inventory & gear
 │   ├── DiceSystem.cs                # Tabletop dice system rules & thresholds
+│   ├── Feat.cs                      # Character feats, traits, perks, and flaws
 │   ├── GearItem.cs                  # Equipment slots and item associations
 │   ├── InitiativeParticipant.cs     # Combat encounter participant
 │   ├── Item.cs                      # Generic inventory items and cyberware
@@ -86,27 +91,39 @@ Soulstone/
 │   └── Skill.cs                     # Skills linked to primary attributes
 ├── Managers/
 │   ├── CharacterManager.cs          # Active character sheet lifecycle & operations
+│   ├── DiceHistoryManager.cs        # Persistent roll audit logging & history provider
 │   ├── DiceSystemManager.cs         # Active dice system ruleset provider
 │   ├── InitiativeTrackerManager.cs  # Turn order, combat rounds & participant tracking
-│   └── LocalizationManager.cs       # Bilingual string provider (English/French)
+│   ├── LocalizationManager.cs       # Bilingual string provider (English/French)
+│   └── PartySyncManager.cs          # Encrypted WebSocket party synchronization
 ├── Utils/
+│   ├── CharacterApiClient.cs        # Asynchronous HTTP client for character cloud registry
 │   ├── DiceRoll.cs                  # Expression parser, dice roller & result formatting
 │   ├── ImageHelper.cs               # Texture loading, caching & rounded avatar rendering
 │   ├── ImGuiFileWindow.cs           # Standalone file picker with bookmarks & drive browsing
 │   ├── Messages.cs                  # In-game chat injection & channel formatting
 │   ├── StatFormulaEvaluator.cs      # Lexer & recursive descent formula parser
-│   └── UiUtils.cs                   # Custom ImGui widgets: cards, badges, modal dialogs
+│   └── UiUtils.cs                   # Custom ImGui widgets: cards, badges, sectioned bars
 └── Windows/
     ├── AugmentationsWindow.cs       # Cyberware installations & body slot management
+    ├── CharacterInspectWindow.cs    # Remote character sheet viewer for cloud profiles
     ├── CharacterWindow.cs           # RP profile, appearance, hooks & social relationships
     ├── CharStatsWindow.cs           # Dynamic stats, resources, attributes & abilities
     ├── ConfigWindow.cs              # Plugin configuration & preferences
     ├── DiceSystemWindow.cs          # Dice system rule editor & resource templates
-    ├── DiceWindow.cs                # Quick dice rolling tool & expression calculator
+    ├── DiceWindow.cs                # Quick dice rolling tool & roll history viewer
+    ├── FeatsWindow.cs               # Feats, traits, perks, and flaw manager
     ├── GearWindow.cs                # Equipment loadout and passive bonus inspector
+    ├── GroupWindow.cs               # Party synchronization & shared session controls
     ├── InitiativeTrackerWindow.cs   # Combat tracker interface & turn cycler
     ├── InventoryWindow.cs           # Item management, categories, search & detail viewer
     └── MainWindow.cs                # Central hub window & tab coordinator
+
+Soulstone.SyncServer/
+├── CharacterSheetRegistry.cs        # In-memory REST cloud registry for character profiles
+├── Program.cs                       # ASP.NET Core server bootstrap & REST endpoints
+├── RelayProtocol.cs                 # WebSocket relay message types and routing models
+└── SessionRegistry.cs               # In-memory room management and lifecycle tracking
 ```
 
 ---
@@ -118,18 +135,20 @@ The aggregate root for a player's character data.
 - **RP & Identity**: `characterName`, `characterAge`, `characterGender`, `characterRace`, `characterClan`, `characterJob`, `characterPronouns`, `characterBuild`, `characterHeight`, `characterWeight`, `characterEyeColor`, `characterHairColor`, `characterSkinColor`, `characterScars`, `characterTattoos`, `characterQuirks`.
 - **Out of Character (OOC)**: `playerTimezone`, `playerAvailability`, `oocNotes`.
 - **Hooks & Lore**: `characterQuickLooks` (5 custom glance hooks), `characterBirthplace`, `characterOrigin`, `characterAffiliation`, `characterOccupation`, `characterBackground`, `characterReputation`.
-- **Social Network**: `characterFamily`, `characterFriends`, `characterEnemies`, `characterAllies`.
+- **Social Network**: `characterFamily`, `characterFriends`, `characterEnemies`.
+- **Privacy & Field Visibility**: `hiddenFields` collection with `IsFieldHidden(fieldName)` and `ToggleFieldHidden(fieldName)` for granular per-field public/private visibility management.
 - **Stat System**:
   - `attributes`: List of `Attribute` objects.
   - `skills`: List of `Skill` objects linked to attributes.
   - `abilities`: List of `Ability` objects linked to skills/attributes.
+  - `feats`: List of `Feat` objects (perks, traits, flaws, custom modifiers).
   - `resources`: List of `CharacterResource` dynamic pools.
 - **Inventory & Gear**:
   - `inventory`: List of `Item` objects.
   - `equippedGear`: Dictionary mapping `GearSlot` to `Item?`.
   - `augmentations`: List of cybernetic `Item` objects.
 - **Calculations & Actions**:
-  - `GetEffectiveAttributeValue(name)`: Computes base attribute value plus bonuses from active gear, cyberware, and temporary modifiers.
+  - `GetEffectiveAttributeValue(name)`: Computes base attribute value plus bonuses from active gear, cyberware, feats, and temporary modifiers.
   - `GetEffectiveResourceMax(resourceName, diceSystem)`: Evaluates dynamic formula using effective attribute values.
   - `GetInitiativeModifier(diceSystem)`: Computes effective initiative bonus based on ruleset configuration (formula, attribute, skill, or direct bonus).
   - `RollInitiative(diceSystem, advantage, disadvantage, detailedRoll)`: Executes an initiative roll following the ruleset dice type and modifier calculation, broadcasting the result to party/chat.
@@ -151,17 +170,22 @@ Defines the active tabletop rule engine.
   - `initiativeFormula`: Custom mathematical expression (e.g. `(@DEX + @INT) / 2` or `{DEX} * 2`) evaluated for initiative modifier.
   - `resourceDefinitions`: Default resource pool templates with dynamic formulas.
 
-### 3.3 `Item` & `GearItem`
+### 3.3 `Feat`
+Defines character feats, traits, perks, flaws, and boons.
+- **Fields**: `id`, `name`, `description`, `category` (`Feat`, `Trait`, `Perk`, `Flaw`, `Boon`), `statModifiers`.
+- **Modifiers**: Dictionary mapping target stat/attribute/resource names to numerical bonuses.
+
+### 3.4 `Item` & `GearItem`
 - **`ItemType`**: `Generic`, `Consumable`, `Equipment`, `Augmentation`, `Quest`, `Valuable`.
 - **`ItemRarity`**: `Common`, `Uncommon`, `Rare`, `Epic`, `Legendary`, `Artifact`.
 - **Properties**: `id`, `name`, `description`, `category`, `rarity`, `quantity`, `weight`, `value`, `statModifiers`, `bodySlot`, `essenceCost`.
 - **`GearSlot`**: `MainHand`, `OffHand`, `Head`, `Body`, `Hands`, `Legs`, `Feet`, `Neck`, `Ears`, `Wrists`, `RightRing`, `LeftRing`, `Accessory`.
 
-### 3.4 `CharacterResource` & `ResourceDefinition`
+### 3.5 `CharacterResource` & `ResourceDefinition`
 - Dynamic tracking for resource pools with current, base minimum, base maximum, and optional formula.
 - Formulas support referencing any attribute: e.g. `@CON * 10 + 20` or `{CON} * 10 + 20`.
 
-### 3.5 `InitiativeParticipant`
+### 3.6 `InitiativeParticipant`
 - Represents a combatant in an encounter (player character, NPC, companion, or enemy).
 - **Fields**: `id`, `name`, `initiativeValue`, `bonusModifier`, `isCurrentCharacter`, `notes`, `buffs`, `characterSheet`, `sheetFilePath`.
 - **NPC Character Sheets**: Can hold an attached `CharacterSheet` (created blank or loaded from a `.json` file).
@@ -184,7 +208,12 @@ Defines the active tabletop rule engine.
 - Persists the active dice system identifier/filename across sessions in plugin `Configuration.LastActiveDiceSystem`, automatically restoring it upon reload.
 - Synchronizes default resources defined in the ruleset into the character sheet.
 
-### 4.3 `InitiativeTrackerManager`
+### 4.3 `DiceHistoryManager`
+- Provides thread-safe, persistent audit logging for all rolled dice events.
+- Records timestamp, player identity, dice formula, natural results, modifiers, breakdown text, and final total.
+- Powers the interactive roll history inspector inside `DiceWindow`.
+
+### 4.4 `InitiativeTrackerManager`
 - Manages active combat encounter state: participants list, round count, active turn index.
 - Methods & Features:
   - `AddParticipant(name, initiative, bonusModifier, isCurrentCharacter, notes, buffs, characterSheet, sheetFilePath)`
@@ -196,7 +225,7 @@ Defines the active tabletop rule engine.
   - `NextTurn()` / `PreviousTurn()`
   - `ResetCombat()`
 
-### 4.4 `LocalizationManager`
+### 4.5 `LocalizationManager`
 - Provides localized strings via `GetLocalizedString(key)` and parameterized formatting via `GetLocalizedString(key, args...)`.
 - Automatically loads embedded JSON translation files (`Soulstone/Localizations/en.json`, `Soulstone/Localizations/fr.json`).
 - Supports hot-loading external community translation files from `<DataLocation>/Localizations/*.json`.
@@ -204,8 +233,8 @@ Defines the active tabletop rule engine.
 - Thread-safe dictionary lookups with automatic fallback to English if a key is missing in French, and fallback to key name if missing entirely.
 - Used across all UI windows, modals, tooltips, and echoed chat logs.
 
-### 4.5 `PartySyncManager` & Relay Transport
-- Connects separate Soulstone instances through the standalone `Soulstone.SyncServer` WebSocket relay.
+### 4.6 `PartySyncManager` & Relay Transport
+- Connects separate Soulstone instances through the standalone `Soulstone.SyncServer` WebSocket relay over HTTP/WS or HTTPS/WSS.
 - Robust leader/DM resolution: checks host configuration status to ensure non-host and non-leader members are never misidentified as the DM.
 - Synchronization payloads are never sent through FFXIV chat. The relay forwards opaque encrypted envelopes and does not persist session data.
 - Group messages use AES-256-GCM authenticated encryption. DM commands are signed with the session host's RSA key so members reject forged ruleset, initiative, and roll-request events.
@@ -213,14 +242,26 @@ Defines the active tabletop rule engine.
 - Resource bars, buffs, presence, and rolls are group-scoped. Full attributes, skills, abilities, class, and level are DM-scoped.
 - The group UI supports session creation, short out-of-game invite links, reconnection, roll requests, delegated rolls, and DM-only stat inspection. A link combines the relay URL and a random 16-character validation code; legacy `SS1` invites remain accepted.
 
-### 4.6 `Soulstone.SyncServer`
+### 4.7 `CharacterApiClient` & `CharacterSheetRegistry`
+- Provides asynchronous REST API endpoints hosted on `Soulstone.SyncServer` for character profile cloud storage and remote inspection.
+- Endpoints:
+  - `PUT /api/characters/{characterName}`: Uploads and registers a character sheet JSON payload in memory.
+  - `PUT /api/characters/{characterName}/{worldName}`: Uploads and registers a character sheet JSON payload scoped to a character world.
+  - `GET /api/characters/{characterName}`: Retrieves a registered character sheet JSON profile.
+  - `GET /api/characters/{characterName}/{worldName}`: Retrieves a registered character sheet JSON profile scoped to a character world.
+  - `DELETE /api/characters/{characterName}`: Removes a registered character sheet.
+  - `DELETE /api/characters/{characterName}/{worldName}`: Removes a registered character sheet scoped to a character world.
+- Plugin client `CharacterApiClient` seamlessly integrates with `CharacterInspectWindow` for instant out-of-session player sheet inspections.
+- Supports both `http://` and `https://` server URLs transparently for local network, VPN, and internet-hosted relays.
+
+### 4.8 `Soulstone.SyncServer`
 - Independent ASP.NET Core 8 project with no database and no application NuGet dependencies.
 - Creates cryptographically random host/member credentials, holds rooms in memory for at most 12 hours, and removes empty rooms after 5 minutes.
 - Stores short-invite payloads only in memory as opaque AES-256-GCM ciphertext. The validation code and decrypted member credentials, room key, and host public key are never sent to or persisted by the relay.
 - Enforces 16 clients per room, 64 KiB messages, 20 messages per 10 seconds per connection, and throttled session creation.
 - Routes `group` envelopes to other room members and `host` envelopes only to the DM connection.
 - Emits timestamped lifecycle, rejection, and transport logs without logging credentials or encrypted payloads.
-- Runs non-interactively on `http://127.0.0.1:5077` by default. Internet deployments must expose it through HTTPS/WSS; see [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) and [`Soulstone.SyncServer/README.md`](../Soulstone.SyncServer/README.md).
+- Runs non-interactively on `http://0.0.0.0:5077` by default. Can be accessed directly via HTTP/WS or exposed through a TLS reverse proxy (HTTPS/WSS); see [`docs/DEPLOYMENT.md`](DEPLOYMENT.md) and [`Soulstone.SyncServer/README.md`](../Soulstone.SyncServer/README.md).
 
 ---
 
@@ -231,14 +272,16 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 | Window | Responsibility |
 | :--- | :--- |
 | `MainWindow` | Tab coordinator providing top bar status, navigation tabs, and system indicators. |
-| `CharacterWindow` | Identity, appearance, background lore, customizable quick looks, and categorized relationship manager. |
+| `CharacterWindow` | Identity, appearance, background lore, customizable quick looks, privacy toggles, and relationship manager. |
 | `CharStatsWindow` | Dynamic resource bars, attribute cards, skill tree, dynamic skill attribute linking modal, and ability cards with click-to-roll buttons. |
+| `FeatsWindow` | Character feats, perks, traits, and flaws manager with search, category filtering, and modifier configuration. |
 | `InventoryWindow` | Searchable item list, rarity badges, category filtering, weight/value summary, and item detail/editor modals. |
 | `GearWindow` | Interactive equipment paper doll loadout, equip slot selectors, and passive modifier summary. |
 | `AugmentationsWindow` | Cyberware body slot layout with icon action buttons (install, change, remove), installed cybernetics inspector, and essence/humanity tracker. |
 | `InitiativeTrackerWindow` | Combat tracker with initiative sorting, turn cycling, individual re-rolls, NPC sheet loader, sheet inspector modal, and condition badges. |
-| `GroupWindow` | Encrypted relay session setup, party resource roster, DM roll controls, and private stat inspection. |
-| `DiceWindow` | Freeform dice expression calculator, initiative quick-card with ruleset notation/source, advantage toggles, and chat output broadcast. |
+| `GroupWindow` | Encrypted relay session setup, party resource roster, DM roll controls, and session state. |
+| `CharacterInspectWindow` | Remote character sheet viewer for inspecting published cloud profiles and player vitals. |
+| `DiceWindow` | Freeform dice expression calculator, initiative quick-card with ruleset notation/source, advantage toggles, roll history audit log, and chat output broadcast. |
 | `DiceSystemWindow` | Rule engine editor for system type, dynamic skill linking, formula initiative, thresholds, dice types, and dynamic resource definitions. |
 | `ConfigWindow` | Settings window for language selection, chat channels, detailed roll output, and UI options. |
 | `ImGuiFileWindow` | Standalone modal file picker with drive navigation, bookmarks, and extension filtering. |
@@ -271,10 +314,12 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
   - Ruleset stat rolls via `RollStatWithSystem(diceSystem, statName, modifier, advantage, disadvantage)`.
 
 ### 6.3 `UiUtils`
-- Standardized UI widgets:
-  - `Card`: Renders modern framed cards with background color and border rounding.
-  - `Badge`: Renders colored status badges.
-  - `IconButton`: Renders FontAwesome icon buttons with proper spacing and tooltips.
+- Standardized UI widgets and card layouts:
+  - `Card` & `PropCard`: Renders modern framed cards with background color, accent stripes, and border rounding.
+  - `Badge` & `PillBadge`: Renders colored status badges and icon pills.
+  - `SectionedBar` & `ProgressBar`: Renders interactive and segmented resource gauges.
+  - `StyledCollapsingHeader`: Consistent collapsible group headers with icons and accent colors.
+  - `IconButton` & `IconTextButton`: Renders FontAwesome icon buttons with proper spacing and tooltips.
   - `ConfirmationModal`: Modal confirmation dialogs for destructive actions.
 
 ### 6.4 `ImageHelper`
@@ -289,25 +334,29 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 
 ## 7. Testing Architecture & Coverage
 
-The `Soulstone.Tests` project provides automated unit testing using **xUnit** and **FluentAssertions**.
+The `Soulstone.Tests` and `Soulstone.SyncServer.Tests` projects provide automated unit testing using **xUnit** and **FluentAssertions**.
 
 ### Test Suite Structure:
 - **`Datamodels/`**:
-  - `CharacterSheetTests`: Sheet serialization, attribute calculations, relationship operations.
+  - `CharacterSheetTests` & `CharacterSheetFeatTests`: Sheet serialization, attribute calculations, relationship operations, and feat modifiers.
   - `DiceSystemTests`: Rule set creation, threshold validation, dice type mapping.
+  - `FeatTests`: Feat creation, categorization, and modifier evaluation.
   - `ItemTests` & `GearItemTests`: Inventory operations, slot equipping, stat modifier calculations.
   - `GenericResourceTests` & `ResourceFormulaTests`: Dynamic formula evaluation, attribute binding, max calculations.
   - `InitiativeParticipantTests` & `CharacterSheetInitiativeTests`: Combatant stats and status effects.
   - `AugmentationAndGenericGearTests`: Cyberware slots and essence constraints.
 - **`Managers/`**:
   - `CharacterManagerTests`: Profile save/load and state isolation.
+  - `DiceHistoryManagerTests`: Roll logging, ordering, formatting, and history clearing.
   - `DiceSystemManagerTests`: Ruleset persistence and resource synchronization.
   - `InitiativeTrackerManagerTests`: Turn order sorting, round cycling, participant state.
   - `LocalizationManagerTests`: English and French key parity, missing key fallbacks.
   - `PartySyncManagerTests`: Invite validation, authenticated encryption, DM signatures, stat privacy, and synchronized state updates.
 - **`Soulstone.SyncServer.Tests`**:
-  - Relay protocol validation, authentication, room limits, rate limits, unattended health/session endpoints, group routing, and host-only routing.
+  - `RelayProtocolTests`: Relay protocol validation, authentication, room limits, rate limits, group routing, and host-only routing.
+  - `CharacterSheetRegistryTests`: Character upload, retrieval, listing, and validation endpoints.
 - **`Utils/`**:
+  - `CharacterApiClientTests`: REST communication and payload handling.
   - `DiceRollTests`: Standard, Dice Pool, and Percentile roll arithmetic and string formatting.
   - `MessagesTests`: Chat payload generation.
   - `ImageHelperTests` & `FileBrowserWindowTests`: Path resolution and file helper logic.
