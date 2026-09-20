@@ -17,6 +17,14 @@ namespace Soulstone.Windows
 {
     internal class CharStatsWindow
     {
+        private enum StatRollType
+        {
+            Attribute,
+            SavingThrow,
+            Skill,
+            Ability
+        }
+
         public string diceType = "";
 
         private bool showAbilitiesPopup = false;
@@ -24,9 +32,14 @@ namespace Soulstone.Windows
         private bool showAttributesPopup = false;
         private bool showBuffPopup = false;
         private bool showResourcePopup = false;
-        private bool showDynamicSkillModal = false;
-        private Skill? dynamicSkillRollSkill = null;
+        private bool showStatRollModal = false;
+        private StatRollType statRollType = StatRollType.Attribute;
+        private string statRollName = "";
+        private Datamodels.Attribute? statRollAttribute = null;
+        private Skill? statRollSkill = null;
+        private Ability? statRollAbility = null;
         private string selectedDynamicAttr = "";
+        private int rollBonusOrPenalty = 0;
 
         private CharacterSheet? currentCharacter = null;
         private DiceSystem? currentDiceSystem = null;
@@ -42,6 +55,7 @@ namespace Soulstone.Windows
         private string newAttributeName = "";
         private int newAttributeValue = 0;
         private string newAttributeDescription = "";
+        private bool newAttributeFavorite = false;
 
         private string newSkillName = "";
         private int newSkillValue = 0;
@@ -721,6 +735,8 @@ namespace Soulstone.Windows
                     {
                         newAttributeName = "";
                         newAttributeValue = 0;
+                        newAttributeDescription = "";
+                        newAttributeFavorite = false;
                         showAttributesPopup = true;
                     }
 
@@ -771,6 +787,7 @@ namespace Soulstone.Windows
                             bool hasBonusPerm = currentDiceSystem == null || currentDiceSystem.systemHasBonusPerm;
                             bool showEpic = currentDiceSystem != null ? currentDiceSystem.systemHasEpicAttributes : configuration.showEpicBonus;
                             bool hasSaves = currentDiceSystem == null || currentDiceSystem.systemHasSaves;
+                            bool hasFavoriteAttributes = currentDiceSystem == null || currentDiceSystem.systemHasFavoriteAttributes;
 
                             if (editingStats)
                             {
@@ -795,7 +812,18 @@ namespace Soulstone.Windows
                                 {
                                     attrToRemove = attribute.Key;
                                 }
-                                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+
+                                if (hasFavoriteAttributes)
+                                {
+                                    var favIconCol = attribute.Value.IsFavorite ? ImGuiColors.ParsedGold : ImGuiColors.DalamudGrey;
+                                    if (UiUtils.IconButton($"Fav_{attribute.Key}", FontAwesomeIcon.Star, LocalizationManager.Instance.GetLocalizedString("FavoriteAttributeTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale, customColor: favIconCol))
+                                    {
+                                        attribute.Value.IsFavorite = !attribute.Value.IsFavorite;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
 
                                 ImGui.AlignTextToFramePadding();
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, attribute.Key);
@@ -834,6 +862,18 @@ namespace Soulstone.Windows
                             }
                             else
                             {
+                                if (hasFavoriteAttributes && attribute.Value.IsFavorite)
+                                {
+                                    ImGui.PushFont(UiBuilder.IconFont);
+                                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Star.ToIconString());
+                                    ImGui.PopFont();
+                                    if (ImGui.IsItemHovered())
+                                    {
+                                        ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("FavoriteAttributeTooltip"));
+                                    }
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                }
+
                                 ImGui.AlignTextToFramePadding();
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, attribute.Key);
 
@@ -947,23 +987,26 @@ namespace Soulstone.Windows
                                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                                     if (UiUtils.IconButton($"SaveRoll_{attribute.Key}", FontAwesomeIcon.ShieldAlt, $"{LocalizationManager.Instance.GetLocalizedString("SavingThrowButton")} {attribute.Key}", new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                                     {
-                                        int totalDice = totalVal;
-                                        int totalModifier = totalVal;
-                                        int totalTarget = totalVal;
-                                        int rawSuccesses = epicVal;
-                                        string rollLabel = string.Format(LocalizationManager.Instance.GetLocalizedString("SavingThrowRollFormat"), attribute.Key);
-                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, rollLabel, detailedRoll, totalTarget, rawSuccesses);
+                                        statRollType = StatRollType.SavingThrow;
+                                        statRollName = attribute.Key;
+                                        statRollAttribute = attribute.Value;
+                                        statRollSkill = null;
+                                        statRollAbility = null;
+                                        rollBonusOrPenalty = 0;
+                                        showStatRollModal = true;
                                     }
                                 }
 
                                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                                 if (UiUtils.IconButton($"Roll_{attribute.Key}", FontAwesomeIcon.DiceD20, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {attribute.Key}", new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                                 {
-                                    int totalDice = totalVal;
-                                    int totalModifier = totalVal;
-                                    int totalTarget = totalVal;
-                                    int rawSuccesses = epicVal;
-                                    DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, attribute.Key, detailedRoll, totalTarget, rawSuccesses);
+                                    statRollType = StatRollType.Attribute;
+                                    statRollName = attribute.Key;
+                                    statRollAttribute = attribute.Value;
+                                    statRollSkill = null;
+                                    statRollAbility = null;
+                                    rollBonusOrPenalty = 0;
+                                    showStatRollModal = true;
                                 }
 
                                 if (isHovered && !ImGui.IsAnyItemHovered())
@@ -1244,21 +1287,21 @@ namespace Soulstone.Windows
                                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                                 if (UiUtils.IconButton($"Roll_{skill.Value.skillName}", FontAwesomeIcon.DiceD20, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {skill.Value.skillName}", new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                                 {
-                                    if (currentDiceSystem != null)
+                                    statRollType = StatRollType.Skill;
+                                    statRollName = skill.Value.skillName;
+                                    statRollSkill = skill.Value;
+                                    statRollAttribute = null;
+                                    statRollAbility = null;
+                                    if (currentDiceSystem?.dynamicSkillAttributeLinking == true && currentCharacter.characterAttributes != null && currentCharacter.characterAttributes.Count > 0)
                                     {
-                                        if (currentDiceSystem.dynamicSkillAttributeLinking && currentCharacter.characterAttributes != null && currentCharacter.characterAttributes.Count > 0)
-                                        {
-                                            dynamicSkillRollSkill = skill.Value;
-                                            selectedDynamicAttr = currentCharacter.characterAttributes.Keys.FirstOrDefault() ?? "";
-                                            showDynamicSkillModal = true;
-                                        }
-                                        else
-                                        {
-                                            int totalDice = totalModifier;
-                                            int totalTarget = totalModifier;
-                                            DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, skill.Value.skillName, detailedRoll, totalTarget, rawSuccesses);
-                                        }
+                                        selectedDynamicAttr = currentCharacter.characterAttributes.Keys.FirstOrDefault() ?? "";
                                     }
+                                    else
+                                    {
+                                        selectedDynamicAttr = skill.Value.linkedAttribute ?? "";
+                                    }
+                                    rollBonusOrPenalty = 0;
+                                    showStatRollModal = true;
                                 }
 
                                 if (isHovered && !ImGui.IsAnyItemHovered())
@@ -1571,12 +1614,13 @@ namespace Soulstone.Windows
                                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                                 if (UiUtils.IconButton($"Roll_{ability.Value.abilityName}", FontAwesomeIcon.DiceD20, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {ability.Value.abilityName}", new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
                                 {
-                                    if (currentDiceSystem != null)
-                                    {
-                                        int totalDice = totalModifier;
-                                        int totalTarget = totalModifier;
-                                        DiceRoll.RollDice(totalDice, totalModifier, advantageRoll, disadvantageRoll, ability.Value.abilityName, detailedRoll, totalTarget, rawSuccesses);
-                                    }
+                                    statRollType = StatRollType.Ability;
+                                    statRollName = ability.Value.abilityName;
+                                    statRollAbility = ability.Value;
+                                    statRollSkill = null;
+                                    statRollAttribute = null;
+                                    rollBonusOrPenalty = 0;
+                                    showStatRollModal = true;
                                 }
 
                                 if (isHovered && !ImGui.IsAnyItemHovered())
@@ -1740,6 +1784,13 @@ namespace Soulstone.Windows
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAttributeDescription"));
                 UiUtils.StyledInputText("NewAttrDesc", ref newAttributeDescription, 200, width: 260.0f);
 
+                bool hasFavoriteAttributes = currentDiceSystem == null || currentDiceSystem.systemHasFavoriteAttributes;
+                if (hasFavoriteAttributes)
+                {
+                    ImGui.Spacing();
+                    ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("FavoriteAttributeLabel"), ref newAttributeFavorite);
+                }
+
                 ImGui.Spacing();
                 if (UiUtils.IconTextButton("AddAttrConfirmBtn", FontAwesomeIcon.Check, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), size: new Vector2(110, 0) * scale))
                 {
@@ -1748,15 +1799,16 @@ namespace Soulstone.Windows
                         currentCharacter.characterAttributes ??= new Dictionary<string, Datamodels.Attribute>();
                         if (!currentCharacter.characterAttributes.ContainsKey(newAttributeName))
                         {
-                            var newAttr = new Datamodels.Attribute(newAttributeName, newAttributeValue, newAttributeDescription);
+                            var newAttr = new Datamodels.Attribute(newAttributeName, newAttributeValue, newAttributeDescription, hasFavoriteAttributes && newAttributeFavorite);
                             currentCharacter.characterAttributes.Add(newAttributeName, newAttr);
                             if (currentDiceSystem != null && currentDiceSystem.SystemAttributes != null && currentDiceSystem.SystemAttributes.Count > 0)
                             {
-                                currentDiceSystem.SystemAttributes[newAttributeName] = new Datamodels.Attribute(newAttributeName, newAttributeValue, newAttributeDescription);
+                                currentDiceSystem.SystemAttributes[newAttributeName] = new Datamodels.Attribute(newAttributeName, newAttributeValue, newAttributeDescription, false);
                             }
                             newAttributeName = "";
                             newAttributeValue = 0;
                             newAttributeDescription = "";
+                            newAttributeFavorite = false;
                             showAttributesPopup = false;
                         }
                     }
@@ -1765,6 +1817,7 @@ namespace Soulstone.Windows
                 if (UiUtils.IconTextButton("AddAttrCancelBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(90, 0) * scale))
                 {
                     newAttributeDescription = "";
+                    newAttributeFavorite = false;
                     showAttributesPopup = false;
                 }
 
@@ -1853,83 +1906,260 @@ namespace Soulstone.Windows
                 ImGui.EndPopup();
             }
 
-            // Dynamic Skill Roll Modal
-            if (showDynamicSkillModal && dynamicSkillRollSkill != null)
+            // Stat Roll Modal (Attribute, Saving Throw, Skill, Ability)
+            if (showStatRollModal)
             {
-                ImGui.OpenPopup("DynamicSkillRollModal");
+                ImGui.OpenPopup("StatRollModal");
             }
-            if (ImGui.BeginPopupModal("DynamicSkillRollModal", ref showDynamicSkillModal, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal("StatRollModal", ref showStatRollModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(ImGuiColors.ParsedGreen, FontAwesomeIcon.DiceD20.ToIconString());
+                var headerIcon = statRollType switch
+                {
+                    StatRollType.SavingThrow => FontAwesomeIcon.ShieldAlt,
+                    StatRollType.Skill => FontAwesomeIcon.DiceD20,
+                    StatRollType.Ability => FontAwesomeIcon.Bolt,
+                    _ => FontAwesomeIcon.DiceD20
+                };
+                var headerCol = statRollType switch
+                {
+                    StatRollType.SavingThrow => ImGuiColors.ParsedGold,
+                    StatRollType.Skill => ImGuiColors.ParsedGreen,
+                    StatRollType.Ability => ImGuiColors.TankBlue,
+                    _ => ImGuiColors.ParsedGold
+                };
+
+                ImGui.TextColored(headerCol, headerIcon.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine(0, 6.0f * scale);
-                string skillName = dynamicSkillRollSkill?.skillName ?? "Skill";
-                ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("DynamicSkillModalTitle", skillName));
+
+                string modalTitle = statRollType switch
+                {
+                    StatRollType.SavingThrow => string.Format(LocalizationManager.Instance.GetLocalizedString("SavingThrowRollFormat"), statRollName),
+                    StatRollType.Skill => LocalizationManager.Instance.GetLocalizedString("DynamicSkillModalTitle", statRollSkill?.skillName ?? statRollName),
+                    StatRollType.Ability => LocalizationManager.Instance.GetLocalizedString("RollAbilityModalTitle", statRollAbility?.abilityName ?? statRollName),
+                    _ => string.Format(LocalizationManager.Instance.GetLocalizedString("RollAttributeModalTitle"), statRollName)
+                };
+
+                ImGui.TextColored(headerCol, modalTitle);
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                ImGui.Text(LocalizationManager.Instance.GetLocalizedString("SelectLinkedAttributePrompt"));
-                var noneLabel = LocalizationManager.Instance.GetLocalizedString("NoneOption");
-                var effectiveAttrs = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
-                var attrKeys = effectiveAttrs?.Keys.ToList() ?? new List<string>();
-                var attrOptions = new List<string> { "" };
-                attrOptions.AddRange(attrKeys);
-                UiUtils.StyledCombo("##DynamicSkillAttrCombo", ref selectedDynamicAttr, attrOptions, icon: FontAwesomeIcon.Link, emptyLabel: noneLabel);
+                int calculatedBaseTotal = 0;
+                int rawSuccesses = 0;
+                string rollLabel = statRollName;
 
-                int dynAttrVal = 0;
-                int dynAttrTemp = 0;
-                int dynAttrPerm = 0;
-                int dynRawSuccesses = 0;
-                int dynAttrGearBonus = 0;
-                int dynAttrBuffBonus = 0;
-
-                if (!string.IsNullOrEmpty(selectedDynamicAttr) &&
-                    effectiveAttrs != null &&
-                    effectiveAttrs.TryGetValue(selectedDynamicAttr, out var dynAttr) && dynAttr != null)
+                if (statRollType == StatRollType.Attribute || statRollType == StatRollType.SavingThrow)
                 {
-                    dynAttrVal = dynAttr.Value;
-                    dynAttrTemp = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? dynAttr.TempBonus : 0;
-                    dynAttrPerm = (currentDiceSystem == null || currentDiceSystem.systemHasBonusPerm) ? dynAttr.PermBonus : 0;
-                    dynRawSuccesses = (currentDiceSystem != null ? currentDiceSystem.systemHasEpicAttributes : configuration.showEpicBonus) ? dynAttr.EpicBonus : 0;
-                    dynAttrGearBonus = currentCharacter.GetGearStatBonus(selectedDynamicAttr);
-                    dynAttrBuffBonus = currentCharacter.GetBuffStatBonus(selectedDynamicAttr);
+                    if (!string.IsNullOrWhiteSpace(statRollAttribute?.Description))
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                        ImGui.TextWrapped(statRollAttribute.Description);
+                        ImGui.PopStyleColor();
+                        ImGui.Spacing();
+                    }
+
+                    int baseVal = statRollAttribute?.Value ?? 0;
+                    int tempVal = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? (statRollAttribute?.TempBonus ?? 0) : 0;
+                    int permVal = (currentDiceSystem == null || currentDiceSystem.systemHasBonusPerm) ? (statRollAttribute?.PermBonus ?? 0) : 0;
+                    int gearBonus = currentCharacter.GetGearStatBonus(statRollName);
+                    int buffBonus = currentCharacter.GetBuffStatBonus(statRollName);
+                    int featBonus = currentCharacter.GetFeatStatBonus(statRollName);
+                    rawSuccesses = (currentDiceSystem != null ? currentDiceSystem.systemHasEpicAttributes : configuration.showEpicBonus) ? (statRollAttribute?.EpicBonus ?? 0) : 0;
+
+                    calculatedBaseTotal = baseVal + tempVal + permVal + gearBonus + buffBonus + featBonus;
+
+                    ImGui.Text(LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltyLabel"));
+                    UiUtils.StyledInputInt("StatRollBonusInput", ref rollBonusOrPenalty, 1, width: 120.0f);
+                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltyTooltip"));
+
+                    int finalTotal = calculatedBaseTotal + rollBonusOrPenalty;
+
+                    ImGui.Spacing();
+                    ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatValueTooltip")}: {baseVal}");
+                    if (tempVal != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(tempVal)}");
+                    if (permVal != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatPermTooltip")}: {FormatModifier(permVal)}");
+                    if (gearBonus != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(gearBonus)}");
+                    if (buffBonus != 0) ImGui.TextDisabled($"Buff / Debuff: {FormatModifier(buffBonus)}");
+                    if (featBonus != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(featBonus)}");
+                    if (rollBonusOrPenalty != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltySummary")}: {FormatModifier(rollBonusOrPenalty)}");
+
+                    ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("TotalModifierLabel")}: {FormatModifier(finalTotal)} {(rawSuccesses > 0 ? $"(+★{rawSuccesses})" : "")}");
+
+                    rollLabel = statRollType == StatRollType.SavingThrow
+                        ? string.Format(LocalizationManager.Instance.GetLocalizedString("SavingThrowRollFormat"), statRollName)
+                        : statRollName;
                 }
-
-                int skillBaseMod = dynamicSkillRollSkill?.skillModifier ?? 0;
-                int skillGear = dynamicSkillRollSkill != null ? currentCharacter.GetGearStatBonus(dynamicSkillRollSkill.skillName) : 0;
-                int skillBuff = dynamicSkillRollSkill != null ? currentCharacter.GetBuffStatBonus(dynamicSkillRollSkill.skillName) : 0;
-                int totalAttrMod = dynAttrVal + dynAttrTemp + dynAttrPerm + dynAttrGearBonus + dynAttrBuffBonus;
-                int dynTotalMod = skillBaseMod + skillGear + skillBuff + totalAttrMod;
-
-                ImGui.Spacing();
-                ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}: {FormatModifier(skillBaseMod)}");
-                if (skillGear != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(skillGear)}");
-                if (skillBuff != 0) ImGui.TextDisabled($"Buff: {FormatModifier(skillBuff)}");
-                if (!string.IsNullOrEmpty(selectedDynamicAttr))
+                else if (statRollType == StatRollType.Skill)
                 {
-                    ImGui.TextDisabled($"{selectedDynamicAttr}: {FormatModifier(totalAttrMod)}");
+                    if (!string.IsNullOrWhiteSpace(statRollSkill?.skillDescription))
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                        ImGui.TextWrapped(statRollSkill.skillDescription);
+                        ImGui.PopStyleColor();
+                        ImGui.Spacing();
+                    }
+
+                    bool isDynamic = currentDiceSystem?.dynamicSkillAttributeLinking == true && currentCharacter.characterAttributes != null && currentCharacter.characterAttributes.Count > 0;
+                    if (isDynamic)
+                    {
+                        ImGui.Text(LocalizationManager.Instance.GetLocalizedString("SelectLinkedAttributePrompt"));
+                        var noneLabel = LocalizationManager.Instance.GetLocalizedString("NoneOption");
+                        var effectiveAttrs = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
+                        var attrKeys = effectiveAttrs?.Keys.ToList() ?? new List<string>();
+                        var attrOptions = new List<string> { "" };
+                        attrOptions.AddRange(attrKeys);
+                        UiUtils.StyledCombo("##DynamicSkillAttrCombo", ref selectedDynamicAttr, attrOptions, icon: FontAwesomeIcon.Link, emptyLabel: noneLabel);
+                        ImGui.Spacing();
+                    }
+
+                    int dynAttrVal = 0;
+                    int dynAttrTemp = 0;
+                    int dynAttrPerm = 0;
+                    int dynAttrGearBonus = 0;
+                    int dynAttrBuffBonus = 0;
+                    int dynAttrFeatBonus = 0;
+
+                    string linkedAttrName = isDynamic ? selectedDynamicAttr : (statRollSkill?.linkedAttribute ?? "");
+                    if (!string.IsNullOrEmpty(linkedAttrName))
+                    {
+                        var effectiveAttrs = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
+                        if (effectiveAttrs != null && effectiveAttrs.TryGetValue(linkedAttrName, out var dynAttr) && dynAttr != null)
+                        {
+                            dynAttrVal = dynAttr.Value;
+                            dynAttrTemp = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? dynAttr.TempBonus : 0;
+                            dynAttrPerm = (currentDiceSystem == null || currentDiceSystem.systemHasBonusPerm) ? dynAttr.PermBonus : 0;
+                            rawSuccesses = (currentDiceSystem != null ? currentDiceSystem.systemHasEpicAttributes : configuration.showEpicBonus) ? dynAttr.EpicBonus : 0;
+                            dynAttrGearBonus = currentCharacter.GetGearStatBonus(linkedAttrName);
+                            dynAttrBuffBonus = currentCharacter.GetBuffStatBonus(linkedAttrName);
+                            dynAttrFeatBonus = currentCharacter.GetFeatStatBonus(linkedAttrName);
+                        }
+                    }
+
+                    int skillBaseMod = statRollSkill?.skillModifier ?? 0;
+                    int skillGear = statRollSkill != null ? currentCharacter.GetGearStatBonus(statRollSkill.skillName) : 0;
+                    int skillBuff = statRollSkill != null ? currentCharacter.GetBuffStatBonus(statRollSkill.skillName) : 0;
+                    int skillFeat = statRollSkill != null ? currentCharacter.GetFeatStatBonus(statRollSkill.skillName) : 0;
+                    int totalAttrMod = dynAttrVal + dynAttrTemp + dynAttrPerm + dynAttrGearBonus + dynAttrBuffBonus + dynAttrFeatBonus;
+                    calculatedBaseTotal = skillBaseMod + skillGear + skillBuff + skillFeat + totalAttrMod;
+
+                    ImGui.Text(LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltyLabel"));
+                    UiUtils.StyledInputInt("SkillRollBonusInput", ref rollBonusOrPenalty, 1, width: 120.0f);
+                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltyTooltip"));
+
+                    int finalTotal = calculatedBaseTotal + rollBonusOrPenalty;
+
+                    ImGui.Spacing();
+                    ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}: {FormatModifier(skillBaseMod)}");
+                    if (skillGear != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(skillGear)}");
+                    if (skillBuff != 0) ImGui.TextDisabled($"Buff: {FormatModifier(skillBuff)}");
+                    if (skillFeat != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(skillFeat)}");
+                    if (!string.IsNullOrEmpty(linkedAttrName))
+                    {
+                        ImGui.TextDisabled($"{linkedAttrName}: {FormatModifier(totalAttrMod)}");
+                    }
+                    if (rollBonusOrPenalty != 0)
+                    {
+                        ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltySummary")}: {FormatModifier(rollBonusOrPenalty)}");
+                    }
+
+                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"{LocalizationManager.Instance.GetLocalizedString("TotalModifierLabel")}: {FormatModifier(finalTotal)} {(rawSuccesses > 0 ? $"(+★{rawSuccesses})" : "")}");
+
+                    rollLabel = !string.IsNullOrEmpty(linkedAttrName) && isDynamic
+                        ? $"{statRollSkill?.skillName} ({linkedAttrName})"
+                        : (statRollSkill?.skillName ?? "Skill");
                 }
-                ImGui.TextColored(ImGuiColors.ParsedGreen, $"{LocalizationManager.Instance.GetLocalizedString("TotalModifierLabel")}: {FormatModifier(dynTotalMod)}");
+                else if (statRollType == StatRollType.Ability)
+                {
+                    if (!string.IsNullOrWhiteSpace(statRollAbility?.abilityDescription))
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                        ImGui.TextWrapped(statRollAbility.abilityDescription);
+                        ImGui.PopStyleColor();
+                        ImGui.Spacing();
+                    }
+
+                    int abilBaseMod = statRollAbility?.abilityModifier ?? 0;
+                    int abilGear = statRollAbility != null ? currentCharacter.GetGearStatBonus(statRollAbility.abilityName) : 0;
+                    int abilBuff = statRollAbility != null ? currentCharacter.GetBuffStatBonus(statRollAbility.abilityName) : 0;
+                    int abilFeat = statRollAbility != null ? currentCharacter.GetFeatStatBonus(statRollAbility.abilityName) : 0;
+
+                    int attrMod = 0;
+                    if (!string.IsNullOrEmpty(statRollAbility?.linkedAttribute))
+                    {
+                        var effectiveAttrs = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
+                        if (effectiveAttrs != null && effectiveAttrs.TryGetValue(statRollAbility.linkedAttribute, out var dynAttr) && dynAttr != null)
+                        {
+                            int aVal = dynAttr.Value;
+                            int aTemp = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? dynAttr.TempBonus : 0;
+                            int aPerm = (currentDiceSystem == null || currentDiceSystem.systemHasBonusPerm) ? dynAttr.PermBonus : 0;
+                            int aGear = currentCharacter.GetGearStatBonus(statRollAbility.linkedAttribute);
+                            int aBuff = currentCharacter.GetBuffStatBonus(statRollAbility.linkedAttribute);
+                            int aFeat = currentCharacter.GetFeatStatBonus(statRollAbility.linkedAttribute);
+                            rawSuccesses = (currentDiceSystem != null ? currentDiceSystem.systemHasEpicAttributes : configuration.showEpicBonus) ? dynAttr.EpicBonus : 0;
+                            attrMod = aVal + aTemp + aPerm + aGear + aBuff + aFeat;
+                        }
+                    }
+
+                    int skillMod = 0;
+                    if (statRollAbility?.linkedSkill != null && !string.IsNullOrEmpty(statRollAbility.linkedSkill.skillName))
+                    {
+                        int sBase = statRollAbility.linkedSkill.skillModifier;
+                        int sGear = currentCharacter.GetGearStatBonus(statRollAbility.linkedSkill.skillName);
+                        int sBuff = currentCharacter.GetBuffStatBonus(statRollAbility.linkedSkill.skillName);
+                        int sFeat = currentCharacter.GetFeatStatBonus(statRollAbility.linkedSkill.skillName);
+                        skillMod = sBase + sGear + sBuff + sFeat;
+                    }
+
+                    calculatedBaseTotal = abilBaseMod + abilGear + abilBuff + abilFeat + attrMod + skillMod;
+
+                    ImGui.Text(LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltyLabel"));
+                    UiUtils.StyledInputInt("AbilRollBonusInput", ref rollBonusOrPenalty, 1, width: 120.0f);
+                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltyTooltip"));
+
+                    int finalTotal = calculatedBaseTotal + rollBonusOrPenalty;
+
+                    ImGui.Spacing();
+                    ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}: {FormatModifier(abilBaseMod)}");
+                    if (abilGear != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(abilGear)}");
+                    if (abilBuff != 0) ImGui.TextDisabled($"Buff: {FormatModifier(abilBuff)}");
+                    if (abilFeat != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(abilFeat)}");
+                    if (!string.IsNullOrEmpty(statRollAbility?.linkedAttribute))
+                    {
+                        ImGui.TextDisabled($"{statRollAbility.linkedAttribute}: {FormatModifier(attrMod)}");
+                    }
+                    if (statRollAbility?.linkedSkill != null && !string.IsNullOrEmpty(statRollAbility.linkedSkill.skillName))
+                    {
+                        ImGui.TextDisabled($"{statRollAbility.linkedSkill.skillName}: {FormatModifier(skillMod)}");
+                    }
+                    if (rollBonusOrPenalty != 0)
+                    {
+                        ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltySummary")}: {FormatModifier(rollBonusOrPenalty)}");
+                    }
+
+                    ImGui.TextColored(ImGuiColors.TankBlue, $"{LocalizationManager.Instance.GetLocalizedString("TotalModifierLabel")}: {FormatModifier(finalTotal)} {(rawSuccesses > 0 ? $"(+★{rawSuccesses})" : "")}");
+
+                    rollLabel = statRollAbility?.abilityName ?? "Ability";
+                }
 
                 ImGui.Spacing();
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                if (UiUtils.IconTextButton("DynSkillRollBtn", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("ThrowButton"), size: new Vector2(110, 0) * scale))
+                int totalFinalModifier = calculatedBaseTotal + rollBonusOrPenalty;
+                if (UiUtils.IconTextButton("StatRollConfirmBtn", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("ThrowButton"), size: new Vector2(110, 0) * scale))
                 {
-                    string rollLabel = !string.IsNullOrEmpty(selectedDynamicAttr)
-                        ? $"{dynamicSkillRollSkill?.skillName} ({selectedDynamicAttr})"
-                        : (dynamicSkillRollSkill?.skillName ?? "Skill");
-                    int totalDice = dynTotalMod;
-                    int totalTarget = dynTotalMod;
-                    DiceRoll.RollDice(totalDice, dynTotalMod, advantageRoll, disadvantageRoll, rollLabel, detailedRoll, totalTarget, dynRawSuccesses);
-                    showDynamicSkillModal = false;
+                    int totalDice = totalFinalModifier;
+                    int totalTarget = totalFinalModifier;
+                    DiceRoll.RollDice(totalDice, totalFinalModifier, advantageRoll, disadvantageRoll, rollLabel, detailedRoll, totalTarget, rawSuccesses);
+                    showStatRollModal = false;
+                    rollBonusOrPenalty = 0;
                 }
                 ImGui.SameLine(0, 8.0f * scale);
-                if (UiUtils.IconTextButton("DynSkillCancelBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(90, 0) * scale))
+                if (UiUtils.IconTextButton("StatRollCancelBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(90, 0) * scale))
                 {
-                    showDynamicSkillModal = false;
+                    showStatRollModal = false;
+                    rollBonusOrPenalty = 0;
                 }
 
                 ImGui.EndPopup();

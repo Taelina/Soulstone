@@ -38,6 +38,34 @@ namespace Soulstone.Utils
             "if", "cond", "choose"
         };
 
+        public static bool IsKnownFunction(string name)
+        {
+            return KnownFunctions.Contains(name.TrimStart('@'));
+        }
+
+        public static bool ContainsInvalidIdentifiersForRoll(string formula, CharacterSheet? sheet = null, IDictionary<string, double>? customVariables = null)
+        {
+            try
+            {
+                var tokens = Tokenize(formula);
+                foreach (var t in tokens)
+                {
+                    if (t.Type == TokenType.Identifier)
+                    {
+                        if (IsKnownFunction(t.Text)) continue;
+                        if (customVariables != null && customVariables.ContainsKey(t.Text)) continue;
+                        if (sheet != null) continue;
+                        return true;
+                    }
+                }
+                return false;
+            }
+            catch
+            {
+                return true;
+            }
+        }
+
         [ThreadStatic]
         private static Stack<string>? evaluationStack;
 
@@ -81,6 +109,70 @@ namespace Soulstone.Utils
                 {
                     evaluationStack.Pop();
                 }
+            }
+        }
+
+        public static DiceFormulaResult RollFormula(
+            string formula,
+            CharacterSheet? sheet = null,
+            DiceSystem? diceSystem = null,
+            bool advantage = false,
+            bool disadvantage = false,
+            IDictionary<string, double>? customVariables = null,
+            Random? rand = null)
+        {
+            if (string.IsNullOrWhiteSpace(formula))
+            {
+                return new DiceFormulaResult
+                {
+                    Success = false,
+                    Formula = formula ?? string.Empty
+                };
+            }
+
+            try
+            {
+                var tokens = Tokenize(formula);
+                if (tokens.Count == 0)
+                {
+                    return new DiceFormulaResult
+                    {
+                        Success = false,
+                        Formula = formula
+                    };
+                }
+
+                var parser = new Parser(tokens, sheet, diceSystem, customVariables, rand ?? new Random(), advantage, disadvantage);
+                double total = parser.Parse();
+
+                var breakdownParts = new List<string>();
+                foreach (var tr in parser.TermResults)
+                {
+                    breakdownParts.Add(tr.DetailedBreakdown);
+                }
+
+                string breakdownStr = breakdownParts.Count > 0
+                    ? string.Join(" + ", breakdownParts)
+                    : total.ToString(CultureInfo.InvariantCulture);
+
+                return new DiceFormulaResult
+                {
+                    Success = true,
+                    Formula = formula.Trim(),
+                    Total = total,
+                    IndividualRolls = parser.AllIndividualRolls,
+                    TermResults = parser.TermResults,
+                    DetailedBreakdown = breakdownStr
+                };
+            }
+            catch (Exception ex)
+            {
+                return new DiceFormulaResult
+                {
+                    Success = false,
+                    Formula = formula.Trim(),
+                    DetailedBreakdown = ex.Message
+                };
             }
         }
 
@@ -741,9 +833,14 @@ namespace Soulstone.Utils
             public double NumberValue { get; set; }
             public int DiceCount { get; set; }
             public int DiceSides { get; set; }
+            public DiceTerm? DiceTermValue { get; set; }
 
             public override string ToString() => $"{Type}: {Text}";
         }
+
+        private static readonly Regex DiceTermScanRegex = new Regex(
+            @"^(?<term>(?<count>\d+)?d(?<sides>\d+|%|f)(?<mods>(?:kh\d*|kl\d*|dh\d*|dl\d*|k\d*|d\d*|ro(?:<=|>=|<>|!=|<|>|=)?\d*|r(?:<=|>=|<>|!=|<|>|=)?\d*|!!?(?:o)?(?:<=|>=|<>|!=|<|>|=)?\d*|min\d+|max\d+|cs(?:<=|>=|<>|!=|<|>|=)?\d+|cf(?:<=|>=|<>|!=|<|>|=)?\d+|(?:<=|>=|<>|!=|<|>|=)\d+)*))(?![a-zA-Z0-9_])",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private static List<Token> Tokenize(string input)
         {
@@ -759,6 +856,46 @@ namespace Soulstone.Utils
                 {
                     i++;
                     continue;
+                }
+
+                // Check for dice term match (e.g. 2d6, 4d6kh3, 1d20+2, d20, 1d%, 4dF, 3d6!, 5d10>=8, etc.)
+                if (char.IsDigit(c) || c == 'd' || c == 'D')
+                {
+                    bool isStandaloneD = (c == 'd' || c == 'D') &&
+                        (tokens.Count == 0 ||
+                         tokens[^1].Type == TokenType.Plus ||
+                         tokens[^1].Type == TokenType.Minus ||
+                         tokens[^1].Type == TokenType.Multiply ||
+                         tokens[^1].Type == TokenType.Divide ||
+                         tokens[^1].Type == TokenType.Modulo ||
+                         tokens[^1].Type == TokenType.Power ||
+                         tokens[^1].Type == TokenType.LParen ||
+                         tokens[^1].Type == TokenType.Comma ||
+                         tokens[^1].Type == TokenType.Equal ||
+                         tokens[^1].Type == TokenType.NotEqual ||
+                         tokens[^1].Type == TokenType.LessThan ||
+                         tokens[^1].Type == TokenType.GreaterThan ||
+                         tokens[^1].Type == TokenType.LessThanOrEqual ||
+                         tokens[^1].Type == TokenType.GreaterThanOrEqual);
+
+                    if (char.IsDigit(c) || isStandaloneD)
+                    {
+                        var remaining = input.Substring(i);
+                        var diceMatch = DiceTermScanRegex.Match(remaining);
+                        if (diceMatch.Success && DiceTerm.TryParse(diceMatch.Groups["term"].Value, out var diceTerm) && diceTerm != null)
+                        {
+                            tokens.Add(new Token
+                            {
+                                Type = TokenType.Dice,
+                                Text = diceMatch.Groups["term"].Value,
+                                DiceTermValue = diceTerm,
+                                DiceCount = diceTerm.Count,
+                                DiceSides = diceTerm.Sides
+                            });
+                            i += diceMatch.Length;
+                            continue;
+                        }
+                    }
                 }
 
                 if (c == '+') { tokens.Add(new Token { Type = TokenType.Plus, Text = "+" }); i++; }
@@ -846,58 +983,9 @@ namespace Soulstone.Utils
                         i++;
                     }
 
-                    // Check if it's a dice roll like 2d6 or 1d20
-                    if (i < len && (input[i] == 'd' || input[i] == 'D') && i + 1 < len && char.IsDigit(input[i + 1]))
-                    {
-                        string countStr = input.Substring(start, i - start);
-                        int count = int.TryParse(countStr, out int cnt) ? cnt : 1;
-                        i++; // skip 'd'
-                        int sideStart = i;
-                        while (i < len && char.IsDigit(input[i])) i++;
-                        string sidesStr = input.Substring(sideStart, i - sideStart);
-                        int sides = int.TryParse(sidesStr, out int s) ? s : 6;
-
-                        tokens.Add(new Token
-                        {
-                            Type = TokenType.Dice,
-                            Text = $"{count}d{sides}",
-                            DiceCount = count,
-                            DiceSides = sides
-                        });
-                    }
-                    else
-                    {
-                        string numStr = input.Substring(start, i - start);
-                        double val = double.Parse(numStr, CultureInfo.InvariantCulture);
-                        tokens.Add(new Token { Type = TokenType.Number, Text = numStr, NumberValue = val });
-                    }
-                }
-                else if (c == 'd' || c == 'D')
-                {
-                    // Check if standalone d20, d6 etc.
-                    if (i + 1 < len && char.IsDigit(input[i + 1]) && (tokens.Count == 0 || tokens[^1].Type == TokenType.Plus || tokens[^1].Type == TokenType.Minus || tokens[^1].Type == TokenType.Multiply || tokens[^1].Type == TokenType.Divide || tokens[^1].Type == TokenType.Modulo || tokens[^1].Type == TokenType.Power || tokens[^1].Type == TokenType.LParen || tokens[^1].Type == TokenType.Comma))
-                    {
-                        i++; // skip 'd'
-                        int sideStart = i;
-                        while (i < len && char.IsDigit(input[i])) i++;
-                        string sidesStr = input.Substring(sideStart, i - sideStart);
-                        int sides = int.TryParse(sidesStr, out int s) ? s : 6;
-
-                        tokens.Add(new Token
-                        {
-                            Type = TokenType.Dice,
-                            Text = $"1d{sides}",
-                            DiceCount = 1,
-                            DiceSides = sides
-                        });
-                    }
-                    else
-                    {
-                        int start = i;
-                        while (i < len && (char.IsLetterOrDigit(input[i]) || input[i] == '_' || input[i] == '.' || input[i] == ':')) i++;
-                        string id = input.Substring(start, i - start);
-                        tokens.Add(new Token { Type = TokenType.Identifier, Text = id });
-                    }
+                    string numStr = input.Substring(start, i - start);
+                    double val = double.Parse(numStr, CultureInfo.InvariantCulture);
+                    tokens.Add(new Token { Type = TokenType.Number, Text = numStr, NumberValue = val });
                 }
                 else if (c == '@' || char.IsLetter(c) || c == '_')
                 {
@@ -923,19 +1011,30 @@ namespace Soulstone.Utils
             private readonly CharacterSheet? sheet;
             private readonly DiceSystem? diceSystem;
             private readonly IDictionary<string, double>? customVariables;
+            private readonly Random rng;
+            private readonly bool advantage;
+            private readonly bool disadvantage;
             private int pos = 0;
-            private static readonly Random Rng = new();
+
+            public List<DiceTermResult> TermResults { get; } = new List<DiceTermResult>();
+            public List<int> AllIndividualRolls { get; } = new List<int>();
 
             public Parser(
                 List<Token> tokens,
                 CharacterSheet? sheet,
                 DiceSystem? diceSystem,
-                IDictionary<string, double>? customVariables)
+                IDictionary<string, double>? customVariables,
+                Random? rng = null,
+                bool advantage = false,
+                bool disadvantage = false)
             {
                 this.tokens = tokens;
                 this.sheet = sheet;
                 this.diceSystem = diceSystem;
                 this.customVariables = customVariables;
+                this.rng = rng ?? new Random();
+                this.advantage = advantage;
+                this.disadvantage = disadvantage;
             }
 
             private Token Current => pos < tokens.Count ? tokens[pos] : tokens[^1];
@@ -1098,12 +1197,24 @@ namespace Soulstone.Utils
                 if (token.Type == TokenType.Dice)
                 {
                     pos++;
-                    int sum = 0;
-                    for (int i = 0; i < token.DiceCount; i++)
+                    if (token.DiceTermValue != null)
                     {
-                        sum += Rng.Next(1, Math.Max(1, token.DiceSides) + 1);
+                        var termRes = token.DiceTermValue.Roll(rng, advantage, disadvantage);
+                        TermResults.Add(termRes);
+                        AllIndividualRolls.AddRange(termRes.AllRolls);
+                        return termRes.TotalValue;
                     }
-                    return sum;
+                    else
+                    {
+                        int sum = 0;
+                        for (int i = 0; i < token.DiceCount; i++)
+                        {
+                            int r = rng.Next(1, Math.Max(1, token.DiceSides) + 1);
+                            AllIndividualRolls.Add(r);
+                            sum += r;
+                        }
+                        return sum;
+                    }
                 }
 
                 if (token.Type == TokenType.LParen)

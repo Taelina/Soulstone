@@ -179,12 +179,21 @@ namespace Soulstone.Tests.Utils
 
         [Theory]
         [InlineData("1d20")]
+        [InlineData("d20")]
         [InlineData("2d6")]
         [InlineData("3d8+4")]
         [InlineData("1d100")]
         [InlineData("4d12+0")]
         [InlineData("2D6+3")]
         [InlineData("10d6")]
+        [InlineData("2d6+1+2")]
+        [InlineData("2d6 + 1d8 + 3")]
+        [InlineData("4d6kh3")]
+        [InlineData("2d20kl1 + 2")]
+        [InlineData("3d6! + 1")]
+        [InlineData("2d6r<=2")]
+        [InlineData("1d20min10")]
+        [InlineData("(1d8 + 2) * 2")]
         public void ParseDiceRollString_WithValidInput_ReturnsDiceRoll(string input)
         {
             // Act
@@ -198,6 +207,7 @@ namespace Soulstone.Tests.Utils
         [Theory]
         [InlineData("1d20", true, false)]
         [InlineData("2d6+2", false, true)]
+        [InlineData("2d6 + 1d8", true, false)]
         public void ParseDiceRollString_WithAdvantageOrDisadvantage_ExecutesSuccessfully(string input, bool adv, bool disadv)
         {
             // Act
@@ -223,14 +233,14 @@ namespace Soulstone.Tests.Utils
         [Theory]
         [InlineData("")]
         [InlineData("invalid")]
-        [InlineData("d20")]
         [InlineData("2d")]
         [InlineData("0d6")]
         [InlineData("-1d6")]
         [InlineData("2d0")]
         [InlineData("2d-6")]
         [InlineData("2d6+abc")]
-        [InlineData("2d6+1+2")]
+        [InlineData("2d6+")]
+        [InlineData("(2d6+")]
         public void ParseDiceRollString_WithInvalidInput_ReturnsNull(string input)
         {
             // Act

@@ -50,7 +50,7 @@ namespace Soulstone.Windows
                 return;
             }
 
-            DrawTopBar(currentCharacter);
+            DrawTopBar(currentCharacter, currentDiceSystem);
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
@@ -71,10 +71,10 @@ namespace Soulstone.Windows
                 }
             }
 
-            DrawModals(currentCharacter);
+            DrawModals(currentCharacter, currentDiceSystem);
         }
 
-        private void DrawTopBar(CharacterSheet sheet)
+        private void DrawTopBar(CharacterSheet sheet, DiceSystem? diceSystem)
         {
             var scale = ImGuiHelpers.GlobalScale;
             var equippedCount = sheet.GetEquippedGearItems().Count;
@@ -91,7 +91,8 @@ namespace Soulstone.Windows
                 actionLabel: createLabel,
                 onAction: () =>
                 {
-                    creatingGear = new GearItem("New Gear", "Head", "", "Common");
+                    var slots = diceSystem?.GetEffectiveEquipmentSlots() ?? GearItem.StandardSlots.ToList();
+                    creatingGear = new GearItem("New Gear", slots.FirstOrDefault() ?? "Head", "", "Common");
                     modEditorState = new StatModifierEditorState();
                     showCreateGearModal = true;
                 });
@@ -429,10 +430,10 @@ namespace Soulstone.Windows
             }
         }
 
-        private void DrawModals(CharacterSheet sheet)
+        private void DrawModals(CharacterSheet sheet, DiceSystem? diceSystem)
         {
             DrawEquipModal(sheet);
-            DrawCreateGearModal(sheet);
+            DrawCreateGearModal(sheet, diceSystem);
         }
 
         private void DrawEquipModal(CharacterSheet sheet)
@@ -532,7 +533,7 @@ namespace Soulstone.Windows
             ImGui.End();
         }
 
-        private void DrawCreateGearModal(CharacterSheet sheet)
+        private void DrawCreateGearModal(CharacterSheet sheet, DiceSystem? diceSystem)
         {
             if (!showCreateGearModal) return;
 
@@ -545,11 +546,13 @@ namespace Soulstone.Windows
                 UiUtils.StyledInputText("NewGearName", ref creatingGear.name, 100, width: -1.0f);
 
                 ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
-                int slotIdx = Array.IndexOf(GearItem.StandardSlots, creatingGear.Slot);
+                var slots = diceSystem?.GetEffectiveEquipmentSlots() ?? GearItem.StandardSlots.ToList();
+                var slotsArray = slots.ToArray();
+                int slotIdx = Array.IndexOf(slotsArray, creatingGear.Slot);
                 if (slotIdx < 0) slotIdx = 0;
-                if (UiUtils.StyledCombo("##NewGearSlotCombo", ref slotIdx, GearItem.StandardSlots, icon: FontAwesomeIcon.ShieldAlt, width: 200.0f))
+                if (UiUtils.StyledCombo("##NewGearSlotCombo", ref slotIdx, slotsArray, icon: FontAwesomeIcon.ShieldAlt, width: 200.0f))
                 {
-                    creatingGear.Slot = GearItem.StandardSlots[slotIdx];
+                    creatingGear.Slot = slotsArray[slotIdx];
                 }
 
                 ImGui.TextColored(ImGuiColors.DalamudGrey, "Rarity:");

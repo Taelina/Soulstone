@@ -19,13 +19,15 @@ namespace Soulstone.Datamodels
         public int PermBonus = 0;
         [JsonInclude]
         public int EpicBonus = 0;
+        [JsonInclude]
+        public bool IsFavorite = false;
 
         [JsonConstructor]
         public Attribute()
         {
         }
 
-        public Attribute(string name, int value, string description = "")
+        public Attribute(string name, int value, string description = "", bool isFavorite = false)
         {
             Name = name;
             Value = value;
@@ -33,15 +35,17 @@ namespace Soulstone.Datamodels
             TempBonus = 0;
             PermBonus = 0;
             EpicBonus = 0;
+            IsFavorite = isFavorite;
         }
 
         public Attribute Clone()
         {
-            return new Attribute(Name, Value, Description)
+            return new Attribute(Name, Value, Description, IsFavorite)
             {
                 TempBonus = this.TempBonus,
                 PermBonus = this.PermBonus,
-                EpicBonus = this.EpicBonus
+                EpicBonus = this.EpicBonus,
+                IsFavorite = this.IsFavorite
             };
         }
 

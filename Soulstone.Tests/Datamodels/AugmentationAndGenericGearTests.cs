@@ -62,6 +62,35 @@ namespace Soulstone.Tests.Datamodels
             // Custom slots
             system.CustomAugmentationSlots = new List<string> { "Head", "Spine", "Heart" };
             system.GetEffectiveAugmentationSlots().Should().BeEquivalentTo(new[] { "Head", "Spine", "Heart" });
+
+            // Dynamic additions, removal, and moving
+            system.AddAugmentationSlot("Eyes");
+            system.GetEffectiveAugmentationSlots().Should().Contain("Eyes");
+            system.MoveAugmentationSlot("Eyes", -1).Should().BeTrue();
+            system.RemoveAugmentationSlot("Spine").Should().BeTrue();
+            system.GetEffectiveAugmentationSlots().Should().NotContain("Spine");
+        }
+
+        [Fact]
+        public void DiceSystem_EquipmentSlotsConfiguration()
+        {
+            var system = new DiceSystem();
+
+            // Default slots when none configured
+            var defaultSlots = system.GetEffectiveEquipmentSlots();
+            defaultSlots.Should().BeEquivalentTo(GearItem.StandardSlots);
+
+            // Custom slots list assignment
+            system.CustomEquipmentSlots = new List<string> { "Head", "Chest", "Weapon", "Trinket" };
+            system.GetEffectiveEquipmentSlots().Should().BeEquivalentTo(new[] { "Head", "Chest", "Weapon", "Trinket" });
+
+            // Dynamic add, move, and remove
+            system.AddEquipmentSlot("Belt");
+            system.GetEffectiveEquipmentSlots().Should().Contain("Belt");
+            system.MoveEquipmentSlot("Belt", -1).Should().BeTrue();
+            system.RemoveEquipmentSlot("Weapon").Should().BeTrue();
+            system.GetEffectiveEquipmentSlots().Should().NotContain("Weapon");
+            system.GetEffectiveEquipmentSlots().Should().Equal(new[] { "Head", "Chest", "Belt", "Trinket" });
         }
 
         [Fact]

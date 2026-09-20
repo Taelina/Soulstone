@@ -21,6 +21,10 @@ namespace Soulstone.Windows
         private int selectedDiceTypeIndex = 0;
         private int selectedSystemTypeIndex = 0;
         private string newAugSlotName = string.Empty;
+        private string newEquipSlotName = string.Empty;
+        private string newSystemAttrName = string.Empty;
+        private int newSystemAttrValue = 0;
+        private string newSystemAttrDesc = string.Empty;
 
         // Resource Modal State
         private bool showResourceModal = false;
@@ -80,9 +84,13 @@ namespace Soulstone.Windows
                 {
                     DrawGeneralSettings(currentSystem);
                     ImGui.Spacing();
+                    DrawAttributesCard(currentSystem);
+                    ImGui.Spacing();
                     DrawInitiativeCard(currentSystem);
                     ImGui.Spacing();
                     DrawResourcesCard(currentSystem);
+                    ImGui.Spacing();
+                    DrawEquipmentCard(currentSystem);
                     ImGui.Spacing();
                     DrawAugmentationsCard(currentSystem);
                     ImGui.Spacing();
@@ -342,6 +350,126 @@ namespace Soulstone.Windows
                     if (ImGui.IsItemHovered())
                     {
                         ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateTooltip"));
+                    }
+                }
+            }
+        }
+
+        private void DrawAttributesCard(DiceSystem currentSystem)
+        {
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysAttributesHeader"), defaultOpen: true, icon: FontAwesomeIcon.ShieldAlt, accentColor: ImGuiColors.ParsedGold))
+            {
+                ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysAttributesSubtitle"));
+                ImGui.Spacing();
+
+                currentSystem.systemAttributes ??= new Dictionary<string, Datamodels.Attribute>(StringComparer.OrdinalIgnoreCase);
+                var attrs = currentSystem.systemAttributes.ToList();
+
+                if (attrs.Count == 0)
+                {
+                    ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("DiceSysNoAttributes"));
+                }
+                else
+                {
+                    string? attrToRemove = null;
+                    string? attrToMoveUp = null;
+                    string? attrToMoveDown = null;
+
+                    using (var table = ImRaii.Table("##SystemAttributesTable", 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
+                    {
+                        if (table.Success)
+                        {
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("AttributeLabel"), ImGuiTableColumnFlags.WidthStretch, 0.35f);
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("StatValueHeader"), ImGuiTableColumnFlags.WidthFixed, 80.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"), ImGuiTableColumnFlags.WidthStretch, 0.45f);
+                            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.TableHeadersRow();
+
+                            for (int i = 0; i < attrs.Count; i++)
+                            {
+                                var attr = attrs[i];
+                                ImGui.PushID($"SysAttrRow_{attr.Key}");
+                                ImGui.TableNextRow();
+
+                                // Name column
+                                ImGui.TableNextColumn();
+                                ImGui.AlignTextToFramePadding();
+                                ImGui.TextColored(ImGuiColors.DalamudWhite, attr.Key);
+
+                                // Base Value column
+                                ImGui.TableNextColumn();
+                                UiUtils.StyledInputInt($"SysAttrVal_{attr.Key}", ref attr.Value.Value, step: 1, width: 60.0f);
+
+                                // Description column
+                                ImGui.TableNextColumn();
+                                UiUtils.StyledInputText($"SysAttrDesc_{attr.Key}", ref attr.Value.Description, 200, width: 220.0f);
+
+                                // Action column (Move up / down / delete)
+                                ImGui.TableNextColumn();
+                                if (i > 0)
+                                {
+                                    if (UiUtils.IconButton($"MoveUpSysAttr_{attr.Key}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        attrToMoveUp = attr.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                if (i < attrs.Count - 1)
+                                {
+                                    if (UiUtils.IconButton($"MoveDownSysAttr_{attr.Key}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        attrToMoveDown = attr.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                if (UiUtils.IconButton($"DelSysAttr_{attr.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                                {
+                                    attrToRemove = attr.Key;
+                                }
+
+                                ImGui.PopID();
+                            }
+                        }
+                    }
+
+                    if (attrToMoveUp != null)
+                    {
+                        currentSystem.MoveAttribute(attrToMoveUp, -1);
+                    }
+                    if (attrToMoveDown != null)
+                    {
+                        currentSystem.MoveAttribute(attrToMoveDown, 1);
+                    }
+                    if (attrToRemove != null)
+                    {
+                        currentSystem.RemoveAttribute(attrToRemove);
+                    }
+                }
+
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
+
+                // Add Attribute section
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("DiceSysAddAttribute"));
+                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+
+                UiUtils.StyledInputText("NewSysAttrName", ref newSystemAttrName, 100, width: 140.0f, hint: LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                UiUtils.StyledInputInt("NewSysAttrVal", ref newSystemAttrValue, step: 1, width: 60.0f);
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                UiUtils.StyledInputText("NewSysAttrDesc", ref newSystemAttrDesc, 200, width: 180.0f, hint: LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+
+                if (UiUtils.IconTextButton("AddSysAttrBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton")))
+                {
+                    if (!string.IsNullOrWhiteSpace(newSystemAttrName))
+                    {
+                        currentSystem.AddAttribute(newSystemAttrName.Trim(), newSystemAttrValue, newSystemAttrDesc.Trim());
+                        newSystemAttrName = string.Empty;
+                        newSystemAttrValue = 0;
+                        newSystemAttrDesc = string.Empty;
                     }
                 }
             }
@@ -837,6 +965,79 @@ namespace Soulstone.Windows
             }
         }
 
+        private void DrawEquipmentCard(DiceSystem currentSystem)
+        {
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysEquipmentHeader"), defaultOpen: true, icon: FontAwesomeIcon.ShieldAlt, accentColor: ImGuiColors.ParsedGold))
+            {
+                ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysEquipmentSubtitle"));
+                ImGui.Spacing();
+
+                var slots = currentSystem.GetEffectiveEquipmentSlots();
+                string? slotToRemove = null;
+                string? slotToMoveUp = null;
+                string? slotToMoveDown = null;
+
+                // Add slot control row
+                UiUtils.StyledInputText("NewEquipSlotName", ref newEquipSlotName, 50, width: 180.0f, hint: "Slot name...");
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                if (UiUtils.IconTextButton("AddEquipSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddEquipmentSlot")))
+                {
+                    if (!string.IsNullOrWhiteSpace(newEquipSlotName))
+                    {
+                        currentSystem.AddEquipmentSlot(newEquipSlotName);
+                        newEquipSlotName = string.Empty;
+                    }
+                }
+
+                ImGui.Spacing();
+
+                if (slots.Count == 0)
+                {
+                    ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoGearEquipped"));
+                }
+                else
+                {
+                    const int columns = 6;
+                    using var table = ImRaii.Table("##EquipmentSlotsGrid", columns, ImGuiTableFlags.SizingStretchSame);
+                    if (table.Success)
+                    {
+                        for (int c = 0; c < columns; c++)
+                        {
+                            ImGui.TableSetupColumn($"EquipSlotCol_{c}", ImGuiTableColumnFlags.WidthStretch);
+                        }
+
+                        for (int i = 0; i < slots.Count; i++)
+                        {
+                            if (i % columns == 0)
+                            {
+                                ImGui.TableNextRow();
+                            }
+                            ImGui.TableNextColumn();
+
+                            var slot = slots[i];
+                            DrawSlotGridCard(slot, i, slots.Count, isAugmentation: false, out var moveUp, out var moveDown, out var remove);
+                            if (moveUp != null) slotToMoveUp = moveUp;
+                            if (moveDown != null) slotToMoveDown = moveDown;
+                            if (remove != null) slotToRemove = remove;
+                        }
+                    }
+                }
+
+                if (slotToMoveUp != null)
+                {
+                    currentSystem.MoveEquipmentSlot(slotToMoveUp, -1);
+                }
+                if (slotToMoveDown != null)
+                {
+                    currentSystem.MoveEquipmentSlot(slotToMoveDown, 1);
+                }
+                if (slotToRemove != null)
+                {
+                    currentSystem.RemoveEquipmentSlot(slotToRemove);
+                }
+            }
+        }
+
         private void DrawAugmentationsCard(DiceSystem currentSystem)
         {
             if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader"), defaultOpen: true, icon: FontAwesomeIcon.Microchip, accentColor: ImGuiColors.ParsedPurple))
@@ -844,111 +1045,243 @@ namespace Soulstone.Windows
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsSubtitle"));
                 ImGui.Spacing();
 
-                using var table = ImRaii.Table("##AugmentationsSysTable", 2, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
-                if (table.Success)
+                ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("SystemAugmentationsCheckbox"), ref currentSystem.systemHasAugmentations);
+
+                if (currentSystem.systemHasAugmentations)
                 {
-                    ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("TableHeaderLabel"), ImGuiTableColumnFlags.WidthFixed, 360.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("TableHeaderValue"), ImGuiTableColumnFlags.WidthStretch, 1.0f);
+                    ImGui.Spacing();
 
-                    // Toggle
-                    ImGui.TableNextRow();
-                    ImGui.TableNextColumn();
+                    // Tab Title row
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("SystemAugmentationsCheckbox"));
-                    ImGui.TableNextColumn();
-                    ImGui.Checkbox("##SystemAugmentationsCheck", ref currentSystem.systemHasAugmentations);
+                    ImGui.TextUnformatted(LocalizationManager.Instance.GetLocalizedString("AugmentationTitleLabel"));
+                    ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+                    UiUtils.StyledInputText("AugmentationTitle", ref currentSystem.augmentationTitle, 100, width: 260.0f);
 
-                    if (currentSystem.systemHasAugmentations)
+                    ImGui.Spacing();
+
+                    // Add slot control row
+                    UiUtils.StyledInputText("NewAugSlotName", ref newAugSlotName, 50, width: 180.0f, hint: "Slot name...");
+                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                    if (UiUtils.IconTextButton("AddAugSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddAugmentationSlot")))
                     {
-                        // Tab Title
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        ImGui.AlignTextToFramePadding();
-                        ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("AugmentationTitleLabel"));
-                        ImGui.TableNextColumn();
-                        UiUtils.StyledInputText("AugmentationTitle", ref currentSystem.augmentationTitle, 100, width: 260.0f);
-
-                        // Slot list
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        ImGui.AlignTextToFramePadding();
-                        ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("AugmentationSlotsHeader"));
-                        ImGui.TableNextColumn();
-
-                        var slots = currentSystem.GetEffectiveAugmentationSlots();
-                        string? slotToRemove = null;
-                        string? slotToMoveUp = null;
-                        string? slotToMoveDown = null;
-
-                        for (int i = 0; i < slots.Count; i++)
+                        if (!string.IsNullOrWhiteSpace(newAugSlotName))
                         {
-                            var slot = slots[i];
-                            UiUtils.Badge(slot, new Vector4(0.2f, 0.25f, 0.35f, 0.7f), ImGuiColors.ParsedBlue);
-                            ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                            currentSystem.AddAugmentationSlot(newAugSlotName);
+                            newAugSlotName = string.Empty;
+                        }
+                    }
 
-                            if (i > 0)
+                    ImGui.Spacing();
+
+                    var slots = currentSystem.GetEffectiveAugmentationSlots();
+                    string? slotToRemove = null;
+                    string? slotToMoveUp = null;
+                    string? slotToMoveDown = null;
+
+                    if (slots.Count == 0)
+                    {
+                        ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAugmentationsInstalled"));
+                    }
+                    else
+                    {
+                        const int columns = 6;
+                        using var table = ImRaii.Table("##AugmentationSlotsGrid", columns, ImGuiTableFlags.SizingStretchSame);
+                        if (table.Success)
+                        {
+                            for (int c = 0; c < columns; c++)
                             {
-                                if (UiUtils.IconButton($"MoveUpAugSlot_{slot}", FontAwesomeIcon.ChevronLeft, LocalizationManager.Instance.GetLocalizedString("MoveLeftTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
-                                {
-                                    slotToMoveUp = slot;
-                                }
-                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                            }
-                            if (i < slots.Count - 1)
-                            {
-                                if (UiUtils.IconButton($"MoveDownAugSlot_{slot}", FontAwesomeIcon.ChevronRight, LocalizationManager.Instance.GetLocalizedString("MoveRightTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
-                                {
-                                    slotToMoveDown = slot;
-                                }
-                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                ImGui.TableSetupColumn($"AugSlotCol_{c}", ImGuiTableColumnFlags.WidthStretch);
                             }
 
-                            if (UiUtils.IconButton($"DelAugSlot_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
+                            for (int i = 0; i < slots.Count; i++)
                             {
-                                slotToRemove = slot;
-                            }
-                            ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                        }
-                        ImGui.NewLine();
-
-                        if (slotToMoveUp != null)
-                        {
-                            currentSystem.MoveAugmentationSlot(slotToMoveUp, -1);
-                        }
-                        if (slotToMoveDown != null)
-                        {
-                            currentSystem.MoveAugmentationSlot(slotToMoveDown, 1);
-                        }
-                        if (slotToRemove != null)
-                        {
-                            if (currentSystem.customAugmentationSlots == null || currentSystem.customAugmentationSlots.Count == 0)
-                            {
-                                currentSystem.customAugmentationSlots = GearItem.StandardAugmentationSlots.ToList();
-                            }
-                            currentSystem.customAugmentationSlots.Remove(slotToRemove);
-                        }
-
-                        // Add slot
-                        UiUtils.StyledInputText("NewAugSlotName", ref newAugSlotName, 50, width: 160.0f, hint: "Slot name...");
-                        ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                        if (UiUtils.IconTextButton("AddAugSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddAugmentationSlot")))
-                        {
-                            if (!string.IsNullOrWhiteSpace(newAugSlotName))
-                            {
-                                if (currentSystem.customAugmentationSlots == null || currentSystem.customAugmentationSlots.Count == 0)
+                                if (i % columns == 0)
                                 {
-                                    currentSystem.customAugmentationSlots = GearItem.StandardAugmentationSlots.ToList();
+                                    ImGui.TableNextRow();
                                 }
-                                if (!currentSystem.customAugmentationSlots.Contains(newAugSlotName.Trim()))
-                                {
-                                    currentSystem.customAugmentationSlots.Add(newAugSlotName.Trim());
-                                }
-                                newAugSlotName = string.Empty;
+                                ImGui.TableNextColumn();
+
+                                var slot = slots[i];
+                                DrawSlotGridCard(slot, i, slots.Count, isAugmentation: true, out var moveUp, out var moveDown, out var remove);
+                                if (moveUp != null) slotToMoveUp = moveUp;
+                                if (moveDown != null) slotToMoveDown = moveDown;
+                                if (remove != null) slotToRemove = remove;
                             }
                         }
                     }
+
+                    if (slotToMoveUp != null)
+                    {
+                        currentSystem.MoveAugmentationSlot(slotToMoveUp, -1);
+                    }
+                    if (slotToMoveDown != null)
+                    {
+                        currentSystem.MoveAugmentationSlot(slotToMoveDown, 1);
+                    }
+                    if (slotToRemove != null)
+                    {
+                        currentSystem.RemoveAugmentationSlot(slotToRemove);
+                    }
                 }
             }
+        }
+
+        private static FontAwesomeIcon GetSlotIcon(string slot)
+        {
+            return (slot?.ToLowerInvariant() ?? "") switch
+            {
+                "head" or "helmet" or "hat" => FontAwesomeIcon.HatWizard,
+                "body" or "chest" or "armor" or "cuirass" or "robe" => FontAwesomeIcon.Tshirt,
+                "hands" or "gloves" or "gauntlets" => FontAwesomeIcon.HandPaper,
+                "legs" or "pants" or "trousers" or "greaves" => FontAwesomeIcon.Walking,
+                "feet" or "boots" or "shoes" => FontAwesomeIcon.ShoePrints,
+                "mainhand" or "weapon" => FontAwesomeIcon.Gavel,
+                "offhand" or "shield" => FontAwesomeIcon.ShieldAlt,
+                "ears" or "earring" => FontAwesomeIcon.Gem,
+                "neck" or "necklace" => FontAwesomeIcon.Ring,
+                "wrists" or "bracelets" => FontAwesomeIcon.CircleNotch,
+                "finger" or "ring" or "ring1" or "ring2" or "leftring" or "rightring" => FontAwesomeIcon.Ring,
+                _ => FontAwesomeIcon.ShieldAlt
+            };
+        }
+
+        private static FontAwesomeIcon GetAugSlotIcon(string slot)
+        {
+            return (slot?.ToLowerInvariant() ?? "") switch
+            {
+                "neural" or "cortex" or "brain" => FontAwesomeIcon.Brain,
+                "ocular" or "eyes" => FontAwesomeIcon.Eye,
+                "cardiovascular" or "heart" or "internal" => FontAwesomeIcon.Heartbeat,
+                "muscular" or "arms" => FontAwesomeIcon.HandRock,
+                "skeletal" or "legs" or "bones" => FontAwesomeIcon.Bone,
+                "dermal" or "skin" => FontAwesomeIcon.ShieldAlt,
+                "subdermal" or "circulatory" => FontAwesomeIcon.Microchip,
+                _ => FontAwesomeIcon.Microchip
+            };
+        }
+
+        private static void DrawSlotGridCard(
+            string slotName,
+            int index,
+            int totalCount,
+            bool isAugmentation,
+            out string? moveLeft,
+            out string? moveRight,
+            out string? remove)
+        {
+            moveLeft = null;
+            moveRight = null;
+            remove = null;
+
+            var scale = ImGuiHelpers.GlobalScale;
+            var pos = ImGui.GetCursorScreenPos();
+            var cellWidth = ImGui.GetContentRegionAvail().X;
+            var cardHeight = 56.0f * scale;
+            var cardSize = new Vector2(cellWidth, cardHeight);
+            var drawList = ImGui.GetWindowDrawList();
+
+            var accentColor = isAugmentation ? ImGuiColors.ParsedPurple : ImGuiColors.ParsedGold;
+            bool isHovered = ImGui.IsMouseHoveringRect(pos, pos + cardSize);
+            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.11f, 0.12f, 0.15f, 0.95f));
+            var borderCol = isHovered
+                ? ImGui.ColorConvertFloat4ToU32(accentColor)
+                : ImGui.ColorConvertFloat4ToU32(isAugmentation ? new Vector4(0.25f, 0.30f, 0.42f, 0.65f) : new Vector4(0.38f, 0.32f, 0.20f, 0.65f));
+
+            drawList.AddRectFilled(pos, pos + cardSize, bgCol, 6.0f * scale);
+            drawList.AddRect(pos, pos + cardSize, borderCol, 6.0f * scale, ImDrawFlags.None, isHovered ? 1.5f : 1.0f);
+
+            // Left accent strip
+            drawList.AddRectFilled(
+                pos + new Vector2(2.0f * scale, 4.0f * scale),
+                pos + new Vector2(5.5f * scale, cardHeight - 4.0f * scale),
+                ImGui.ColorConvertFloat4ToU32(accentColor),
+                2.0f * scale);
+
+            // Icon
+            var icon = isAugmentation ? GetAugSlotIcon(slotName) : GetSlotIcon(slotName);
+            var iconStr = icon.ToIconString();
+            var iconPos = pos + new Vector2(10.0f * scale, 7.0f * scale);
+
+            ImGui.PushFont(UiBuilder.IconFont);
+            drawList.AddText(iconPos, ImGui.ColorConvertFloat4ToU32(accentColor), iconStr);
+            ImGui.PopFont();
+
+            // Slot name
+            var textPos = pos + new Vector2(28.0f * scale, 6.0f * scale);
+            var maxTextWidth = cellWidth - 32.0f * scale;
+
+            ImGui.SetCursorScreenPos(textPos);
+            ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudWhite);
+            string displayName = slotName;
+            var textSize = ImGui.CalcTextSize(displayName);
+            if (textSize.X > maxTextWidth)
+            {
+                while (displayName.Length > 3 && ImGui.CalcTextSize(displayName + "...").X > maxTextWidth)
+                {
+                    displayName = displayName.Substring(0, displayName.Length - 1);
+                }
+                displayName += "...";
+            }
+            ImGui.TextUnformatted(displayName);
+            ImGui.PopStyleColor();
+
+            if (isHovered && displayName != slotName)
+            {
+                ImGui.SetTooltip(slotName);
+            }
+
+            // Toolbar buttons at bottom
+            var btnY = pos.Y + 28.0f * scale;
+            var btnSize = new Vector2(22.0f, 22.0f) * scale;
+            var btnStartX = pos.X + 10.0f * scale;
+            string idPrefix = isAugmentation ? "Aug" : "Equip";
+
+            ImGui.SetCursorScreenPos(new Vector2(btnStartX, btnY));
+            ImGui.BeginGroup();
+            {
+                if (index > 0)
+                {
+                    if (UiUtils.IconButton($"MoveLeft_{idPrefix}_{index}_{slotName}", FontAwesomeIcon.ChevronLeft, LocalizationManager.Instance.GetLocalizedString("MoveLeftTooltip"), btnSize))
+                    {
+                        moveLeft = slotName;
+                    }
+                }
+                else
+                {
+                    using (ImRaii.Disabled())
+                    {
+                        UiUtils.IconButton($"MoveLeftDis_{idPrefix}_{index}_{slotName}", FontAwesomeIcon.ChevronLeft, string.Empty, btnSize);
+                    }
+                }
+
+                ImGui.SameLine(0, 3.0f * scale);
+
+                if (index < totalCount - 1)
+                {
+                    if (UiUtils.IconButton($"MoveRight_{idPrefix}_{index}_{slotName}", FontAwesomeIcon.ChevronRight, LocalizationManager.Instance.GetLocalizedString("MoveRightTooltip"), btnSize))
+                    {
+                        moveRight = slotName;
+                    }
+                }
+                else
+                {
+                    using (ImRaii.Disabled())
+                    {
+                        UiUtils.IconButton($"MoveRightDis_{idPrefix}_{index}_{slotName}", FontAwesomeIcon.ChevronRight, string.Empty, btnSize);
+                    }
+                }
+
+                ImGui.SameLine(0, 3.0f * scale);
+
+                if (UiUtils.IconButton($"Del_{idPrefix}_{index}_{slotName}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), btnSize, customColor: new Vector4(0.9f, 0.4f, 0.4f, 0.9f)))
+                {
+                    remove = slotName;
+                }
+            }
+            ImGui.EndGroup();
+
+            ImGui.SetCursorScreenPos(pos);
+            ImGui.Dummy(new Vector2(cellWidth, cardHeight + 4.0f * scale));
         }
 
         private void DrawThresholdsCard(DiceSystem currentSystem)
@@ -1048,6 +1381,8 @@ namespace Soulstone.Windows
                     }
 
                     ImGui.TableNextColumn();
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("FavoriteAttributesCheckbox"), ref currentSystem.systemHasFavoriteAttributes);
                 }
             }
         }

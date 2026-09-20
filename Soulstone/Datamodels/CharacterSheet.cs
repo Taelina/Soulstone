@@ -403,7 +403,7 @@ namespace Soulstone.Datamodels
                 {
                     if (!characterAttributes.TryGetValue(kv.Key, out var attr))
                     {
-                        attr = new Attribute(kv.Value.Name, kv.Value.Value, kv.Value.Description);
+                        attr = new Attribute(kv.Value.Name, kv.Value.Value, kv.Value.Description, false);
                         characterAttributes[kv.Key] = attr;
                     }
                     result[kv.Key] = attr;
@@ -1121,7 +1121,7 @@ namespace Soulstone.Datamodels
                 {
                     if (!characterAttributes.ContainsKey(kv.Key))
                     {
-                        characterAttributes[kv.Key] = new Attribute(kv.Value.Name, kv.Value.Value, kv.Value.Description);
+                        characterAttributes[kv.Key] = new Attribute(kv.Value.Name, kv.Value.Value, kv.Value.Description, false);
                     }
                 }
             }

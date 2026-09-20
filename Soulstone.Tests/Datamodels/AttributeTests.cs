@@ -12,15 +12,43 @@ namespace Soulstone.Tests.Datamodels
         public void Constructor_WithValidNameAndValue_InitializesPropertiesCorrectly()
         {
             // Arrange & Act
-            var attribute = new Attribute("Strength", 14);
+            var attribute = new Attribute("Strength", 14, "Raw physical power", true);
 
             // Assert
             attribute.Name.Should().Be("Strength");
             attribute.Value.Should().Be(14);
+            attribute.Description.Should().Be("Raw physical power");
+            attribute.IsFavorite.Should().BeTrue();
             attribute.TempBonus.Should().Be(0);
             attribute.PermBonus.Should().Be(0);
             attribute.EpicBonus.Should().Be(0);
             attribute.TotalValue.Should().Be(14);
+        }
+
+        [Fact]
+        public void Clone_CopiesAllPropertiesIncludingFavorite()
+        {
+            // Arrange
+            var original = new Attribute("Agility", 12, "Speed and balance", true)
+            {
+                TempBonus = 2,
+                PermBonus = 1,
+                EpicBonus = 3
+            };
+
+            // Act
+            var clone = original.Clone();
+
+            // Assert
+            clone.Should().NotBeSameAs(original);
+            clone.Name.Should().Be("Agility");
+            clone.Value.Should().Be(12);
+            clone.Description.Should().Be("Speed and balance");
+            clone.IsFavorite.Should().BeTrue();
+            clone.TempBonus.Should().Be(2);
+            clone.PermBonus.Should().Be(1);
+            clone.EpicBonus.Should().Be(3);
+            clone.TotalValue.Should().Be(15);
         }
 
         [Theory]
@@ -65,7 +93,7 @@ namespace Soulstone.Tests.Datamodels
         public void JsonSerialization_PreservesAllFields()
         {
             // Arrange
-            var original = new Attribute("Charisma", 18)
+            var original = new Attribute("Charisma", 18, "Social influence", true)
             {
                 TempBonus = 1,
                 PermBonus = 2,
@@ -80,6 +108,8 @@ namespace Soulstone.Tests.Datamodels
             deserialized.Should().NotBeNull();
             deserialized!.Name.Should().Be("Charisma");
             deserialized.Value.Should().Be(18);
+            deserialized.Description.Should().Be("Social influence");
+            deserialized.IsFavorite.Should().BeTrue();
             deserialized.TempBonus.Should().Be(1);
             deserialized.PermBonus.Should().Be(2);
             deserialized.EpicBonus.Should().Be(3);

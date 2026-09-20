@@ -296,5 +296,45 @@ namespace Soulstone.Tests.Datamodels
             sheet.CharacterResources.Should().BeEmpty();
             sheet.GetEffectiveResources(system).Should().BeEmpty();
         }
+
+        [Fact]
+        public void FavoriteAttributes_ToggleOnSystem_ControlsFeatureAvailability()
+        {
+            // Arrange
+            var system = new DiceSystem();
+            system.SystemHasFavoriteAttributes.Should().BeFalse();
+
+            // Act
+            system.SystemHasFavoriteAttributes = true;
+
+            // Assert
+            system.SystemHasFavoriteAttributes.Should().BeTrue();
+        }
+
+        [Fact]
+        public void SystemAttributes_DoNotHaveFavoriteByDefault_AndAreCharacterSpecific()
+        {
+            // Arrange
+            var system = new DiceSystem { SystemHasFavoriteAttributes = true };
+            system.AddAttribute("Strength", 14, "Raw power");
+            system.AddAttribute("Wisdom", 10, "Insight");
+
+            var sheet = new CharacterSheet();
+            sheet.ApplyRulesetTemplate(system);
+
+            // Assert: Applied template attributes start with IsFavorite = false
+            var effectiveAttrs = sheet.GetEffectiveAttributes(system);
+            effectiveAttrs["Strength"].IsFavorite.Should().BeFalse();
+            effectiveAttrs["Wisdom"].IsFavorite.Should().BeFalse();
+
+            // Favorite is toggled on a character basis
+            effectiveAttrs["Strength"].IsFavorite = true;
+            sheet.CharacterAttributes["Strength"].IsFavorite.Should().BeTrue();
+
+            // Re-applying or getting effective attributes does not overwrite character favorite
+            sheet.ApplyRulesetTemplate(system);
+            sheet.GetEffectiveAttributes(system)["Strength"].IsFavorite.Should().BeTrue();
+            sheet.GetEffectiveAttributes(system)["Wisdom"].IsFavorite.Should().BeFalse();
+        }
     }
 }

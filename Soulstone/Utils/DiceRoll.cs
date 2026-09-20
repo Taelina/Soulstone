@@ -148,7 +148,7 @@ namespace Soulstone.Utils
             }
         }
 
-        // To be called when parsing a generic chat like dice roll string like "2d6", "3d8+2" or "1d20-1"
+        // To be called when parsing a generic chat or formula dice roll string like "2d6", "3d8+2", "1d20-1", "2d6 + 1d8 + 3", "4d6kh3"
         public static DiceRoll? ParseDiceRollString(string input, bool advantage = false, bool disadvantage = false)
         {
             if (string.IsNullOrWhiteSpace(input))
@@ -158,30 +158,73 @@ namespace Soulstone.Utils
 
             try
             {
-                // Expected format: XdY with an optional signed modifier, e.g. 2d6, 3d8+2, 1d20-1
-                var match = Regex.Match(input.Replace(" ", string.Empty), @"^(\d+)d(\d+)([+-]\d+)?$", RegexOptions.IgnoreCase);
-                if (!match.Success)
+                var trimmed = input.Trim();
+
+                if (trimmed.StartsWith("-"))
                 {
-                    Plugin.Log?.Warning("Invalid dice roll format. Use XdY(+/-Z) (e.g., 2d6 for two six-sided dice).");
                     return null;
                 }
 
-                if (!int.TryParse(match.Groups[1].Value, out int numberOfDice) ||
-                    !int.TryParse(match.Groups[2].Value, out int sidesPerDie) ||
-                    numberOfDice <= 0 || sidesPerDie <= 0)
+                // Check for single basic dice roll notation: [N]d[S] (+/- Z) without other modifiers or multiple terms
+                var singleSimpleMatch = Regex.Match(trimmed.Replace(" ", string.Empty), @"^(?<count>\d+)?d(?<sides>\d+)(?:(?<sign>[+-])(?<mod>\d+))?$", RegexOptions.IgnoreCase);
+                if (singleSimpleMatch.Success)
                 {
-                    Plugin.Log?.Warning("Invalid dice roll format. Dice count and sides must both be positive.");
+                    int numberOfDice = singleSimpleMatch.Groups["count"].Success && !string.IsNullOrEmpty(singleSimpleMatch.Groups["count"].Value)
+                        ? int.Parse(singleSimpleMatch.Groups["count"].Value)
+                        : 1;
+                    int sidesPerDie = int.Parse(singleSimpleMatch.Groups["sides"].Value);
+
+                    if (numberOfDice <= 0 || sidesPerDie <= 0)
+                    {
+                        Plugin.Log?.Warning("Invalid dice roll format. Dice count and sides must both be positive.");
+                        return null;
+                    }
+
+                    int addedValue = 0;
+                    if (singleSimpleMatch.Groups["mod"].Success)
+                    {
+                        int modVal = int.Parse(singleSimpleMatch.Groups["mod"].Value);
+                        addedValue = singleSimpleMatch.Groups["sign"].Value == "-" ? -modVal : modVal;
+                    }
+
+                    return RollDiceRegular(numberOfDice, sidesPerDie, addedValue, "", advantage, disadvantage);
+                }
+
+                if (StatFormulaEvaluator.ContainsInvalidIdentifiersForRoll(trimmed))
+                {
                     return null;
                 }
 
-                int addedValue = 0;
-                if (match.Groups[3].Success && !int.TryParse(match.Groups[3].Value, out addedValue))
+                // Complex formula evaluation (multi-dice, modifiers like kh/kl/dh/dl/r/!/cs, math expressions)
+                var result = StatFormulaEvaluator.RollFormula(trimmed, advantage: advantage, disadvantage: disadvantage);
+                if (!result.Success || result.TermResults.Count == 0 || !double.IsFinite(result.Total))
                 {
-                    Plugin.Log?.Warning("Invalid bonus format in dice roll string. Bonus must be an integer.");
                     return null;
                 }
 
-                return RollDiceRegular(numberOfDice, sidesPerDie, addedValue, "", advantage, disadvantage);
+                int total = result.TotalInt;
+                var roll = new DiceRoll
+                {
+                    RollResult = total,
+                    IndividualRolls = result.IndividualRolls
+                };
+
+                string breakdown = result.DetailedBreakdown;
+                SeString resultStr = LocalizationManager.Instance.GetLocalizedString("RollResultFormula", "", trimmed, total);
+                SeString detailedStr = LocalizationManager.Instance.GetLocalizedString("RollDetailedFormula", "", trimmed, breakdown, total);
+
+                if (string.IsNullOrWhiteSpace(resultStr.TextValue) || resultStr.TextValue == "RollResultFormula")
+                {
+                    resultStr = $"Rolled {trimmed}: Total: {total}";
+                }
+                if (string.IsNullOrWhiteSpace(detailedStr.TextValue) || detailedStr.TextValue == "RollDetailedFormula")
+                {
+                    detailedStr = $"Rolled {trimmed}: [{breakdown}] Total: {total}";
+                }
+
+                roll.RollResultString = resultStr;
+                roll.RollDetailedResultString = detailedStr;
+                return roll;
             }
             catch (Exception ex)
             {

@@ -52,6 +52,7 @@ namespace Soulstone.Datamodels
         public bool systemHasBonusTemp = false;
         public bool systemHasBonusPerm = false;
         public bool systemHasEpicAttributes = false;
+        public bool systemHasFavoriteAttributes = false;
         public bool systemHasInventoryLimit = false;
         public int inventoryMaxSlots = 30;
 
@@ -105,6 +106,7 @@ namespace Soulstone.Datamodels
         public bool SystemHasBonusTemp { get => systemHasBonusTemp; set => systemHasBonusTemp = value; }
         public bool SystemHasBonusPerm { get => systemHasBonusPerm; set => systemHasBonusPerm = value; }
         public bool SystemHasEpicAttributes { get => systemHasEpicAttributes; set => systemHasEpicAttributes = value; }
+        public bool SystemHasFavoriteAttributes { get => systemHasFavoriteAttributes; set => systemHasFavoriteAttributes = value; }
         public bool SystemHasInventoryLimit { get => systemHasInventoryLimit; set => systemHasInventoryLimit = value; }
         public int InventoryMaxSlots { get => inventoryMaxSlots; set => inventoryMaxSlots = value; }
         public bool SystemHasAugmentations { get => systemHasAugmentations; set => systemHasAugmentations = value; }
@@ -126,7 +128,11 @@ namespace Soulstone.Datamodels
 
             if (sheet.characterAttributes != null && sheet.characterAttributes.Count > 0)
             {
-                systemAttributes = new Dictionary<string, Attribute>(sheet.characterAttributes, StringComparer.OrdinalIgnoreCase);
+                systemAttributes = new Dictionary<string, Attribute>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in sheet.characterAttributes)
+                {
+                    systemAttributes[kv.Key] = new Attribute(kv.Value.Name, kv.Value.Value, kv.Value.Description, false);
+                }
             }
 
             if (sheet.characterSkills != null && sheet.characterSkills.Count > 0)
@@ -261,6 +267,25 @@ namespace Soulstone.Datamodels
             return true;
         }
 
+        public void AddAttribute(Attribute attribute)
+        {
+            if (attribute == null || string.IsNullOrWhiteSpace(attribute.Name)) return;
+            systemAttributes ??= new Dictionary<string, Attribute>(StringComparer.OrdinalIgnoreCase);
+            systemAttributes[attribute.Name] = attribute;
+        }
+
+        public void AddAttribute(string name, int value = 0, string description = "")
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            AddAttribute(new Attribute(name, value, description, false));
+        }
+
+        public bool RemoveAttribute(string attributeKey)
+        {
+            if (systemAttributes == null || string.IsNullOrWhiteSpace(attributeKey)) return false;
+            return systemAttributes.Remove(attributeKey);
+        }
+
         public bool MoveSkill(string skillKey, int direction)
         {
             if (systemSkills == null || systemSkills.Count < 2) return false;
@@ -326,6 +351,36 @@ namespace Soulstone.Datamodels
             return true;
         }
 
+        public void AddEquipmentSlot(string slotName)
+        {
+            if (string.IsNullOrWhiteSpace(slotName)) return;
+            if (customEquipmentSlots == null || customEquipmentSlots.Count == 0)
+            {
+                customEquipmentSlots = GearItem.StandardSlots.ToList();
+            }
+            string trimmed = slotName.Trim();
+            if (!customEquipmentSlots.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+            {
+                customEquipmentSlots.Add(trimmed);
+            }
+        }
+
+        public bool RemoveEquipmentSlot(string slotName)
+        {
+            if (string.IsNullOrWhiteSpace(slotName)) return false;
+            if (customEquipmentSlots == null || customEquipmentSlots.Count == 0)
+            {
+                customEquipmentSlots = GearItem.StandardSlots.ToList();
+            }
+            int idx = customEquipmentSlots.FindIndex(s => string.Equals(s, slotName, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0)
+            {
+                customEquipmentSlots.RemoveAt(idx);
+                return true;
+            }
+            return false;
+        }
+
         public bool MoveAugmentationSlot(string slotName, int direction)
         {
             if (customAugmentationSlots == null || customAugmentationSlots.Count == 0)
@@ -343,6 +398,36 @@ namespace Soulstone.Datamodels
             customAugmentationSlots.RemoveAt(idx);
             customAugmentationSlots.Insert(targetIdx, item);
             return true;
+        }
+
+        public void AddAugmentationSlot(string slotName)
+        {
+            if (string.IsNullOrWhiteSpace(slotName)) return;
+            if (customAugmentationSlots == null || customAugmentationSlots.Count == 0)
+            {
+                customAugmentationSlots = GearItem.StandardAugmentationSlots.ToList();
+            }
+            string trimmed = slotName.Trim();
+            if (!customAugmentationSlots.Contains(trimmed, StringComparer.OrdinalIgnoreCase))
+            {
+                customAugmentationSlots.Add(trimmed);
+            }
+        }
+
+        public bool RemoveAugmentationSlot(string slotName)
+        {
+            if (string.IsNullOrWhiteSpace(slotName)) return false;
+            if (customAugmentationSlots == null || customAugmentationSlots.Count == 0)
+            {
+                customAugmentationSlots = GearItem.StandardAugmentationSlots.ToList();
+            }
+            int idx = customAugmentationSlots.FindIndex(s => string.Equals(s, slotName, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0)
+            {
+                customAugmentationSlots.RemoveAt(idx);
+                return true;
+            }
+            return false;
         }
 
         public List<string> GetEffectiveEquipmentSlots()

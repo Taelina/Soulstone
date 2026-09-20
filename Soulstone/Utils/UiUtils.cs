@@ -890,7 +890,7 @@ namespace Soulstone.Utils
             return clicked;
         }
 
-        public static bool IconButton(string id, FontAwesomeIcon icon, string tooltip = "", Vector2? size = null, bool enabled = true)
+        public static bool IconButton(string id, FontAwesomeIcon icon, string tooltip = "", Vector2? size = null, bool enabled = true, Vector4? customColor = null)
         {
             bool clicked = false;
             if (!enabled)
@@ -898,6 +898,7 @@ namespace Soulstone.Utils
                 ImGui.BeginDisabled();
             }
 
+            using var color = ImRaii.PushColor(ImGuiCol.Text, customColor ?? ImGuiColors.DalamudWhite, customColor.HasValue);
             ImGui.PushFont(UiBuilder.IconFont);
             var iconStr = icon.ToIconString();
             var iconSize = ImGui.CalcTextSize(iconStr);

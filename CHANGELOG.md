@@ -5,6 +5,25 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-20
+
+### Added
+- **Complex Dice Expression & Compound Term Engine**:
+  - Implemented compound dice term parsing and arithmetic evaluation (`DiceTerm`) supporting multi-die notation and custom formulas.
+- **Enhanced Stat & Attribute Formula Evaluation**:
+  - Extended `StatFormulaEvaluator` to support secondary attributes, evaluated dynamic stats, and custom formula-driven attribute values.
+- **Ruleset & Character Stat Customization**:
+  - Added support for formula-driven secondary attributes and ruleset extensions in `DiceSystemWindow` and `CharStatsWindow`.
+  - Added enhanced slot configuration for gear and augmentations in `GearWindow`.
+
+### Changed
+- **Version Manifests & Metadata**:
+  - Bumped version to `1.2.0.0` across `Soulstone.csproj`, `Soulstone.json`, and `SoulstoneRep.json`.
+- **Localization**:
+  - Added localized strings for new dice formula options, attribute formulas, and UI controls in English and French dictionaries (`en.json` and `fr.json`).
+
+---
+
 ## [1.1.2] - 2026-09-19
 
 ### Fixed
