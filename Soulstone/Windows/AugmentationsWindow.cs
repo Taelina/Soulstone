@@ -276,11 +276,17 @@ namespace Soulstone.Windows
             {
                 if (child.Success)
                 {
-                    DrawTotalStatBonuses(sheet);
-                    ImGui.Spacing();
-                    UiUtils.DrawOrnamentalDivider(accentColor: ImGuiColors.ParsedBlue);
-                    ImGui.Spacing();
-                    DrawEquippedAugmentationsList(sheet);
+                    var sectionHeight = Math.Max(1.0f, (ImGui.GetContentRegionAvail().Y - ImGui.GetStyle().ItemSpacing.Y) / 2.0f);
+                    using (var bonusesSection = ImRaii.Child("##AugBonusesSection", new Vector2(0, sectionHeight)))
+                    {
+                        if (bonusesSection.Success)
+                            DrawTotalStatBonuses(sheet);
+                    }
+                    using (var detailsSection = ImRaii.Child("##AugDetailsSection", new Vector2(0, sectionHeight)))
+                    {
+                        if (detailsSection.Success)
+                            DrawEquippedAugmentationsList(sheet);
+                    }
                 }
             }
         }
@@ -317,7 +323,7 @@ namespace Soulstone.Windows
             using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.12f, 0.14f, 0.85f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8f, 6f) * scale))
-            using (var bonusCard = ImRaii.Child("##TotalAugModsPanel", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar))
+            using (var bonusCard = ImRaii.Child("##TotalAugModsPanel", new Vector2(0, 0), true))
             {
                 if (bonusCard.Success)
                 {

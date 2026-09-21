@@ -5,6 +5,25 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-09-21
+
+### Added
+- **Ruleset Skill & Ability Configuration**:
+  - Added skill and ability creation, editing, removal, and ordering controls to custom dice-system templates.
+  - Added linked attribute and linked skill configuration for ruleset abilities and skills.
+- **Character Ability Management**:
+  - Added a dedicated ability tab with search, creation, editing, and removal controls to the feats and traits interface.
+
+### Changed
+- **Character Sheet Layouts**:
+  - Refined the presentation and selection layouts for character stats, gear, augmentations, and feats.
+- **Localization**:
+  - Added matching English and French strings for ruleset skills, linked attributes and skills, and character ability management.
+- **Version Manifests & Metadata**:
+  - Bumped version to `1.2.1.0` across `Soulstone.csproj`, `Soulstone.json`, and `SoulstoneRep.json` and updated repository download links for release `V1.2.1`.
+
+---
+
 ## [1.2.0] - 2026-09-20
 
 ### Added

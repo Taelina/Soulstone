@@ -39,6 +39,13 @@ namespace Soulstone.Windows
         private bool showDeleteConfirmModal = false;
         private Feat? featToDelete = null;
 
+        private bool showAbilityModal = false;
+        private string newAbilityName = string.Empty;
+        private int newAbilityValue = 0;
+        private string newAbilityDescription = string.Empty;
+        private string selectedAbilityAttribute = string.Empty;
+        private string selectedAbilitySkill = string.Empty;
+
         private readonly string[] standardCategories = new[]
         {
             "General", "Combat", "Magic", "Passive", "Active", "Origin", "Racial", "Class", "Custom"
@@ -70,6 +77,8 @@ namespace Soulstone.Windows
 
             DrawTopBar(currentCharacter, currentDiceSystem);
             ImGui.Spacing();
+            DrawAbilitiesSection(currentCharacter, currentDiceSystem);
+            ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
             DrawFilterBar(currentCharacter);
@@ -92,6 +101,160 @@ namespace Soulstone.Windows
             }
 
             DrawModals(currentCharacter, currentDiceSystem);
+            DrawAbilityModal(currentCharacter, currentDiceSystem);
+        }
+
+        private void DrawAbilitiesSection(CharacterSheet sheet, DiceSystem? diceSystem)
+        {
+            var abilities = sheet.GetEffectiveAbilities(diceSystem);
+
+            if (!UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("AbilityLabel"), defaultOpen: true, icon: FontAwesomeIcon.Bolt, accentColor: ImGuiColors.TankBlue))
+                return;
+
+            if (UiUtils.IconTextButton("AddAbilityBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton")))
+            {
+                newAbilityName = string.Empty;
+                newAbilityValue = 0;
+                newAbilityDescription = string.Empty;
+                selectedAbilityAttribute = string.Empty;
+                selectedAbilitySkill = string.Empty;
+                showAbilityModal = true;
+            }
+
+            if (abilities == null || abilities.Count == 0)
+            {
+                ImGui.SameLine();
+                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAbilitiesDefined"));
+                return;
+            }
+
+            string? abilityToRemove = null;
+            string? abilityToMoveUp = null;
+            string? abilityToMoveDown = null;
+            var abilityList = abilities.ToList();
+            for (var i = 0; i < abilityList.Count; i++)
+            {
+                var ability = abilityList[i];
+                ImGui.PushID($"FeatAbility_{ability.Key}");
+
+                if (i > 0 && UiUtils.IconButton("MoveUp", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip")))
+                    abilityToMoveUp = ability.Key;
+                if (i > 0) ImGui.SameLine();
+                if (i < abilityList.Count - 1 && UiUtils.IconButton("MoveDown", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip")))
+                    abilityToMoveDown = ability.Key;
+                if (i < abilityList.Count - 1) ImGui.SameLine();
+
+                ImGui.TextColored(ImGuiColors.TankBlue, ability.Value.abilityName);
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(70.0f * ImGuiHelpers.GlobalScale);
+                ImGui.InputInt("##AbilityModifier", ref ability.Value.abilityModifier, 0);
+
+                if (!string.IsNullOrWhiteSpace(ability.Value.linkedAttribute))
+                {
+                    ImGui.SameLine();
+                    UiUtils.Badge(ability.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
+                }
+                if (ability.Value.linkedSkill != null && !string.IsNullOrWhiteSpace(ability.Value.linkedSkill.skillName))
+                {
+                    ImGui.SameLine();
+                    UiUtils.Badge(ability.Value.linkedSkill.skillName, new Vector4(0.15f, 0.28f, 0.18f, 0.6f), ImGuiColors.ParsedGreen);
+                }
+
+                ImGui.SameLine();
+                if (UiUtils.IconButton("Roll", FontAwesomeIcon.DiceD20, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {ability.Value.abilityName}"))
+                {
+                    var modifier = ability.Value.abilityModifier + sheet.GetGearStatBonus(ability.Value.abilityName) + sheet.GetBuffStatBonus(ability.Value.abilityName) + sheet.GetFeatStatBonus(ability.Value.abilityName);
+                    if (!string.IsNullOrWhiteSpace(ability.Value.linkedAttribute) && sheet.GetEffectiveAttributes(diceSystem)?.TryGetValue(ability.Value.linkedAttribute, out var attribute) == true)
+                    {
+                        modifier += attribute.Value;
+                        if (diceSystem == null || diceSystem.systemHasBonusTemp) modifier += attribute.TempBonus;
+                        if (diceSystem == null || diceSystem.systemHasBonusPerm) modifier += attribute.PermBonus;
+                        modifier += sheet.GetGearStatBonus(ability.Value.linkedAttribute) + sheet.GetBuffStatBonus(ability.Value.linkedAttribute) + sheet.GetFeatStatBonus(ability.Value.linkedAttribute);
+                    }
+                    if (ability.Value.linkedSkill != null)
+                    {
+                        modifier += ability.Value.linkedSkill.skillModifier;
+                        modifier += sheet.GetGearStatBonus(ability.Value.linkedSkill.skillName) + sheet.GetBuffStatBonus(ability.Value.linkedSkill.skillName) + sheet.GetFeatStatBonus(ability.Value.linkedSkill.skillName);
+                    }
+                    DiceRoll.RollDice(modifier, modifier, rollName: ability.Value.abilityName, detailedRoll: configuration.detailedRolls, target: modifier);
+                }
+
+                ImGui.SameLine();
+                if (UiUtils.IconButton("Delete", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton")))
+                    abilityToRemove = ability.Key;
+
+                if (!string.IsNullOrWhiteSpace(ability.Value.abilityDescription) && ImGui.IsItemHovered())
+                    ImGui.SetTooltip(ability.Value.abilityDescription);
+
+                ImGui.PopID();
+            }
+
+            if (abilityToMoveUp != null)
+            {
+                sheet.MoveAbility(abilityToMoveUp, -1);
+                diceSystem?.MoveAbility(abilityToMoveUp, -1);
+            }
+            if (abilityToMoveDown != null)
+            {
+                sheet.MoveAbility(abilityToMoveDown, 1);
+                diceSystem?.MoveAbility(abilityToMoveDown, 1);
+            }
+            if (abilityToRemove != null)
+            {
+                sheet.characterAbilities.Remove(abilityToRemove);
+                diceSystem?.SystemAbilities.Remove(abilityToRemove);
+            }
+        }
+
+        private void DrawAbilityModal(CharacterSheet sheet, DiceSystem? diceSystem)
+        {
+            if (showAbilityModal)
+                ImGui.OpenPopup("NewAbilityModal");
+
+            if (!ImGui.BeginPopupModal("NewAbilityModal", ref showAbilityModal, ImGuiWindowFlags.AlwaysAutoResize))
+                return;
+
+            ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAbilityName"));
+            UiUtils.StyledInputText("NewAbilityName", ref newAbilityName, 100, width: 260.0f);
+            ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAbilityValue"));
+            UiUtils.StyledInputInt("NewAbilityValue", ref newAbilityValue, 1, width: 100.0f);
+            ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAbilityDescription"));
+            UiUtils.StyledInputText("NewAbilityDescription", ref newAbilityDescription, 200, width: 260.0f);
+
+            var noneLabel = LocalizationManager.Instance.GetLocalizedString("NoneOption");
+            ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute"));
+            var attributes = new List<string> { string.Empty };
+            attributes.AddRange(sheet.GetEffectiveAttributes(diceSystem)?.Keys ?? Enumerable.Empty<string>());
+            UiUtils.StyledCombo("##AbilityAttribute", ref selectedAbilityAttribute, attributes, emptyLabel: noneLabel);
+
+            ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewLinkedSkill"));
+            var skills = new List<string> { string.Empty };
+            skills.AddRange(sheet.GetEffectiveSkills(diceSystem)?.Keys ?? Enumerable.Empty<string>());
+            UiUtils.StyledCombo("##AbilitySkill", ref selectedAbilitySkill, skills, emptyLabel: noneLabel);
+
+            if (UiUtils.IconTextButton("ConfirmAbility", FontAwesomeIcon.Check, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")) && !string.IsNullOrWhiteSpace(newAbilityName))
+            {
+                Skill? linkedSkill = null;
+                sheet.GetEffectiveSkills(diceSystem)?.TryGetValue(selectedAbilitySkill, out linkedSkill);
+                var ability = new Ability
+                {
+                    abilityName = newAbilityName,
+                    abilityModifier = newAbilityValue,
+                    abilityDescription = newAbilityDescription,
+                    linkedAttribute = selectedAbilityAttribute,
+                    linkedSkill = linkedSkill
+                };
+                sheet.characterAbilities ??= new Dictionary<string, Ability>(StringComparer.OrdinalIgnoreCase);
+                sheet.characterAbilities[newAbilityName] = ability;
+                if (diceSystem != null)
+                    diceSystem.SystemAbilities[newAbilityName] = ability;
+                showAbilityModal = false;
+            }
+            ImGui.SameLine();
+            if (UiUtils.IconTextButton("CancelAbility", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton")))
+                showAbilityModal = false;
+
+            ImGui.EndPopup();
         }
 
         private void DrawTopBar(CharacterSheet sheet, DiceSystem? diceSystem)

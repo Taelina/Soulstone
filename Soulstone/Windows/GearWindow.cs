@@ -276,47 +276,59 @@ namespace Soulstone.Windows
             {
                 if (child.Success)
                 {
-                    // Section 1: Total Stat Alterations
-                    UiUtils.DrawSectionHeader(
-                        LocalizationManager.Instance.GetLocalizedString("TotalGearBonusesLabel"),
-                        FontAwesomeIcon.ChartLine,
-                        ImGuiColors.ParsedGreen);
+                    var sectionHeight = Math.Max(1.0f, (ImGui.GetContentRegionAvail().Y - ImGui.GetStyle().ItemSpacing.Y) / 2.0f);
 
-                    var totalBonuses = sheet.GetAllGearStatBonuses();
-                    if (totalBonuses.Count == 0)
+                    using (var bonusesSection = ImRaii.Child("##GearBonusesSection", new Vector2(0, sectionHeight)))
                     {
-                        ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoGearEquipped"));
-                    }
-                    else
-                    {
-                        using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.12f, 0.14f, 0.85f)))
-                        using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
-                        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8f, 6f) * scale))
-                        using (var bonusCard = ImRaii.Child("##TotalModsPanel", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar))
+                        if (bonusesSection.Success)
                         {
-                            if (bonusCard.Success)
+                            // Section 1: Total Stat Alterations
+                            UiUtils.DrawSectionHeader(
+                                LocalizationManager.Instance.GetLocalizedString("TotalGearBonusesLabel"),
+                                FontAwesomeIcon.ChartLine,
+                                ImGuiColors.ParsedGreen);
+
+                            var totalBonuses = sheet.GetAllGearStatBonuses();
+                            if (totalBonuses.Count == 0)
                             {
-                                foreach (var kv in totalBonuses)
+                                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoGearEquipped"));
+                            }
+                            else
+                            {
+                                using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.12f, 0.14f, 0.85f)))
+                                using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
+                                using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8f, 6f) * scale))
+                                using (var bonusCard = ImRaii.Child("##TotalModsPanel", new Vector2(0, 0), true))
                                 {
-                                    string sign = kv.Value >= 0 ? "+" : "";
-                                    string chipText = $"{kv.Key} {sign}{kv.Value}";
-                                    var chipColor = kv.Value >= 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
-                                    var chipBg = kv.Value >= 0 ? new Vector4(0.14f, 0.32f, 0.20f, 0.85f) : new Vector4(0.38f, 0.14f, 0.14f, 0.85f);
-                                    UiUtils.PillBadge(chipText, chipBg, chipColor, FontAwesomeIcon.Bolt);
-                                    ImGui.SameLine(0, 6.0f * scale);
+                                    if (bonusCard.Success)
+                                    {
+                                        foreach (var kv in totalBonuses)
+                                        {
+                                            string sign = kv.Value >= 0 ? "+" : "";
+                                            string chipText = $"{kv.Key} {sign}{kv.Value}";
+                                            var chipColor = kv.Value >= 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+                                            var chipBg = kv.Value >= 0 ? new Vector4(0.14f, 0.32f, 0.20f, 0.85f) : new Vector4(0.38f, 0.14f, 0.14f, 0.85f);
+                                            UiUtils.PillBadge(chipText, chipBg, chipColor, FontAwesomeIcon.Bolt);
+                                            ImGui.SameLine(0, 6.0f * scale);
+                                        }
+                                        ImGui.NewLine();
+                                    }
                                 }
-                                ImGui.NewLine();
                             }
                         }
                     }
 
-                    ImGui.Spacing();
-                    UiUtils.DrawOrnamentalDivider(accentColor: ImGuiColors.ParsedGold);
-                    ImGui.Spacing();
-
-                    // Section 2: Selected Gear Item Inspector
-                    if (!string.IsNullOrEmpty(selectedSlot))
+                    using (var detailsSection = ImRaii.Child("##GearDetailsSection", new Vector2(0, sectionHeight)))
                     {
+                        if (!detailsSection.Success) return;
+
+                        if (string.IsNullOrEmpty(selectedSlot))
+                        {
+                            ImGui.TextDisabled("Select an equipment slot on the left to inspect details.");
+                            return;
+                        }
+
+                        // Section 2: Selected Gear Item Inspector
                         var equipped = sheet.GetEquippedGear(selectedSlot);
                         string localizedSlot = GetLocalizedSlotName(selectedSlot);
                         var slotIcon = GetSlotIcon(selectedSlot);
@@ -421,10 +433,6 @@ namespace Soulstone.Windows
                                 showEquipModal = true;
                             }
                         }
-                    }
-                    else
-                    {
-                        ImGui.TextDisabled("Select an equipment slot on the left to inspect details.");
                     }
                 }
             }

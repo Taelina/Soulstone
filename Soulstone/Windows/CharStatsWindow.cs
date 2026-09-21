@@ -27,9 +27,6 @@ namespace Soulstone.Windows
 
         public string diceType = "";
 
-        private bool showAbilitiesPopup = false;
-        private bool showSkillPopup = false;
-        private bool showAttributesPopup = false;
         private bool showBuffPopup = false;
         private bool showResourcePopup = false;
         private bool showStatRollModal = false;
@@ -46,28 +43,29 @@ namespace Soulstone.Windows
 
         private bool editingStats = false;
 
+        private bool showAttributesPopup = false;
+        private bool showSkillPopup = false;
+        private bool showAbilitiesPopup = false;
+        private string newAttributeName = string.Empty;
+        private int newAttributeValue = 0;
+        private string newAttributeDescription = string.Empty;
+        private bool newAttributeFavorite = false;
+        private string newSkillName = string.Empty;
+        private int newSkillValue = 0;
+        private string newSkillDescription = string.Empty;
+        private Skill newSkill = new();
+        private string newAbilityName = string.Empty;
+        private int newAbilityValue = 0;
+        private string newAbilityDescription = string.Empty;
+        private Ability newAbility = new();
+        private string selectedAttribute = string.Empty;
+        private string selectedSkill = string.Empty;
+
         private string newResourceName = "";
         private int newResourceMaxValue = 100;
         private int newResourceType = 0;
         private bool newResourceIsRollable = false;
         private bool newResourceShowInGroup = true;
-
-        private string newAttributeName = "";
-        private int newAttributeValue = 0;
-        private string newAttributeDescription = "";
-        private bool newAttributeFavorite = false;
-
-        private string newSkillName = "";
-        private int newSkillValue = 0;
-        private string newSkillDescription = "";
-        private string selectedAttribute = "";
-        private Skill? newSkill = null;
-
-        private string newAbilityName = "";
-        private int newAbilityValue = 0;
-        private string newAbilityDescription = "";
-        private string selectedSkill = "";
-        private Ability? newAbility = null;
 
         private string newCharBuffName = "";
         private int newCharBuffDuration = 3;
@@ -679,7 +677,7 @@ namespace Soulstone.Windows
 
             var availHeight = Math.Max(240.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y - 4.0f);
 
-            using (var table = ImRaii.Table("##StatsColumnsGrid", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.BordersInnerV))
+            using (var table = ImRaii.Table("##StatsColumnsGrid", 2, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.BordersInnerV))
             {
                 if (table.Success)
                 {
@@ -688,9 +686,6 @@ namespace Soulstone.Windows
 
                     ImGui.TableNextColumn();
                     DrawSkillsColumn(availHeight);
-
-                    ImGui.TableNextColumn();
-                    DrawAbilitiesColumn(availHeight);
                 }
             }
         }
@@ -724,22 +719,6 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     UiUtils.Badge((effectiveAttributes?.Count ?? 0).ToString(), new Vector4(0.35f, 0.28f, 0.12f, 0.5f), ImGuiColors.ParsedGold);
 
-                    var addBtnWidth = 24.0f * ImGuiHelpers.GlobalScale;
-                    var rightX = ImGui.GetWindowContentRegionMax().X - addBtnWidth;
-                    if (ImGui.GetCursorPosX() < rightX)
-                        ImGui.SameLine(rightX);
-                    else
-                        ImGui.SameLine();
-
-                    if (UiUtils.IconButton("AddAttrBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
-                    {
-                        newAttributeName = "";
-                        newAttributeValue = 0;
-                        newAttributeDescription = "";
-                        newAttributeFavorite = false;
-                        showAttributesPopup = true;
-                    }
-
                     ImGui.Separator();
                     ImGui.Spacing();
 
@@ -755,7 +734,6 @@ namespace Soulstone.Windows
                     else
                     {
                         var attrList = effectiveAttributes.ToList();
-                        string? attrToRemove = null;
                         string? attrToMoveUp = null;
                         string? attrToMoveDown = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
@@ -807,12 +785,6 @@ namespace Soulstone.Windows
                                     }
                                     ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
                                 }
-
-                                if (UiUtils.IconButton($"Del_{attribute.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
-                                {
-                                    attrToRemove = attribute.Key;
-                                }
-                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
 
                                 if (hasFavoriteAttributes)
                                 {
@@ -991,7 +963,6 @@ namespace Soulstone.Windows
                                         statRollName = attribute.Key;
                                         statRollAttribute = attribute.Value;
                                         statRollSkill = null;
-                                        statRollAbility = null;
                                         rollBonusOrPenalty = 0;
                                         showStatRollModal = true;
                                     }
@@ -1004,7 +975,6 @@ namespace Soulstone.Windows
                                     statRollName = attribute.Key;
                                     statRollAttribute = attribute.Value;
                                     statRollSkill = null;
-                                    statRollAbility = null;
                                     rollBonusOrPenalty = 0;
                                     showStatRollModal = true;
                                 }
@@ -1049,11 +1019,6 @@ namespace Soulstone.Windows
                             currentCharacter.MoveAttribute(attrToMoveDown, 1);
                             currentDiceSystem?.MoveAttribute(attrToMoveDown, 1);
                         }
-                        if (attrToRemove != null)
-                        {
-                            currentCharacter.characterAttributes.Remove(attrToRemove);
-                            currentDiceSystem?.SystemAttributes?.Remove(attrToRemove);
-                        }
                     }
                 }
             }
@@ -1078,21 +1043,6 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     UiUtils.Badge((effectiveSkills?.Count ?? 0).ToString(), new Vector4(0.15f, 0.35f, 0.2f, 0.5f), ImGuiColors.ParsedGreen);
 
-                    var addBtnWidth = 24.0f * ImGuiHelpers.GlobalScale;
-                    var rightX = ImGui.GetWindowContentRegionMax().X - addBtnWidth;
-                    if (ImGui.GetCursorPosX() < rightX)
-                        ImGui.SameLine(rightX);
-                    else
-                        ImGui.SameLine();
-
-                    if (UiUtils.IconButton("AddSkillBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
-                    {
-                        newSkillName = "";
-                        newSkillValue = 0;
-                        selectedAttribute = currentCharacter.GetEffectiveAttributes(currentDiceSystem)?.Keys.FirstOrDefault() ?? "";
-                        showSkillPopup = true;
-                    }
-
                     ImGui.Separator();
                     ImGui.Spacing();
 
@@ -1108,7 +1058,6 @@ namespace Soulstone.Windows
                     else
                     {
                         var skillList = effectiveSkills.ToList();
-                        string? skillToRemove = null;
                         string? skillToMoveUp = null;
                         string? skillToMoveDown = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
@@ -1180,12 +1129,7 @@ namespace Soulstone.Windows
                                     }
                                     ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
                                 }
-
-                                if (UiUtils.IconButton($"Del_{skill.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
-                                {
-                                    skillToRemove = skill.Key;
-                                }
-                                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
 
                                 ImGui.AlignTextToFramePadding();
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, skill.Value.skillName);
@@ -1291,7 +1235,6 @@ namespace Soulstone.Windows
                                     statRollName = skill.Value.skillName;
                                     statRollSkill = skill.Value;
                                     statRollAttribute = null;
-                                    statRollAbility = null;
                                     if (currentDiceSystem?.dynamicSkillAttributeLinking == true && currentCharacter.characterAttributes != null && currentCharacter.characterAttributes.Count > 0)
                                     {
                                         selectedDynamicAttr = currentCharacter.characterAttributes.Keys.FirstOrDefault() ?? "";
@@ -1352,11 +1295,6 @@ namespace Soulstone.Windows
                         {
                             currentCharacter.MoveSkill(skillToMoveDown, 1);
                             currentDiceSystem?.MoveSkill(skillToMoveDown, 1);
-                        }
-                        if (skillToRemove != null)
-                        {
-                            currentCharacter.characterSkills.Remove(skillToRemove);
-                            currentDiceSystem?.SystemSkills?.Remove(skillToRemove);
                         }
                     }
                 }

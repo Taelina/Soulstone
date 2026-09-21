@@ -309,6 +309,31 @@ namespace Soulstone.Datamodels
             return true;
         }
 
+        public void AddSkill(Skill skill)
+        {
+            if (skill == null || string.IsNullOrWhiteSpace(skill.skillName)) return;
+            systemSkills ??= new Dictionary<string, Skill>(StringComparer.OrdinalIgnoreCase);
+            systemSkills[skill.skillName] = skill;
+        }
+
+        public void AddSkill(string name, string linkedAttribute = "", int modifier = 0, string description = "")
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            AddSkill(new Skill
+            {
+                skillName = name.Trim(),
+                linkedAttribute = linkedAttribute ?? string.Empty,
+                skillModifier = modifier,
+                skillDescription = description ?? string.Empty
+            });
+        }
+
+        public bool RemoveSkill(string skillKey)
+        {
+            if (systemSkills == null || string.IsNullOrWhiteSpace(skillKey)) return false;
+            return systemSkills.Remove(skillKey);
+        }
+
         public bool MoveAbility(string abilityKey, int direction)
         {
             if (systemAbilities == null || systemAbilities.Count < 2) return false;
@@ -330,6 +355,25 @@ namespace Soulstone.Datamodels
             }
             systemAbilities = newDict;
             return true;
+        }
+
+        public void AddAbility(Ability ability)
+        {
+            if (ability == null || string.IsNullOrWhiteSpace(ability.abilityName)) return;
+            systemAbilities ??= new Dictionary<string, Ability>(StringComparer.OrdinalIgnoreCase);
+            systemAbilities[ability.abilityName] = ability;
+        }
+
+        public void AddAbility(string name, int modifier = 0, string linkedAttribute = "", Skill? linkedSkill = null, string description = "")
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            AddAbility(new Ability(name.Trim(), modifier, linkedAttribute ?? string.Empty, linkedSkill, description ?? string.Empty));
+        }
+
+        public bool RemoveAbility(string abilityKey)
+        {
+            if (systemAbilities == null || string.IsNullOrWhiteSpace(abilityKey)) return false;
+            return systemAbilities.Remove(abilityKey);
         }
 
         public bool MoveEquipmentSlot(string slotName, int direction)

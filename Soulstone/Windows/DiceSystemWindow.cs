@@ -25,6 +25,10 @@ namespace Soulstone.Windows
         private string newSystemAttrName = string.Empty;
         private int newSystemAttrValue = 0;
         private string newSystemAttrDesc = string.Empty;
+        private string newSystemSkillName = string.Empty;
+        private string newSystemSkillLinkedAttr = string.Empty;
+        private int newSystemSkillMod = 0;
+        private string newSystemSkillDesc = string.Empty;
 
         // Resource Modal State
         private bool showResourceModal = false;
@@ -85,6 +89,8 @@ namespace Soulstone.Windows
                     DrawGeneralSettings(currentSystem);
                     ImGui.Spacing();
                     DrawAttributesCard(currentSystem);
+                    ImGui.Spacing();
+                    DrawSkillsCard(currentSystem);
                     ImGui.Spacing();
                     DrawInitiativeCard(currentSystem);
                     ImGui.Spacing();
@@ -470,6 +476,157 @@ namespace Soulstone.Windows
                         newSystemAttrName = string.Empty;
                         newSystemAttrValue = 0;
                         newSystemAttrDesc = string.Empty;
+                    }
+                }
+            }
+        }
+
+        private void DrawSkillsCard(DiceSystem currentSystem)
+        {
+            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysSkillsHeader"), defaultOpen: true, icon: FontAwesomeIcon.BookOpen, accentColor: ImGuiColors.ParsedBlue))
+            {
+                ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysSkillsSubtitle"));
+                ImGui.Spacing();
+
+                currentSystem.systemSkills ??= new Dictionary<string, Datamodels.Skill>(StringComparer.OrdinalIgnoreCase);
+                var skills = currentSystem.systemSkills.ToList();
+
+                var attrList = new List<string> { LocalizationManager.Instance.GetLocalizedString("AbilityNoneLinked") };
+                if (currentSystem.systemAttributes != null)
+                {
+                    attrList.AddRange(currentSystem.systemAttributes.Keys);
+                }
+
+                if (skills.Count == 0)
+                {
+                    ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("DiceSysNoSkills"));
+                }
+                else
+                {
+                    string? skillToRemove = null;
+                    string? skillToMoveUp = null;
+                    string? skillToMoveDown = null;
+
+                    using (var table = ImRaii.Table("##SystemSkillsTable", 5, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH))
+                    {
+                        if (table.Success)
+                        {
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("SkillLabel"), ImGuiTableColumnFlags.WidthStretch, 0.30f);
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("LinkedAttributeHeader"), ImGuiTableColumnFlags.WidthStretch, 0.25f);
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("StatValueHeader"), ImGuiTableColumnFlags.WidthFixed, 80.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"), ImGuiTableColumnFlags.WidthStretch, 0.35f);
+                            ImGui.TableSetupColumn("Action", ImGuiTableColumnFlags.WidthFixed, 100.0f * ImGuiHelpers.GlobalScale);
+                            ImGui.TableHeadersRow();
+
+                            for (int i = 0; i < skills.Count; i++)
+                            {
+                                var sk = skills[i];
+                                ImGui.PushID($"SysSkillRow_{sk.Key}");
+                                ImGui.TableNextRow();
+
+                                // Name column
+                                ImGui.TableNextColumn();
+                                ImGui.AlignTextToFramePadding();
+                                ImGui.TextColored(ImGuiColors.DalamudWhite, sk.Key);
+
+                                // Linked Attribute column
+                                ImGui.TableNextColumn();
+                                int currentAttrIdx = string.IsNullOrEmpty(sk.Value.linkedAttribute) ? 0 : attrList.IndexOf(sk.Value.linkedAttribute);
+                                if (currentAttrIdx < 0) currentAttrIdx = 0;
+                                if (UiUtils.StyledCombo($"SysSkillAttr_{sk.Key}", ref currentAttrIdx, attrList.ToArray(), icon: FontAwesomeIcon.Link, width: 130.0f))
+                                {
+                                    sk.Value.linkedAttribute = currentAttrIdx == 0 ? string.Empty : attrList[currentAttrIdx];
+                                }
+
+                                // Base Modifier column
+                                ImGui.TableNextColumn();
+                                UiUtils.StyledInputInt($"SysSkillVal_{sk.Key}", ref sk.Value.skillModifier, step: 1, width: 60.0f);
+
+                                // Description column
+                                ImGui.TableNextColumn();
+                                string desc = sk.Value.skillDescription ?? string.Empty;
+                                if (UiUtils.StyledInputText($"SysSkillDesc_{sk.Key}", ref desc, 200, width: 180.0f))
+                                {
+                                    sk.Value.skillDescription = desc;
+                                }
+
+                                // Action column (Move up / down / delete)
+                                ImGui.TableNextColumn();
+                                if (i > 0)
+                                {
+                                    if (UiUtils.IconButton($"MoveUpSysSkill_{sk.Key}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        skillToMoveUp = sk.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                if (i < skills.Count - 1)
+                                {
+                                    if (UiUtils.IconButton($"MoveDownSysSkill_{sk.Key}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                                    {
+                                        skillToMoveDown = sk.Key;
+                                    }
+                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                }
+                                if (UiUtils.IconButton($"DelSysSkill_{sk.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(24, 22) * ImGuiHelpers.GlobalScale))
+                                {
+                                    skillToRemove = sk.Key;
+                                }
+
+                                ImGui.PopID();
+                            }
+                        }
+                    }
+
+                    if (skillToMoveUp != null)
+                    {
+                        currentSystem.MoveSkill(skillToMoveUp, -1);
+                    }
+                    if (skillToMoveDown != null)
+                    {
+                        currentSystem.MoveSkill(skillToMoveDown, 1);
+                    }
+                    if (skillToRemove != null)
+                    {
+                        currentSystem.RemoveSkill(skillToRemove);
+                    }
+                }
+
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
+
+                // Add Skill section
+                ImGui.AlignTextToFramePadding();
+                ImGui.TextColored(ImGuiColors.ParsedBlue, LocalizationManager.Instance.GetLocalizedString("DiceSysAddSkill"));
+                ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
+
+                UiUtils.StyledInputText("NewSysSkillName", ref newSystemSkillName, 100, width: 130.0f, hint: LocalizationManager.Instance.GetLocalizedString("SkillLabel"));
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+
+                int newAttrIdx = string.IsNullOrEmpty(newSystemSkillLinkedAttr) ? 0 : attrList.IndexOf(newSystemSkillLinkedAttr);
+                if (newAttrIdx < 0) newAttrIdx = 0;
+                if (UiUtils.StyledCombo("NewSysSkillAttr", ref newAttrIdx, attrList.ToArray(), icon: FontAwesomeIcon.Link, width: 120.0f))
+                {
+                    newSystemSkillLinkedAttr = newAttrIdx == 0 ? string.Empty : attrList[newAttrIdx];
+                }
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+
+                UiUtils.StyledInputInt("NewSysSkillVal", ref newSystemSkillMod, step: 1, width: 50.0f);
+                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+
+                UiUtils.StyledInputText("NewSysSkillDesc", ref newSystemSkillDesc, 200, width: 150.0f, hint: LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
+                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+
+                if (UiUtils.IconTextButton("AddSysSkillBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton")))
+                {
+                    if (!string.IsNullOrWhiteSpace(newSystemSkillName))
+                    {
+                        currentSystem.AddSkill(newSystemSkillName.Trim(), newSystemSkillLinkedAttr, newSystemSkillMod, newSystemSkillDesc.Trim());
+                        newSystemSkillName = string.Empty;
+                        newSystemSkillLinkedAttr = string.Empty;
+                        newSystemSkillMod = 0;
+                        newSystemSkillDesc = string.Empty;
                     }
                 }
             }
