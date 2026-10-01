@@ -99,6 +99,12 @@ namespace Soulstone.Windows
                     modEditorState = new StatModifierEditorState();
                     showCreateAugModal = true;
                 });
+
+            ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - 28.0f * scale));
+            if (UiUtils.IconButton("SaveAugmentationsBtn", FontAwesomeIcon.Save, saveLabel))
+            {
+                CharacterSheet.SaveSheet(sheet);
+            }
         }
 
         private static FontAwesomeIcon GetAugSlotIcon(string slot)
@@ -149,7 +155,7 @@ namespace Soulstone.Windows
 
             var scale = ImGuiHelpers.GlobalScale;
             var pos = ImGui.GetCursorScreenPos();
-            var cardHeight = 52.0f * scale;
+            var cardHeight = 64.0f * scale;
             var cardSize = new Vector2(width, cardHeight);
 
             var drawList = ImGui.GetWindowDrawList();
@@ -213,7 +219,12 @@ namespace Soulstone.Windows
                         ImGui.SameLine(0, 8.0f * scale);
                         string modSummary = string.Join(", ", item.StatModifiers.Take(2).Select(kv => $"{(kv.Value >= 0 ? "+" : "")}{kv.Value} {kv.Key}"));
                         if (item.StatModifiers.Count > 2) modSummary += $" (+{item.StatModifiers.Count - 2})";
-                        UiUtils.PillBadge(modSummary, new Vector4(0.15f, 0.30f, 0.20f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Bolt);
+                        var badgeMaxWidth = pos.X + width - 96.0f * scale - ImGui.GetCursorScreenPos().X - 8.0f * scale;
+                        if (badgeMaxWidth > 32.0f * scale)
+                        {
+                            modSummary = TruncateToWidth(modSummary, badgeMaxWidth - 28.0f * scale);
+                            UiUtils.PillBadge(modSummary, new Vector4(0.15f, 0.30f, 0.20f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Bolt);
+                        }
                     }
                 }
                 else
@@ -226,7 +237,7 @@ namespace Soulstone.Windows
             // Right action buttons
             float rightButtonsWidth = item != null ? (96.0f * scale) : (64.0f * scale);
             var rightBtnX = pos.X + width - rightButtonsWidth;
-            ImGui.SetCursorScreenPos(new Vector2(rightBtnX, pos.Y + 12.0f * scale));
+            ImGui.SetCursorScreenPos(new Vector2(rightBtnX, pos.Y + (cardHeight - 26.0f * scale) * 0.5f));
 
             if (item != null)
             {
@@ -246,8 +257,12 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 4.0f * scale);
                 if (UiUtils.IconButton($"DeleteAug_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(26, 26) * scale))
                 {
-                    sheet.RemoveItem(item.Id);
-                    CharacterSheet.SaveSheet(sheet);
+                    var itemId = item.Id;
+                    DeleteConfirmation.Request(() =>
+                    {
+                        sheet.RemoveItem(itemId);
+                        CharacterSheet.SaveSheet(sheet);
+                    });
                 }
             }
             else
@@ -268,6 +283,19 @@ namespace Soulstone.Windows
 
             ImGui.PopID();
             ImGui.SetCursorScreenPos(new Vector2(pos.X, pos.Y + cardHeight));
+        }
+
+        private static string TruncateToWidth(string text, float maxWidth)
+        {
+            if (ImGui.CalcTextSize(text).X <= maxWidth) return text;
+
+            const string ellipsis = "...";
+            while (text.Length > 0 && ImGui.CalcTextSize(text + ellipsis).X > maxWidth)
+            {
+                text = text[..^1];
+            }
+
+            return text.Length > 0 ? text.TrimEnd() + ellipsis : ellipsis;
         }
 
         private void DrawSidePanel(CharacterSheet sheet)
@@ -365,8 +393,12 @@ namespace Soulstone.Windows
 
                 if (UiUtils.IconButton($"DelAugSide_{slot}_{item.Id}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(22, 22) * scale))
                 {
-                    sheet.RemoveItem(item.Id);
-                    CharacterSheet.SaveSheet(sheet);
+                    var itemId = item.Id;
+                    DeleteConfirmation.Request(() =>
+                    {
+                        sheet.RemoveItem(itemId);
+                        CharacterSheet.SaveSheet(sheet);
+                    });
                 }
                 ImGui.SameLine(0, 6.0f * scale);
                 UiUtils.PillBadge(GetLocalizedSlotName(slot), new Vector4(0.15f, 0.25f, 0.35f, 0.85f), ImGuiColors.ParsedBlue, slotIcon);
@@ -419,7 +451,7 @@ namespace Soulstone.Windows
                 {
                     ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAugmentationsInInventory"));
                     ImGui.Spacing();
-                    if (UiUtils.IconTextButton("CreateAugFromModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("CreateAugmentationModalTitle")))
+                    if (UiUtils.IconButton("CreateAugFromModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("CreateAugmentationModalTitle"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                     {
                         creatingAug = new GearItem("New Augmentation", equipModalSlot, "", "Common", null, "", 0.5f, "", isAugmentation: true);
                         modEditorState = new StatModifierEditorState();
@@ -523,7 +555,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                if (UiUtils.IconTextButton("CreateOnlyAugBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")))
+                if (UiUtils.IconButton("CreateOnlyAugBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     if (string.IsNullOrWhiteSpace(creatingAug.Name)) creatingAug.Name = "New Augmentation";
                     creatingAug.isAugmentation = true;

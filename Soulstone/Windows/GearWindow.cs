@@ -96,6 +96,12 @@ namespace Soulstone.Windows
                     modEditorState = new StatModifierEditorState();
                     showCreateGearModal = true;
                 });
+
+            ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - 28.0f * scale));
+            if (UiUtils.IconButton("SaveGearBtn", FontAwesomeIcon.Save, saveLabel))
+            {
+                CharacterSheet.SaveSheet(sheet);
+            }
         }
 
         private static FontAwesomeIcon GetSlotIcon(string slot)
@@ -150,7 +156,7 @@ namespace Soulstone.Windows
         {
             var scale = ImGuiHelpers.GlobalScale;
             var pos = ImGui.GetCursorScreenPos();
-            var cardHeight = 52.0f * scale;
+            var cardHeight = 64.0f * scale;
             var cardSize = new Vector2(width, cardHeight);
 
             var drawList = ImGui.GetWindowDrawList();
@@ -212,8 +218,12 @@ namespace Soulstone.Windows
                     {
                         ImGui.SameLine(0, 8.0f * scale);
                         string modSummary = item.GetFormattedModifiers();
-                        if (modSummary.Length > 25) modSummary = modSummary.Substring(0, 22) + "...";
-                        UiUtils.PillBadge(modSummary, new Vector4(0.15f, 0.30f, 0.20f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Bolt);
+                        var badgeMaxWidth = pos.X + width - 96.0f * scale - ImGui.GetCursorScreenPos().X - 8.0f * scale;
+                        if (badgeMaxWidth > 32.0f * scale)
+                        {
+                            modSummary = TruncateToWidth(modSummary, badgeMaxWidth - 28.0f * scale);
+                            UiUtils.PillBadge(modSummary, new Vector4(0.15f, 0.30f, 0.20f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Bolt);
+                        }
                     }
                 }
                 else
@@ -226,7 +236,7 @@ namespace Soulstone.Windows
             // Right side buttons
             float rightButtonsWidth = item != null ? (96.0f * scale) : (64.0f * scale);
             var rightBtnX = pos.X + width - rightButtonsWidth;
-            ImGui.SetCursorScreenPos(new Vector2(rightBtnX, pos.Y + 12.0f * scale));
+            ImGui.SetCursorScreenPos(new Vector2(rightBtnX, pos.Y + (cardHeight - 26.0f * scale) * 0.5f));
 
             if (item != null)
             {
@@ -246,8 +256,12 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 4.0f * scale);
                 if (UiUtils.IconButton($"Delete_{slot}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton"), new Vector2(26, 26) * scale))
                 {
-                    sheet.RemoveItem(item.Id);
-                    CharacterSheet.SaveSheet(sheet);
+                    var itemId = item.Id;
+                    DeleteConfirmation.Request(() =>
+                    {
+                        sheet.RemoveItem(itemId);
+                        CharacterSheet.SaveSheet(sheet);
+                    });
                 }
             }
             else
@@ -267,6 +281,19 @@ namespace Soulstone.Windows
             }
 
             ImGui.SetCursorScreenPos(new Vector2(pos.X, pos.Y + cardHeight));
+        }
+
+        private static string TruncateToWidth(string text, float maxWidth)
+        {
+            if (ImGui.CalcTextSize(text).X <= maxWidth) return text;
+
+            const string ellipsis = "...";
+            while (text.Length > 0 && ImGui.CalcTextSize(text + ellipsis).X > maxWidth)
+            {
+                text = text[..^1];
+            }
+
+            return text.Length > 0 ? text.TrimEnd() + ellipsis : ellipsis;
         }
 
         private void DrawSidePanel(CharacterSheet sheet)
@@ -417,8 +444,12 @@ namespace Soulstone.Windows
                                     ImGui.SameLine(0, 8.0f * scale);
                                     if (UiUtils.IconTextButton("InspectDeleteBtn", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("DeleteButton")))
                                     {
-                                        sheet.RemoveItem(equipped.Id);
-                                        CharacterSheet.SaveSheet(sheet);
+                                        var itemId = equipped.Id;
+                                        DeleteConfirmation.Request(() =>
+                                        {
+                                            sheet.RemoveItem(itemId);
+                                            CharacterSheet.SaveSheet(sheet);
+                                        });
                                     }
                                 }
                             }
@@ -471,7 +502,7 @@ namespace Soulstone.Windows
                 {
                     ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoGearInInventory"));
                     ImGui.Spacing();
-                    if (UiUtils.IconTextButton("CreateGearFromModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("CreateGearModalTitle")))
+                    if (UiUtils.IconButton("CreateGearFromModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("CreateGearModalTitle"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                     {
                         creatingGear = new GearItem("New Gear", equipModalSlot, "", "Common");
                         modEditorState = new StatModifierEditorState();
@@ -591,7 +622,7 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-                if (UiUtils.IconTextButton("CreateOnlyBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")))
+                if (UiUtils.IconButton("CreateOnlyBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     if (string.IsNullOrWhiteSpace(creatingGear.Name)) creatingGear.Name = "New Gear";
                     sheet.AddItem(creatingGear);

@@ -5,6 +5,31 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-01
+
+### Added
+- **Dice System Sharing & Updates**:
+  - Added relay-backed publishing and downloading of dice systems through share codes.
+  - Added update checks that preserve character and stat values, with automatic backups when major schema conflicts are detected.
+- **Character Skill & Ability Controls**:
+  - Added favorite skills and temporary bonuses for skills and abilities.
+  - Added clearer base-stat breakdowns and improved skill, ability, and feat management controls.
+- **Safer Item & Content Management**:
+  - Added reusable deletion confirmation prompts and inventory quantity controls with stack-size limits.
+
+### Changed
+- **User Interface & Layouts**:
+  - Refined character stats, feats, augmentations, gear, inventory, dice, group, and initiative tracker layouts and tooltips.
+  - Renamed the Feats tab to Abilities & Feats to reflect its expanded scope.
+- **Character Publishing**:
+  - Improved character sheet uploads so the active character identity can be used independently of the sheet's display name.
+- **Localization**:
+  - Added matching English and French strings for dice-system sharing, favorites, deletion confirmations, inventory controls, and updated labels.
+- **Version Manifests & Metadata**:
+  - Bumped version to `1.3.0.0` across `Soulstone.csproj`, `Soulstone.json`, and `SoulstoneRep.json` and updated repository download links for release `V1.3.0`.
+
+---
+
 ## [1.2.1] - 2026-09-21
 
 ### Added

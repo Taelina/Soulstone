@@ -16,6 +16,7 @@ namespace Soulstone.Managers
         private static readonly object padlock = new object();
 
         private static bool charLoaded = false;
+        private string activeCharacterName = string.Empty;
 
         private CharacterSheet? characterSheet;
 
@@ -37,6 +38,7 @@ namespace Soulstone.Managers
         }
 
         internal CharacterSheet? CharacterSheet { get => characterSheet; set => characterSheet = value; }
+        public string ActiveCharacterName => activeCharacterName;
 
         public void Init()
         {
@@ -60,6 +62,7 @@ namespace Soulstone.Managers
         public void Reset()
         {
             charLoaded = false;
+            activeCharacterName = string.Empty;
             characterSheet = null;
         }
 
@@ -72,6 +75,7 @@ namespace Soulstone.Managers
                 if (CharacterSheet != null)
                 {
                     charLoaded = true;
+                    activeCharacterName = charName;
                     EnsureLinkedDiceSystemLoaded(CharacterSheet);
                 }
                 else
@@ -89,13 +93,14 @@ namespace Soulstone.Managers
         {
             try
             {
-                if (!charLoaded || CharacterSheet == null || !string.Equals(CharacterSheet.CharacterFullName, charName, StringComparison.OrdinalIgnoreCase))
+                if (!charLoaded || CharacterSheet == null || !string.Equals(activeCharacterName, charName, StringComparison.OrdinalIgnoreCase))
                 {
                     CharacterSheet = CharacterSheet.LoadSheet(charName);
                 }
                 if (CharacterSheet != null)
                 {
                     charLoaded = true;
+                    activeCharacterName = charName;
                     EnsureLinkedDiceSystemLoaded(CharacterSheet);
                     return CharacterSheet;
                 }

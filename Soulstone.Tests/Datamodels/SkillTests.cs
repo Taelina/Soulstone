@@ -27,7 +27,9 @@ namespace Soulstone.Tests.Datamodels
                 SkillName = "Stealth",
                 SkillDescription = "Ability to move silently and remain undetected",
                 LinkedAttribute = "Dexterity",
-                SkillModifier = 3
+                SkillModifier = 3,
+                TempBonus = 2,
+                IsFavorite = true
             };
 
             // Assert
@@ -36,6 +38,8 @@ namespace Soulstone.Tests.Datamodels
             skill.SkillDescription.Should().Be("Ability to move silently and remain undetected");
             skill.LinkedAttribute.Should().Be("Dexterity");
             skill.SkillModifier.Should().Be(3);
+            skill.TempBonus.Should().Be(2);
+            skill.IsFavorite.Should().BeTrue();
 
             // Also verify public backing fields
             skill.id.Should().Be(42);
@@ -43,6 +47,8 @@ namespace Soulstone.Tests.Datamodels
             skill.skillDescription.Should().Be("Ability to move silently and remain undetected");
             skill.linkedAttribute.Should().Be("Dexterity");
             skill.skillModifier.Should().Be(3);
+            skill.tempBonus.Should().Be(2);
+            skill.isFavorite.Should().BeTrue();
         }
 
         [Theory]
@@ -69,7 +75,9 @@ namespace Soulstone.Tests.Datamodels
                 SkillName = "Arcana",
                 SkillDescription = "Knowledge of magical lore",
                 LinkedAttribute = "Intelligence",
-                SkillModifier = 5
+                SkillModifier = 5,
+                TempBonus = -2,
+                IsFavorite = true
             };
 
             // Act
@@ -83,6 +91,20 @@ namespace Soulstone.Tests.Datamodels
             deserialized.SkillDescription.Should().Be("Knowledge of magical lore");
             deserialized.LinkedAttribute.Should().Be("Intelligence");
             deserialized.SkillModifier.Should().Be(5);
+            deserialized.TempBonus.Should().Be(-2);
+            deserialized.IsFavorite.Should().BeTrue();
+        }
+
+        [Fact]
+        public void Clone_PreservesFavoriteState()
+        {
+            var skill = new Skill("Stealth", 3, "Dexterity", isFavorite: true) { TempBonus = 2 };
+
+            var clone = skill.Clone();
+
+            clone.Should().NotBeSameAs(skill);
+            clone.IsFavorite.Should().BeTrue();
+            clone.TempBonus.Should().Be(2);
         }
     }
 }

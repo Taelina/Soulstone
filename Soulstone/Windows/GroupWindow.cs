@@ -26,7 +26,7 @@ namespace Soulstone.Windows
         // Search & Filters
         private string searchQuery = string.Empty;
         private int activeFilterIndex = 0; // 0: All, 1: Soulstone Only, 2: Leaders, 3: Needs Sync
-        private bool isGridView = false; // false = Cards View, true = Tactical Grid View
+        private bool isGridView = true; // false = Cards View, true = Tactical Grid View
 
         // Roll Controls & Presets
         private string rollName = "Check";
@@ -318,7 +318,7 @@ namespace Soulstone.Windows
 
                     if (UiUtils.IconButton("ForgetSessionBtn", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("GroupForgetSession")))
                     {
-                        _ = sync.DisconnectAsync(true);
+                        DeleteConfirmation.Request(() => _ = sync.DisconnectAsync(true));
                     }
                 }
 
@@ -334,7 +334,7 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 4.0f * scale);
                 using (ImRaii.PushColor(ImGuiCol.Button, connectionTab == 1 ? new Vector4(0.50f, 0.38f, 0.15f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f)))
                 {
-                    if (UiUtils.IconTextButton("HostSessionTab", FontAwesomeIcon.PlusCircle, LocalizationManager.Instance.GetLocalizedString("GroupHostTab")))
+                    if (UiUtils.IconTextButton("HostSessionTab", FontAwesomeIcon.Server, LocalizationManager.Instance.GetLocalizedString("GroupHostTab")))
                     {
                         connectionTab = 1;
                     }
@@ -368,7 +368,7 @@ namespace Soulstone.Windows
 
                     using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.40f, 0.32f, 0.15f, 0.9f)))
                     {
-                        if (UiUtils.IconTextButton("CreateSessionButton", FontAwesomeIcon.PlusCircle, LocalizationManager.Instance.GetLocalizedString("GroupCreateSession")))
+                        if (UiUtils.IconButton("CreateSessionButton", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("GroupCreateSession"), new Vector2(24, 24) * scale))
                         {
                             _ = CreateSessionAsync();
                         }
@@ -1031,7 +1031,7 @@ namespace Soulstone.Windows
                 if (ImGui.IsItemHovered())
                 {
                     string systemLabel = diceSystem?.systemName ?? LocalizationManager.Instance.GetLocalizedString("GroupSystemRoll");
-                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDiceTooltip", systemLabel));
+                    UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDiceTooltip", systemLabel));
                 }
 
                 if (diceSystem?.systemHasAdvantageDisadvantage == true && (diceSystem?.systemType ?? SystemType.DnDSystem) == SystemType.DnDSystem)
@@ -1052,7 +1052,7 @@ namespace Soulstone.Windows
                 ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollCheck")}##RollPriv_{member.CharacterName}", ref rollPrivate);
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollTooltip"));
+                    UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollTooltip"));
                 }
 
                 ImGui.Spacing();
@@ -1198,7 +1198,7 @@ namespace Soulstone.Windows
                     if (ImGui.IsItemHovered())
                     {
                         string tooltip = string.Format(LocalizationManager.Instance.GetLocalizedString("GroupDirectRollTooltip"), $"{kv.Key} ({kv.Value})");
-                        ImGui.SetTooltip(tooltip);
+                        UiUtils.SetTooltip(tooltip);
                     }
                 }
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
@@ -1390,7 +1390,7 @@ namespace Soulstone.Windows
                 if (ImGui.IsItemHovered())
                 {
                     string systemLabel = diceSystem?.systemName ?? LocalizationManager.Instance.GetLocalizedString("GroupSystemRoll");
-                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDiceTooltip", systemLabel));
+                    UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupUseSystemDiceTooltip", systemLabel));
                 }
 
                 if (useSystemDice)
@@ -1409,7 +1409,7 @@ namespace Soulstone.Windows
                 ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollCheck")}##BatchPrivateRoll", ref rollPrivate);
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollTooltip"));
+                    UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("GroupPrivateRollTooltip"));
                 }
 
                 ImGui.Spacing();

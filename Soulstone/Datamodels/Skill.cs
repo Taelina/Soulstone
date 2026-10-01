@@ -14,22 +14,27 @@ namespace Soulstone.Datamodels
         public string skillDescription = string.Empty;
         public string linkedAttribute = string.Empty;
         public int skillModifier;
+        public int tempBonus;
+        public bool isFavorite;
         public string SkillName { get => skillName; set => skillName = value; }
         public string SkillDescription { get => skillDescription; set => skillDescription = value; }
         public string LinkedAttribute { get => linkedAttribute; set => linkedAttribute = value; }
         public int SkillModifier { get => skillModifier; set => skillModifier = value; }
+        public int TempBonus { get => tempBonus; set => tempBonus = value; }
+        public bool IsFavorite { get => isFavorite; set => isFavorite = value; }
         public int Id { get => id; set => id = value; }
 
         public Skill()
         { }
 
-        public Skill(string name, int modifier = 0, string linkedAttribute = "", string description = "", int id = 0)
+        public Skill(string name, int modifier = 0, string linkedAttribute = "", string description = "", int id = 0, bool isFavorite = false)
         {
             this.skillName = name;
             this.skillModifier = modifier;
             this.linkedAttribute = linkedAttribute;
             this.skillDescription = description;
             this.id = id;
+            this.isFavorite = isFavorite;
         }
 
         public Skill Clone()
@@ -40,7 +45,9 @@ namespace Soulstone.Datamodels
                 skillName = this.skillName,
                 skillDescription = this.skillDescription,
                 linkedAttribute = this.linkedAttribute,
-                skillModifier = this.skillModifier
+                skillModifier = this.skillModifier,
+                tempBonus = this.tempBonus,
+                isFavorite = this.isFavorite
             };
         }
     }

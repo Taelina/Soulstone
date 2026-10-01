@@ -93,6 +93,28 @@ namespace Soulstone.Tests.Datamodels
         }
 
         [Fact]
+        public void EffectiveSkillAndAbilityModifiers_IncludeTemporaryBonuses()
+        {
+            var sheet = new CharacterSheet();
+            sheet.CharacterSkills["Stealth"] = new Skill
+            {
+                SkillName = "Stealth",
+                SkillModifier = 3,
+                TempBonus = 2
+            };
+            sheet.CharacterAbilities["Shadow Step"] = new Ability
+            {
+                AbilityName = "Shadow Step",
+                AbilityModifier = 4,
+                TempBonus = -1
+            };
+
+            Assert.Equal(5, sheet.GetEffectiveSkillModifier("Stealth"));
+            Assert.Equal(5, sheet.GetEffectiveSkillTotal("Stealth"));
+            Assert.Equal(3, sheet.GetEffectiveAbilityModifier("Shadow Step"));
+        }
+
+        [Fact]
         public void GetEffectiveResourceMax_IncludesResourceBuffs()
         {
             var sheet = new CharacterSheet();

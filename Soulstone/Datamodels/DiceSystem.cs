@@ -78,6 +78,10 @@ namespace Soulstone.Datamodels
         public int successThreshold = 0;
         public int successInterval = 0;
         public int dicePoolMaxSuccessCount = 1;
+        public string publishedCode = string.Empty;
+        public DateTimeOffset? publishedAtUtc;
+        public string publisherPlayerName = string.Empty;
+        public string publisherWorldName = string.Empty;
 
         public DiceSystem()
         {
@@ -121,6 +125,10 @@ namespace Soulstone.Datamodels
         public string InitiativeStatName { get => initiativeStatName; set => initiativeStatName = value; }
         public string InitiativeFormula { get => initiativeFormula; set => initiativeFormula = value; }
         public bool DynamicSkillAttributeLinking { get => dynamicSkillAttributeLinking; set => dynamicSkillAttributeLinking = value; }
+        public string PublishedCode { get => publishedCode; set => publishedCode = value; }
+        public DateTimeOffset? PublishedAtUtc { get => publishedAtUtc; set => publishedAtUtc = value; }
+        public string PublisherPlayerName { get => publisherPlayerName; set => publisherPlayerName = value; }
+        public string PublisherWorldName { get => publisherWorldName; set => publisherWorldName = value; }
 
         public void CaptureTemplateFromSheet(CharacterSheet sheet)
         {

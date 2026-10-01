@@ -218,7 +218,7 @@ namespace Soulstone.Windows
                     ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("RollPrivateCheck")}##RollPrivateCheck", ref rollPrivate);
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("RollPrivateTooltip"));
+                        UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("RollPrivateTooltip"));
                     }
 
                     ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
@@ -277,7 +277,7 @@ namespace Soulstone.Windows
                     if (entries.Count == 0) ImGui.BeginDisabled();
                     if (UiUtils.IconButton("ClearHistBtn", FontAwesomeIcon.Trash, clearHistLabel))
                     {
-                        DiceHistoryManager.Instance.Clear();
+                        DeleteConfirmation.Request(DiceHistoryManager.Instance.Clear);
                     }
                     if (entries.Count == 0) ImGui.EndDisabled();
 

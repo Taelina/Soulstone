@@ -44,13 +44,13 @@ namespace Soulstone.Tests.Utils
         }
 
         [Theory]
-        [InlineData(null, "http://82.65.2.251:5077")]
-        [InlineData("", "http://82.65.2.251:5077")]
-        [InlineData("   ", "http://82.65.2.251:5077")]
-        [InlineData("82.65.2.251:5077", "http://82.65.2.251:5077")]
-        [InlineData("82.65.2.251:5077/", "http://82.65.2.251:5077")]
-        [InlineData("http://82.65.2.251:5077", "http://82.65.2.251:5077")]
-        [InlineData("http://82.65.2.251:5077/", "http://82.65.2.251:5077")]
+        [InlineData(null, "http://82.65.8.251:5077")]
+        [InlineData("", "http://82.65.8.251:5077")]
+        [InlineData("   ", "http://82.65.8.251:5077")]
+        [InlineData("82.65.8.251:5077", "http://82.65.8.251:5077")]
+        [InlineData("82.65.8.251:5077/", "http://82.65.8.251:5077")]
+        [InlineData("http://82.65.8.251:5077", "http://82.65.8.251:5077")]
+        [InlineData("http://82.65.8.251:5077/", "http://82.65.8.251:5077")]
         [InlineData("https://custom.relay.net:5077", "https://custom.relay.net:5077")]
         [InlineData("192.168.1.100:5077", "http://192.168.1.100:5077")]
         public void NormalizeServerUrl_FormatsIpAndUrlCorrectly(string? input, string expected)
@@ -62,10 +62,13 @@ namespace Soulstone.Tests.Utils
         public void Configuration_SyncServerUrl_DefaultsToRemoteIpAndUpgradesLegacyLocalhost()
         {
             var config = new Soulstone.Configuration();
-            config.SyncServerUrl.Should().Be("http://82.65.2.251:5077");
+            config.SyncServerUrl.Should().Be("http://82.65.8.251:5077");
 
             config.SyncServerUrl = "http://127.0.0.1:5077";
-            config.SyncServerUrl.Should().Be("http://82.65.2.251:5077");
+            config.SyncServerUrl.Should().Be("http://82.65.8.251:5077");
+
+            config.SyncServerUrl = "http://82.65.2.251:5077";
+            config.SyncServerUrl.Should().Be("http://82.65.8.251:5077");
 
             config.SyncServerUrl = "http://192.168.1.42:5077";
             config.SyncServerUrl.Should().Be("http://192.168.1.42:5077");

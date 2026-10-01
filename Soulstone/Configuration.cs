@@ -25,13 +25,16 @@ public class Configuration : IPluginConfiguration
 
     public string LastActiveDiceSystem { get; set; } = string.Empty;
 
-    public const string DefaultSyncServerUrl = "http://82.65.2.251:5077";
+    public const string DefaultSyncServerUrl = "http://82.65.8.251:5077";
     public const string LegacyDefaultSyncServerUrl = "http://127.0.0.1:5077";
+    public const string LegacyDefaultSyncServerUrl2 = "http://82.65.2.251:5077";
 
     private string syncServerUrl = DefaultSyncServerUrl;
     public string SyncServerUrl
     {
-        get => string.IsNullOrWhiteSpace(syncServerUrl) || string.Equals(syncServerUrl.Trim(), LegacyDefaultSyncServerUrl, StringComparison.OrdinalIgnoreCase)
+        get => string.IsNullOrWhiteSpace(syncServerUrl) ||
+               string.Equals(syncServerUrl.Trim(), LegacyDefaultSyncServerUrl, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(syncServerUrl.Trim(), LegacyDefaultSyncServerUrl2, StringComparison.OrdinalIgnoreCase)
             ? DefaultSyncServerUrl
             : syncServerUrl;
         set => syncServerUrl = value;

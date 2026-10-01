@@ -352,7 +352,11 @@ namespace Soulstone.Windows
             ImGui.BeginGroup();
             {
                 // Edit mode toggle
-                ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("EditCharsheetCheck")}###EditCheck", ref editingCharsheet);
+                var editColor = editingCharsheet ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudGrey;
+                if (UiUtils.IconButton("EditCheck", FontAwesomeIcon.PencilAlt, LocalizationManager.Instance.GetLocalizedString("EditCharsheetCheck"), customColor: editColor))
+                {
+                    editingCharsheet = !editingCharsheet;
+                }
                 ImGui.SameLine(0, 8.0f * scale);
 
                 if (editingCharsheet)
@@ -1118,7 +1122,8 @@ namespace Soulstone.Windows
 
                         if (keyToRemove != null)
                         {
-                            relations.Remove(keyToRemove);
+                            var relationKey = keyToRemove;
+                            DeleteConfirmation.Request(() => relations.Remove(relationKey));
                         }
                     }
                 }

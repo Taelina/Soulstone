@@ -232,5 +232,34 @@ namespace Soulstone.Tests.Managers
             DiceSystemManager.Instance.CurrentDiceSystem.Should().NotBeNull();
             DiceSystemManager.Instance.CurrentDiceSystem!.systemName.Should().Be("Shadowrun D6");
         }
+
+        [Fact]
+        public void CharacterSheet_WithCustomNameDifferentFromCharacterName_PersistsAndLoadsCorrectly()
+        {
+            // Arrange - Load sheet for game character "Taelina Fae"
+            CharacterManager.Instance.ForceLoadCharData("Taelina Fae");
+            var sheet = CharacterManager.Instance.CharacterSheet;
+            sheet.Should().NotBeNull();
+
+            // Act - Player changes their RP name in the character sheet to something completely different
+            sheet!.CharacterFullName = "Lady Starlight";
+            sheet.CharacterNickName = "Star";
+            sheet.CharacterJob = "Astrologian";
+            CharacterSheet.SaveSheet(sheet);
+
+            // Re-load sheet for game character "Taelina Fae"
+            var reloadedSheet = CharacterSheet.LoadSheet("Taelina Fae");
+
+            // Assert
+            reloadedSheet.Should().NotBeNull();
+            reloadedSheet!.CharacterFullName.Should().Be("Lady Starlight");
+            reloadedSheet.CharacterNickName.Should().Be("Star");
+            reloadedSheet.CharacterJob.Should().Be("Astrologian");
+
+            // Manager reloading for "Taelina Fae" keeps the sheet without resetting
+            CharacterManager.Instance.ForceLoadCharData("Taelina Fae");
+            CharacterManager.Instance.CharacterSheet.Should().NotBeNull();
+            CharacterManager.Instance.CharacterSheet!.CharacterFullName.Should().Be("Lady Starlight");
+        }
     }
 }

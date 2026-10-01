@@ -319,14 +319,14 @@ namespace Soulstone.Utils
             if (ImGui.Button("^##UpBtn", new Vector2(30, 26)))
                 NavigateUp();
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserGoUpTooltip"));
+                UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserGoUpTooltip"));
 
             ImGui.SameLine();
 
             if (ImGui.Button("R##RefreshBtn", new Vector2(30, 26)))
                 RefreshDirectory();
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserRefreshTooltip"));
+                UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserRefreshTooltip"));
 
             ImGui.PopStyleColor(2);
 
@@ -346,7 +346,7 @@ namespace Soulstone.Utils
                     NavigateTo(pathInput);
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserPathInputTooltip"));
+                UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserPathInputTooltip"));
 
             ImGui.PopStyleVar();
             ImGui.PopStyleColor(4);
@@ -397,7 +397,7 @@ namespace Soulstone.Utils
                 }
             }
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserUrlTooltip"));
+                UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserUrlTooltip"));
 
             ImGui.PopStyleVar();
             ImGui.PopStyleColor(3);
@@ -502,7 +502,7 @@ namespace Soulstone.Utils
                         NavigateTo(pinPath);
 
                     if (ImGui.IsItemHovered())
-                        ImGui.SetTooltip(pinPath);
+                        UiUtils.SetTooltip(pinPath);
 
                     // Right-click to unpin
                     if (ImGui.BeginPopupContextItem($"##pinctx{i}"))
@@ -545,7 +545,7 @@ namespace Soulstone.Utils
                     ImGui.PopStyleColor();
 
                     if (ImGui.IsItemHovered())
-                        ImGui.SetTooltip(path);
+                        UiUtils.SetTooltip(path);
                 }
             }
         }
@@ -643,7 +643,7 @@ namespace Soulstone.Utils
             }
             ImGui.PopStyleColor(2);
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(sortDescending ? LocalizationManager.Instance.GetLocalizedString("FileBrowserSortDesc") : LocalizationManager.Instance.GetLocalizedString("FileBrowserSortAsc"));
+                UiUtils.SetTooltip(sortDescending ? LocalizationManager.Instance.GetLocalizedString("FileBrowserSortDesc") : LocalizationManager.Instance.GetLocalizedString("FileBrowserSortAsc"));
         }
 
         private void DrawFileListContent()

@@ -17,6 +17,11 @@ namespace Soulstone.Windows
 {
     internal class CharStatsWindow
     {
+        private static readonly Vector4 BaseValueInputColor = new(0.12f, 0.20f, 0.32f, 0.90f);
+        private static readonly Vector4 TempBonusInputColor = new(0.12f, 0.30f, 0.16f, 0.90f);
+        private static readonly Vector4 PermBonusInputColor = new(0.30f, 0.22f, 0.10f, 0.90f);
+        private static readonly Vector4 EpicBonusInputColor = new(0.28f, 0.12f, 0.34f, 0.90f);
+
         private enum StatRollType
         {
             Attribute,
@@ -51,13 +56,16 @@ namespace Soulstone.Windows
         private string newAttributeDescription = string.Empty;
         private bool newAttributeFavorite = false;
         private string newSkillName = string.Empty;
-        private int newSkillValue = 0;
+        private int newSkillValue = 1;
         private string newSkillDescription = string.Empty;
+        private bool newSkillFavorite = false;
         private Skill newSkill = new();
         private string newAbilityName = string.Empty;
         private int newAbilityValue = 0;
+        private int newAbilityTempBonus = 0;
         private string newAbilityDescription = string.Empty;
         private Ability newAbility = new();
+        private string? editingAbilityKey;
         private string selectedAttribute = string.Empty;
         private string selectedSkill = string.Empty;
 
@@ -122,8 +130,6 @@ namespace Soulstone.Windows
             }
 
             DrawVitalsBanner();
-            ImGui.Spacing();
-            DrawResourcesSection();
             ImGui.Spacing();
             DrawActiveBuffsBanner();
             ImGui.Spacing();
@@ -279,7 +285,7 @@ namespace Soulstone.Windows
                         UiUtils.Badge(currentCharacter.linkedDiceSystem, new Vector4(0.2f, 0.35f, 0.5f, 0.4f), ImGuiColors.ParsedBlue);
                         if (ImGui.IsItemHovered())
                         {
-                            ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel")} {currentCharacter.linkedDiceSystem}");
+                            UiUtils.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel")} {currentCharacter.linkedDiceSystem}");
                         }
                     }
 
@@ -296,7 +302,7 @@ namespace Soulstone.Windows
                         }
                         if (ImGui.IsItemHovered())
                         {
-                            ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("InitiativeRollInitiative")} ({currentDiceSystem.InitiativeStatName})");
+                            UiUtils.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("InitiativeRollInitiative")} ({currentDiceSystem.InitiativeStatName})");
                         }
                     }
 
@@ -318,10 +324,10 @@ namespace Soulstone.Windows
                         }
                     }
 
-                    // Right side: Edit Stats checkbox & Save button
+                    // Right side: Edit Stats button & Save button
                     var saveLabel = LocalizationManager.Instance.GetLocalizedString("SaveStatButton");
                     var editLabel = LocalizationManager.Instance.GetLocalizedString("EditStatCheckbox");
-                    var editWidth = ImGui.CalcTextSize(editLabel).X + 30.0f * ImGuiHelpers.GlobalScale;
+                    var editWidth = 28.0f * ImGuiHelpers.GlobalScale;
                     var saveWidth = 28.0f * ImGuiHelpers.GlobalScale;
                     var totalRightWidth = editWidth + saveWidth + 10.0f * ImGuiHelpers.GlobalScale;
                     var rightX = ImGui.GetWindowContentRegionMax().X - totalRightWidth;
@@ -331,7 +337,11 @@ namespace Soulstone.Windows
                     else
                         ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
 
-                    ImGui.Checkbox($"{editLabel}###EditStatCheck", ref editingStats);
+                    var editColor = editingStats ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudGrey;
+                    if (UiUtils.IconButton("EditStatCheck", FontAwesomeIcon.PencilAlt, editLabel, customColor: editColor))
+                    {
+                        editingStats = !editingStats;
+                    }
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     if (UiUtils.IconButton("SaveStatBtn", FontAwesomeIcon.Save, saveLabel))
                     {
@@ -341,72 +351,77 @@ namespace Soulstone.Windows
             }
         }
 
-        private void DrawResourcesSection()
+        private void DrawResourcesSection(float height)
         {
             if (currentCharacter == null) return;
             var resources = currentCharacter.GetEffectiveResources(currentDiceSystem);
-            if (resources.Count == 0 && !editingStats) return;
 
             var title = LocalizationManager.Instance.GetLocalizedString("ResourcesSectionTitle");
             if (string.IsNullOrEmpty(title) || title == "ResourcesSectionTitle")
                 title = LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader");
 
-            if (UiUtils.StyledCollapsingHeader(title.Replace(":", "").Trim(), defaultOpen: true, icon: FontAwesomeIcon.Heartbeat, accentColor: ImGuiColors.ParsedGreen))
+            using (var child = ImRaii.Child("##ResourcesColChild", new Vector2(0, height), true))
             {
-                var scale = ImGuiHelpers.GlobalScale;
-                if (editingStats)
+                if (child.Success)
                 {
-                    if (UiUtils.IconTextButton("AddNewResBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("DiceSysAddResourceBtn")))
+                    ImGui.PushFont(UiBuilder.IconFont);
+                    ImGui.TextColored(ImGuiColors.ParsedGreen, FontAwesomeIcon.Heartbeat.ToIconString());
+                    ImGui.PopFont();
+                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
+                    ImGui.TextColored(ImGuiColors.ParsedGreen, title.Replace(":", "").Trim());
+
+                    if (editingStats)
                     {
-                        newResourceName = "";
-                        newResourceMaxValue = 100;
-                        newResourceType = 0;
-                        newResourceIsRollable = false;
-                        newResourceShowInGroup = true;
-                        showResourcePopup = true;
+                        var buttonSize = 24.0f * ImGuiHelpers.GlobalScale;
+                        ImGui.SameLine(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - buttonSize));
+                        if (UiUtils.IconButton("AddNewResBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("DiceSysAddResourceBtn")))
+                        {
+                            newResourceName = "";
+                            newResourceMaxValue = 100;
+                            newResourceType = 0;
+                            newResourceIsRollable = false;
+                            newResourceShowInGroup = true;
+                            showResourcePopup = true;
+                        }
                     }
+
+                    ImGui.Separator();
                     ImGui.Spacing();
-                }
 
-                if (resources.Count == 0)
-                {
-                    ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("DiceSysNoResources"));
-                    return;
-                }
-
-                string? resToRemove = null;
-                string? resToMoveUp = null;
-                string? resToMoveDown = null;
-
-                for (int i = 0; i < resources.Count; i++)
-                {
-                    var res = resources[i];
-                    DrawResourceListItem(res, i, resources.Count, ref resToMoveUp, ref resToMoveDown, ref resToRemove);
-                    if (i < resources.Count - 1)
+                    if (resources.Count == 0)
                     {
-                        ImGui.Spacing();
+                        ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("DiceSysNoResources"));
+                        return;
                     }
-                }
 
-                if (resToMoveUp != null)
-                {
-                    currentCharacter.MoveResource(resToMoveUp, -1);
-                    currentDiceSystem?.MoveResource(resToMoveUp, -1);
-                }
-                if (resToMoveDown != null)
-                {
-                    currentCharacter.MoveResource(resToMoveDown, 1);
-                    currentDiceSystem?.MoveResource(resToMoveDown, 1);
-                }
-                if (resToRemove != null)
-                {
-                    currentCharacter.RemoveResource(resToRemove);
-                    currentDiceSystem?.RemoveResource(resToRemove);
+                    string? resToMoveUp = null;
+                    string? resToMoveDown = null;
+
+                    for (int i = 0; i < resources.Count; i++)
+                    {
+                        var res = resources[i];
+                        DrawResourceListItem(res, i, resources.Count, ref resToMoveUp, ref resToMoveDown);
+                        if (i < resources.Count - 1)
+                        {
+                            ImGui.Spacing();
+                        }
+                    }
+
+                    if (resToMoveUp != null)
+                    {
+                        currentCharacter.MoveResource(resToMoveUp, -1);
+                        currentDiceSystem?.MoveResource(resToMoveUp, -1);
+                    }
+                    if (resToMoveDown != null)
+                    {
+                        currentCharacter.MoveResource(resToMoveDown, 1);
+                        currentDiceSystem?.MoveResource(resToMoveDown, 1);
+                    }
                 }
             }
         }
 
-        private void DrawResourceListItem(CharacterResource res, int index, int totalCount, ref string? resToMoveUp, ref string? resToMoveDown, ref string? resToRemove)
+        private void DrawResourceListItem(CharacterResource res, int index, int totalCount, ref string? resToMoveUp, ref string? resToMoveDown)
         {
             var scale = ImGuiHelpers.GlobalScale;
             var def = currentDiceSystem?.SystemResources.FirstOrDefault(d => string.Equals(d.Name, res.Name, StringComparison.OrdinalIgnoreCase));
@@ -516,8 +531,8 @@ namespace Soulstone.Windows
                             ImGui.PopStyleColor();
                         }
 
-                        // Right action buttons (recalc, move up/down, delete)
-                        float btnsWidth = 26.0f * scale; // Trash
+                        // Right action buttons (recalc, move up/down)
+                        float btnsWidth = 0.0f;
                         if (index > 0) btnsWidth += 24.0f * scale;
                         if (index < totalCount - 1) btnsWidth += 24.0f * scale;
                         if (!string.IsNullOrWhiteSpace(effectiveFormula)) btnsWidth += 24.0f * scale;
@@ -554,15 +569,11 @@ namespace Soulstone.Windows
                             }
                             if (ImGui.IsItemHovered())
                             {
-                                ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("RecalculateResourcesTooltip")}\n({effectiveFormula})");
+                                UiUtils.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("RecalculateResourcesTooltip")}\n({effectiveFormula})");
                             }
                             ImGui.SameLine(0, 2.0f * scale);
                         }
 
-                        if (UiUtils.IconButton($"DelRes_{res.Name}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(22, 22) * scale))
-                        {
-                            resToRemove = res.Name;
-                        }
                     }
                     else
                     {
@@ -677,7 +688,7 @@ namespace Soulstone.Windows
 
             var availHeight = Math.Max(240.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y - 4.0f);
 
-            using (var table = ImRaii.Table("##StatsColumnsGrid", 2, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.BordersInnerV))
+            using (var table = ImRaii.Table("##StatsColumnsGrid", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.BordersInnerV))
             {
                 if (table.Success)
                 {
@@ -686,6 +697,9 @@ namespace Soulstone.Windows
 
                     ImGui.TableNextColumn();
                     DrawSkillsColumn(availHeight);
+
+                    ImGui.TableNextColumn();
+                    DrawResourcesSection(availHeight);
                 }
             }
         }
@@ -716,8 +730,6 @@ namespace Soulstone.Windows
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
-                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    UiUtils.Badge((effectiveAttributes?.Count ?? 0).ToString(), new Vector4(0.35f, 0.28f, 0.12f, 0.5f), ImGuiColors.ParsedGold);
 
                     ImGui.Separator();
                     ImGui.Spacing();
@@ -734,8 +746,6 @@ namespace Soulstone.Windows
                     else
                     {
                         var attrList = effectiveAttributes.ToList();
-                        string? attrToMoveUp = null;
-                        string? attrToMoveDown = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
 
                         for (int i = 0; i < attrList.Count; i++)
@@ -769,23 +779,6 @@ namespace Soulstone.Windows
 
                             if (editingStats)
                             {
-                                if (i > 0)
-                                {
-                                    if (UiUtils.IconButton($"MoveUp_{attribute.Key}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
-                                    {
-                                        attrToMoveUp = attribute.Key;
-                                    }
-                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                                }
-                                if (i < attrList.Count - 1)
-                                {
-                                    if (UiUtils.IconButton($"MoveDown_{attribute.Key}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
-                                    {
-                                        attrToMoveDown = attribute.Key;
-                                    }
-                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                                }
-
                                 if (hasFavoriteAttributes)
                                 {
                                     var favIconCol = attribute.Value.IsFavorite ? ImGuiColors.ParsedGold : ImGuiColors.DalamudGrey;
@@ -793,42 +786,41 @@ namespace Soulstone.Windows
                                     {
                                         attribute.Value.IsFavorite = !attribute.Value.IsFavorite;
                                     }
-                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                                 }
-                                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
 
                                 ImGui.AlignTextToFramePadding();
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, attribute.Key);
 
                                 int inputCount = 1 + (hasBonusTemp ? 1 : 0) + (hasBonusPerm ? 1 : 0) + (showEpic ? 1 : 0);
-                                var inputAreaWidth = (inputCount * 40.0f + 10.0f) * ImGuiHelpers.GlobalScale;
-                                var rightInputX = pos.X + availWidth - inputAreaWidth;
-                                if (ImGui.GetCursorScreenPos().X < rightInputX)
-                                {
-                                    ImGui.SetCursorScreenPos(new Vector2(rightInputX, pos.Y + (cardHeight - 22.0f * ImGuiHelpers.GlobalScale) * 0.5f));
-                                }
+                                var inputAreaWidth = (inputCount * 36.0f + (inputCount - 1) * 4.0f) * ImGuiHelpers.GlobalScale;
+                                var centeredInputX = pos.X + (availWidth - inputAreaWidth) * 0.5f;
+                                var minimumInputX = ImGui.GetCursorScreenPos().X + 8.0f * ImGuiHelpers.GlobalScale;
+                                var maximumInputX = pos.X + availWidth - inputAreaWidth - 6.0f * ImGuiHelpers.GlobalScale;
+                                var inputX = Math.Clamp(centeredInputX, Math.Min(minimumInputX, maximumInputX), maximumInputX);
+                                ImGui.SetCursorScreenPos(new Vector2(inputX, pos.Y + (cardHeight - 22.0f * ImGuiHelpers.GlobalScale) * 0.5f));
 
-                                UiUtils.StyledInputInt($"Val_{attribute.Key}", ref attribute.Value.Value, step: 0, width: 36.0f);
+                                UiUtils.StyledInputInt($"Val_{attribute.Key}", ref attribute.Value.Value, step: 0, width: 36.0f, backgroundColor: BaseValueInputColor);
                                 if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("StatValueTooltip"));
 
                                 if (hasBonusTemp)
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.StyledInputInt($"Temp_{attribute.Key}", ref attribute.Value.TempBonus, step: 0, width: 36.0f);
+                                    UiUtils.StyledInputInt($"Temp_{attribute.Key}", ref attribute.Value.TempBonus, step: 0, width: 36.0f, backgroundColor: TempBonusInputColor);
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("StatTempTooltip"));
                                 }
 
                                 if (hasBonusPerm)
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.StyledInputInt($"Perm_{attribute.Key}", ref attribute.Value.PermBonus, step: 0, width: 36.0f);
+                                    UiUtils.StyledInputInt($"Perm_{attribute.Key}", ref attribute.Value.PermBonus, step: 0, width: 36.0f, backgroundColor: PermBonusInputColor);
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("StatPermTooltip"));
                                 }
 
                                 if (showEpic)
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.StyledInputInt($"Epic_{attribute.Key}", ref attribute.Value.EpicBonus, step: 0, width: 36.0f);
+                                    UiUtils.StyledInputInt($"Epic_{attribute.Key}", ref attribute.Value.EpicBonus, step: 0, width: 36.0f, backgroundColor: EpicBonusInputColor);
                                     if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("StatEpicTooltip"));
                                 }
                             }
@@ -981,6 +973,9 @@ namespace Soulstone.Windows
 
                                 if (isHovered && !ImGui.IsAnyItemHovered())
                                 {
+                                    ImGui.SetNextWindowSizeConstraints(
+                                        new Vector2(360.0f * ImGuiHelpers.GlobalScale, 0),
+                                        new Vector2(520.0f * ImGuiHelpers.GlobalScale, float.MaxValue));
                                     ImGui.BeginTooltip();
                                     ImGui.TextColored(ImGuiColors.ParsedGold, attribute.Key);
                                     if (!string.IsNullOrWhiteSpace(attribute.Value.Description))
@@ -1009,16 +1004,6 @@ namespace Soulstone.Windows
                             ImGui.SetCursorScreenPos(new Vector2(pos.X, pos.Y + cardHeight + 4.0f * ImGuiHelpers.GlobalScale));
                         }
 
-                        if (attrToMoveUp != null)
-                        {
-                            currentCharacter.MoveAttribute(attrToMoveUp, -1);
-                            currentDiceSystem?.MoveAttribute(attrToMoveUp, -1);
-                        }
-                        if (attrToMoveDown != null)
-                        {
-                            currentCharacter.MoveAttribute(attrToMoveDown, 1);
-                            currentDiceSystem?.MoveAttribute(attrToMoveDown, 1);
-                        }
                     }
                 }
             }
@@ -1040,8 +1025,6 @@ namespace Soulstone.Windows
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("SkillLabel"));
-                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    UiUtils.Badge((effectiveSkills?.Count ?? 0).ToString(), new Vector4(0.15f, 0.35f, 0.2f, 0.5f), ImGuiColors.ParsedGreen);
 
                     ImGui.Separator();
                     ImGui.Spacing();
@@ -1058,8 +1041,6 @@ namespace Soulstone.Windows
                     else
                     {
                         var skillList = effectiveSkills.ToList();
-                        string? skillToMoveUp = null;
-                        string? skillToMoveDown = null;
                         var availWidth = ImGui.GetContentRegionAvail().X;
                         var effectiveAttributes = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
 
@@ -1109,27 +1090,21 @@ namespace Soulstone.Windows
                             int attrBuffBonus = hasLinkedAttr ? currentCharacter.GetBuffStatBonus(skill.Value.linkedAttribute) : 0;
                             int attrFeatBonus = hasLinkedAttr ? currentCharacter.GetFeatStatBonus(skill.Value.linkedAttribute) : 0;
                             int effectiveAttrVal = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus + attrFeatBonus;
-                            int totalModifier = skill.Value.skillModifier + skillGearBonus + skillBuffBonus + skillFeatBonus + (hasLinkedAttr ? effectiveAttrVal : 0);
+                            int skillTempBonus = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? skill.Value.tempBonus : 0;
+                            int totalModifier = skill.Value.skillModifier + skillTempBonus + skillGearBonus + skillBuffBonus + skillFeatBonus + (hasLinkedAttr ? effectiveAttrVal : 0);
 
                             if (editingStats)
                             {
-                                if (i > 0)
+                                bool hasFavoriteSkills = currentDiceSystem == null || currentDiceSystem.systemHasFavoriteAttributes;
+                                if (hasFavoriteSkills)
                                 {
-                                    if (UiUtils.IconButton($"MoveUpSkill_{skill.Key}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
+                                    var favIconCol = skill.Value.IsFavorite ? ImGuiColors.ParsedGold : ImGuiColors.DalamudGrey;
+                                    if (UiUtils.IconButton($"FavSkill_{skill.Key}", FontAwesomeIcon.Star, LocalizationManager.Instance.GetLocalizedString("FavoriteSkillTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale, customColor: favIconCol))
                                     {
-                                        skillToMoveUp = skill.Key;
+                                        skill.Value.IsFavorite = !skill.Value.IsFavorite;
                                     }
-                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                                 }
-                                if (i < skillList.Count - 1)
-                                {
-                                    if (UiUtils.IconButton($"MoveDownSkill_{skill.Key}", FontAwesomeIcon.ChevronDown, LocalizationManager.Instance.GetLocalizedString("MoveDownTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
-                                    {
-                                        skillToMoveDown = skill.Key;
-                                    }
-                                    ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
-                                }
-                                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
 
                                 ImGui.AlignTextToFramePadding();
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, skill.Value.skillName);
@@ -1139,12 +1114,21 @@ namespace Soulstone.Windows
                                     UiUtils.Badge(skill.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
                                 }
 
-                                var rightInputX = pos.X + availWidth - 45.0f * ImGuiHelpers.GlobalScale;
-                                if (ImGui.GetCursorScreenPos().X < rightInputX)
+                                int inputCount = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? 2 : 1;
+                                var inputAreaWidth = (inputCount * 36.0f + (inputCount - 1) * 4.0f) * ImGuiHelpers.GlobalScale;
+                                var centeredInputX = pos.X + (availWidth - inputAreaWidth) * 0.5f;
+                                var minimumInputX = ImGui.GetCursorScreenPos().X + 8.0f * ImGuiHelpers.GlobalScale;
+                                var maximumInputX = pos.X + availWidth - inputAreaWidth - 6.0f * ImGuiHelpers.GlobalScale;
+                                var inputX = Math.Clamp(centeredInputX, Math.Min(minimumInputX, maximumInputX), maximumInputX);
+                                ImGui.SetCursorScreenPos(new Vector2(inputX, pos.Y + (cardHeight - 22.0f * ImGuiHelpers.GlobalScale) * 0.5f));
+                                UiUtils.StyledInputInt($"SkillVal_{skill.Key}", ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterSkills, skill.Key).skillModifier, step: 0, width: 36.0f, backgroundColor: BaseValueInputColor);
+                                if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("SkillBaseStatTooltip"));
+                                if (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp)
                                 {
-                                    ImGui.SetCursorScreenPos(new Vector2(rightInputX, pos.Y + (cardHeight - 22.0f * ImGuiHelpers.GlobalScale) * 0.5f));
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    UiUtils.StyledInputInt($"SkillTemp_{skill.Key}", ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterSkills, skill.Key).tempBonus, step: 0, width: 36.0f, backgroundColor: TempBonusInputColor);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("StatTempTooltip"));
                                 }
-                                UiUtils.StyledInputInt($"SkillVal_{skill.Key}", ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterSkills, skill.Key).skillModifier, step: 0, width: 36.0f);
                             }
                             else
                             {
@@ -1160,6 +1144,11 @@ namespace Soulstone.Windows
                                 float rightItemsWidth = 30.0f * ImGuiHelpers.GlobalScale;
                                 string baseModText = FormatModifier(skill.Value.skillModifier);
                                 rightItemsWidth += ImGui.CalcTextSize(baseModText).X + 16.0f * ImGuiHelpers.GlobalScale;
+
+                                if (skillTempBonus != 0)
+                                {
+                                    rightItemsWidth += ImGui.CalcTextSize(FormatModifier(skillTempBonus)).X + 16.0f * ImGuiHelpers.GlobalScale;
+                                }
 
                                 if (skillGearBonus != 0)
                                 {
@@ -1192,7 +1181,16 @@ namespace Soulstone.Windows
                                 }
 
                                 UiUtils.Badge(baseModText, new Vector4(0.18f, 0.22f, 0.20f, 0.85f), ImGuiColors.DalamudGrey);
-                                if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}: {baseModText}");
+                                if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("SkillBaseStatTooltip")} ({baseModText})");
+
+                                if (skillTempBonus != 0)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    var tempCol = skillTempBonus > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+                                    var tempBg = skillTempBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                                    UiUtils.Badge(FormatModifier(skillTempBonus), tempBg, tempCol);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(skillTempBonus)}");
+                                }
 
                                 if (skillGearBonus != 0)
                                 {
@@ -1249,6 +1247,9 @@ namespace Soulstone.Windows
 
                                 if (isHovered && !ImGui.IsAnyItemHovered())
                                 {
+                                    ImGui.SetNextWindowSizeConstraints(
+                                        new Vector2(360.0f * ImGuiHelpers.GlobalScale, 0),
+                                        new Vector2(520.0f * ImGuiHelpers.GlobalScale, float.MaxValue));
                                     ImGui.BeginTooltip();
                                     ImGui.TextColored(ImGuiColors.ParsedGreen, skill.Value.skillName);
                                     if (!string.IsNullOrWhiteSpace(skill.Value.skillDescription))
@@ -1286,16 +1287,6 @@ namespace Soulstone.Windows
                             ImGui.SetCursorScreenPos(new Vector2(pos.X, pos.Y + cardHeight + 4.0f * ImGuiHelpers.GlobalScale));
                         }
 
-                        if (skillToMoveUp != null)
-                        {
-                            currentCharacter.MoveSkill(skillToMoveUp, -1);
-                            currentDiceSystem?.MoveSkill(skillToMoveUp, -1);
-                        }
-                        if (skillToMoveDown != null)
-                        {
-                            currentCharacter.MoveSkill(skillToMoveDown, 1);
-                            currentDiceSystem?.MoveSkill(skillToMoveDown, 1);
-                        }
                     }
                 }
             }
@@ -1329,8 +1320,11 @@ namespace Soulstone.Windows
 
                     if (UiUtils.IconButton("AddAbilityBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                     {
+                        editingAbilityKey = null;
                         newAbilityName = "";
                         newAbilityValue = 0;
+                        newAbilityTempBonus = 0;
+                        newAbilityDescription = "";
                         selectedAttribute = currentCharacter.GetEffectiveAttributes(currentDiceSystem)?.Keys.FirstOrDefault() ?? "";
                         selectedSkill = currentCharacter.GetEffectiveSkills(currentDiceSystem)?.Keys.FirstOrDefault() ?? "";
                         showAbilitiesPopup = true;
@@ -1401,7 +1395,7 @@ namespace Soulstone.Windows
                             int attrGearBonus = hasLinkedAttr ? currentCharacter.GetGearStatBonus(ability.Value.linkedAttribute) : 0;
                             int attrBuffBonus = hasLinkedAttr ? currentCharacter.GetBuffStatBonus(ability.Value.linkedAttribute) : 0;
                             int attrFeatBonus = hasLinkedAttr ? currentCharacter.GetFeatStatBonus(ability.Value.linkedAttribute) : 0;
-                            int skillValue = ability.Value.linkedSkill != null ? ability.Value.linkedSkill.skillModifier : 0;
+                            int skillValue = ability.Value.linkedSkill != null ? ability.Value.linkedSkill.skillModifier + ability.Value.linkedSkill.tempBonus : 0;
                             int skillGearBonus = 0;
                             int skillBuffBonus = 0;
                             int skillFeatBonus = 0;
@@ -1415,10 +1409,23 @@ namespace Soulstone.Windows
 
                             int effectiveAttrValue = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus + attrFeatBonus;
                             int effectiveSkillValue = skillValue + skillGearBonus + skillBuffBonus + skillFeatBonus;
-                            int totalModifier = ability.Value.abilityModifier + abilityGearBonus + abilityBuffBonus + abilityFeatBonus + (hasLinkedAttr ? effectiveAttrValue : 0) + (hasLinkedSkill ? effectiveSkillValue : 0);
+                            int abilityTempBonus = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? ability.Value.tempBonus : 0;
+                            int totalModifier = ability.Value.abilityModifier + abilityTempBonus + abilityGearBonus + abilityBuffBonus + abilityFeatBonus + (hasLinkedAttr ? effectiveAttrValue : 0) + (hasLinkedSkill ? effectiveSkillValue : 0);
 
                             if (editingStats)
                             {
+                                if (UiUtils.IconButton($"Edit_{ability.Key}", FontAwesomeIcon.PencilAlt, LocalizationManager.Instance.GetLocalizedString("EditButton"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
+                                {
+                                    editingAbilityKey = ability.Key;
+                                    newAbilityName = ability.Value.abilityName;
+                                    newAbilityValue = ability.Value.abilityModifier;
+                                    newAbilityTempBonus = ability.Value.tempBonus;
+                                    newAbilityDescription = ability.Value.abilityDescription;
+                                    selectedAttribute = ability.Value.linkedAttribute;
+                                    selectedSkill = ability.Value.linkedSkill?.skillName ?? "";
+                                    showAbilitiesPopup = true;
+                                }
+                                ImGui.SameLine(0, 2.0f * ImGuiHelpers.GlobalScale);
                                 if (i > 0)
                                 {
                                     if (UiUtils.IconButton($"MoveUpAbility_{ability.Key}", FontAwesomeIcon.ChevronUp, LocalizationManager.Instance.GetLocalizedString("MoveUpTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
@@ -1455,12 +1462,19 @@ namespace Soulstone.Windows
                                     UiUtils.Badge(ability.Value.linkedSkill.skillName, new Vector4(0.15f, 0.28f, 0.18f, 0.6f), ImGuiColors.ParsedGreen);
                                 }
 
-                                var rightInputX = pos.X + availWidth - 45.0f * ImGuiHelpers.GlobalScale;
+                                int inputCount = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? 2 : 1;
+                                var rightInputX = pos.X + availWidth - (inputCount * 40.0f + 5.0f) * ImGuiHelpers.GlobalScale;
                                 if (ImGui.GetCursorScreenPos().X < rightInputX)
                                 {
                                     ImGui.SetCursorScreenPos(new Vector2(rightInputX, pos.Y + (cardHeight - 22.0f * ImGuiHelpers.GlobalScale) * 0.5f));
                                 }
                                 UiUtils.StyledInputInt($"AbilityVal_{ability.Key}", ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAbilities, ability.Key).abilityModifier, step: 0, width: 36.0f);
+                                if (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    UiUtils.StyledInputInt($"AbilityTemp_{ability.Key}", ref CollectionsMarshal.GetValueRefOrNullRef(currentCharacter.characterAbilities, ability.Key).tempBonus, step: 0, width: 36.0f);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("StatTempTooltip"));
+                                }
                             }
                             else
                             {
@@ -1481,6 +1495,11 @@ namespace Soulstone.Windows
                                 float rightItemsWidth = 30.0f * ImGuiHelpers.GlobalScale;
                                 string baseModText = FormatModifier(ability.Value.abilityModifier);
                                 rightItemsWidth += ImGui.CalcTextSize(baseModText).X + 16.0f * ImGuiHelpers.GlobalScale;
+
+                                if (abilityTempBonus != 0)
+                                {
+                                    rightItemsWidth += ImGui.CalcTextSize(FormatModifier(abilityTempBonus)).X + 16.0f * ImGuiHelpers.GlobalScale;
+                                }
 
                                 if (abilityGearBonus != 0)
                                 {
@@ -1514,6 +1533,15 @@ namespace Soulstone.Windows
 
                                 UiUtils.Badge(baseModText, new Vector4(0.15f, 0.20f, 0.28f, 0.85f), ImGuiColors.DalamudGrey);
                                 if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}: {baseModText}");
+
+                                if (abilityTempBonus != 0)
+                                {
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                    var tempCol = abilityTempBonus > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
+                                    var tempBg = abilityTempBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
+                                    UiUtils.Badge(FormatModifier(abilityTempBonus), tempBg, tempCol);
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(abilityTempBonus)}");
+                                }
 
                                 if (abilityGearBonus != 0)
                                 {
@@ -1618,8 +1646,13 @@ namespace Soulstone.Windows
                         }
                         if (abilityToRemove != null)
                         {
-                            currentCharacter.characterAbilities.Remove(abilityToRemove);
-                            currentDiceSystem?.SystemAbilities?.Remove(abilityToRemove);
+                            var abilityKey = abilityToRemove;
+                            DeleteConfirmation.Request(() =>
+                            {
+                                currentCharacter.characterAbilities.Remove(abilityKey);
+                                currentDiceSystem?.SystemAbilities?.Remove(abilityKey);
+                                CharacterSheet.SaveSheet(currentCharacter);
+                            });
                         }
                     }
                 }
@@ -1786,6 +1819,16 @@ namespace Soulstone.Windows
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewSkillDescription"));
                 UiUtils.StyledInputText("NewSkillDesc", ref newSkillDescription, 200, width: 260.0f);
 
+                bool canFavoriteSkill = currentDiceSystem == null || currentDiceSystem.systemHasFavoriteAttributes;
+                if (canFavoriteSkill)
+                {
+                    ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("FavoriteSkillLabel"), ref newSkillFavorite);
+                }
+                else
+                {
+                    newSkillFavorite = false;
+                }
+
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewLinkedAttribute"));
                 var attrKeys = currentCharacter.GetEffectiveAttributes(currentDiceSystem)?.Keys.ToList() ?? new List<string>();
                 if (attrKeys.Count > 0)
@@ -1810,7 +1853,8 @@ namespace Soulstone.Windows
                             skillName = newSkillName,
                             skillModifier = newSkillValue,
                             linkedAttribute = selectedAttribute,
-                            skillDescription = newSkillDescription
+                            skillDescription = newSkillDescription,
+                            isFavorite = canFavoriteSkill && newSkillFavorite
                         };
                         currentCharacter.characterSkills ??= new Dictionary<string, Skill>();
                         if (!currentCharacter.characterSkills.ContainsKey(newSkillName))
@@ -1823,12 +1867,14 @@ namespace Soulstone.Windows
                                     skillName = newSkillName,
                                     skillModifier = newSkillValue,
                                     linkedAttribute = selectedAttribute,
-                                    skillDescription = newSkillDescription
+                                    skillDescription = newSkillDescription,
+                                    isFavorite = canFavoriteSkill && newSkillFavorite
                                 };
                             }
                             newSkillName = "";
-                            newSkillValue = 0;
+                            newSkillValue = 1;
                             newSkillDescription = "";
+                            newSkillFavorite = false;
                             selectedAttribute = "";
                             showSkillPopup = false;
                         }
@@ -1838,6 +1884,7 @@ namespace Soulstone.Windows
                 if (UiUtils.IconTextButton("AddSkillCancelBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(90, 0) * scale))
                 {
                     newSkillDescription = "";
+                    newSkillFavorite = false;
                     showSkillPopup = false;
                 }
 
@@ -1975,11 +2022,12 @@ namespace Soulstone.Windows
                     }
 
                     int skillBaseMod = statRollSkill?.skillModifier ?? 0;
+                    int skillTemp = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? statRollSkill?.tempBonus ?? 0 : 0;
                     int skillGear = statRollSkill != null ? currentCharacter.GetGearStatBonus(statRollSkill.skillName) : 0;
                     int skillBuff = statRollSkill != null ? currentCharacter.GetBuffStatBonus(statRollSkill.skillName) : 0;
                     int skillFeat = statRollSkill != null ? currentCharacter.GetFeatStatBonus(statRollSkill.skillName) : 0;
                     int totalAttrMod = dynAttrVal + dynAttrTemp + dynAttrPerm + dynAttrGearBonus + dynAttrBuffBonus + dynAttrFeatBonus;
-                    calculatedBaseTotal = skillBaseMod + skillGear + skillBuff + skillFeat + totalAttrMod;
+                    calculatedBaseTotal = skillBaseMod + skillTemp + skillGear + skillBuff + skillFeat + totalAttrMod;
 
                     ImGui.Text(LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltyLabel"));
                     UiUtils.StyledInputInt("SkillRollBonusInput", ref rollBonusOrPenalty, 1, width: 120.0f);
@@ -1989,6 +2037,7 @@ namespace Soulstone.Windows
 
                     ImGui.Spacing();
                     ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}: {FormatModifier(skillBaseMod)}");
+                    if (skillTemp != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(skillTemp)}");
                     if (skillGear != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(skillGear)}");
                     if (skillBuff != 0) ImGui.TextDisabled($"Buff: {FormatModifier(skillBuff)}");
                     if (skillFeat != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(skillFeat)}");
@@ -2018,6 +2067,7 @@ namespace Soulstone.Windows
                     }
 
                     int abilBaseMod = statRollAbility?.abilityModifier ?? 0;
+                    int abilTemp = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? statRollAbility?.tempBonus ?? 0 : 0;
                     int abilGear = statRollAbility != null ? currentCharacter.GetGearStatBonus(statRollAbility.abilityName) : 0;
                     int abilBuff = statRollAbility != null ? currentCharacter.GetBuffStatBonus(statRollAbility.abilityName) : 0;
                     int abilFeat = statRollAbility != null ? currentCharacter.GetFeatStatBonus(statRollAbility.abilityName) : 0;
@@ -2042,14 +2092,14 @@ namespace Soulstone.Windows
                     int skillMod = 0;
                     if (statRollAbility?.linkedSkill != null && !string.IsNullOrEmpty(statRollAbility.linkedSkill.skillName))
                     {
-                        int sBase = statRollAbility.linkedSkill.skillModifier;
+                        int sBase = statRollAbility.linkedSkill.skillModifier + statRollAbility.linkedSkill.tempBonus;
                         int sGear = currentCharacter.GetGearStatBonus(statRollAbility.linkedSkill.skillName);
                         int sBuff = currentCharacter.GetBuffStatBonus(statRollAbility.linkedSkill.skillName);
                         int sFeat = currentCharacter.GetFeatStatBonus(statRollAbility.linkedSkill.skillName);
                         skillMod = sBase + sGear + sBuff + sFeat;
                     }
 
-                    calculatedBaseTotal = abilBaseMod + abilGear + abilBuff + abilFeat + attrMod + skillMod;
+                    calculatedBaseTotal = abilBaseMod + abilTemp + abilGear + abilBuff + abilFeat + attrMod + skillMod;
 
                     ImGui.Text(LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltyLabel"));
                     UiUtils.StyledInputInt("AbilRollBonusInput", ref rollBonusOrPenalty, 1, width: 120.0f);
@@ -2059,6 +2109,7 @@ namespace Soulstone.Windows
 
                     ImGui.Spacing();
                     ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}: {FormatModifier(abilBaseMod)}");
+                    if (abilTemp != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(abilTemp)}");
                     if (abilGear != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(abilGear)}");
                     if (abilBuff != 0) ImGui.TextDisabled($"Buff: {FormatModifier(abilBuff)}");
                     if (abilFeat != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(abilFeat)}");
@@ -2103,7 +2154,7 @@ namespace Soulstone.Windows
                 ImGui.EndPopup();
             }
 
-            // New Ability Modal
+            // Create / Edit Ability Modal
             if (showAbilitiesPopup)
             {
                 ImGui.OpenPopup("NewAbilityModal");
@@ -2123,6 +2174,12 @@ namespace Soulstone.Windows
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAbilityValue"));
                 UiUtils.StyledInputInt("NewAbilityVal", ref newAbilityValue, 1, width: 100.0f);
+
+                if (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp)
+                {
+                    ImGui.Text(LocalizationManager.Instance.GetLocalizedString("StatTempTooltip"));
+                    UiUtils.StyledInputInt("NewAbilityTemp", ref newAbilityTempBonus, 1, width: 100.0f);
+                }
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAbilityDescription"));
                 UiUtils.StyledInputText("NewAbilityDesc", ref newAbilityDescription, 200, width: 260.0f);
@@ -2149,6 +2206,7 @@ namespace Soulstone.Windows
                         {
                             abilityName = newAbilityName,
                             abilityModifier = newAbilityValue,
+                            tempBonus = newAbilityTempBonus,
                             linkedAttribute = selectedAttribute,
                             abilityDescription = newAbilityDescription
                         };
@@ -2157,10 +2215,13 @@ namespace Soulstone.Windows
                             currentCharacter.characterSkills.TryGetValue(selectedSkill, out newAbility.linkedSkill);
                         }
                         currentCharacter.characterAbilities ??= new Dictionary<string, Ability>();
-                        if (!currentCharacter.characterAbilities.ContainsKey(newAbilityName))
+                        bool nameAvailable = !currentCharacter.characterAbilities.ContainsKey(newAbilityName) || editingAbilityKey == newAbilityName;
+                        if (nameAvailable)
                         {
-                            currentCharacter.characterAbilities.Add(newAbilityName, newAbility);
-                            if (currentDiceSystem != null && currentDiceSystem.SystemAbilities != null && currentDiceSystem.SystemAbilities.Count > 0)
+                            if (editingAbilityKey != null)
+                                currentCharacter.characterAbilities.Remove(editingAbilityKey);
+                            currentCharacter.characterAbilities[newAbilityName] = newAbility;
+                            if (editingAbilityKey == null && currentDiceSystem != null && currentDiceSystem.SystemAbilities != null && currentDiceSystem.SystemAbilities.Count > 0)
                             {
                                 currentDiceSystem.SystemAbilities[newAbilityName] = new Ability
                                 {
@@ -2173,7 +2234,9 @@ namespace Soulstone.Windows
                             }
                             newAbilityName = "";
                             newAbilityValue = 0;
+                            newAbilityTempBonus = 0;
                             newAbilityDescription = "";
+                            editingAbilityKey = null;
                             selectedAttribute = "";
                             selectedSkill = "";
                             showAbilitiesPopup = false;
@@ -2184,6 +2247,7 @@ namespace Soulstone.Windows
                 if (UiUtils.IconTextButton("AddAbilityCancelBtn", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CancelButton"), size: new Vector2(90, 0) * scale))
                 {
                     newAbilityDescription = "";
+                    editingAbilityKey = null;
                     showAbilitiesPopup = false;
                 }
 

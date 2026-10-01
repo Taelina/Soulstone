@@ -85,7 +85,9 @@ namespace Soulstone.Managers
                     continue;
                 }
 
-                bool isMatch = sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName) && string.Equals(sheet.CharacterFullName, member.CharacterName, StringComparison.OrdinalIgnoreCase);
+                string localPlayerName = PartySyncManager.Instance.GetLocalPlayerName();
+                bool isMatch = string.Equals(member.CharacterName, localPlayerName, StringComparison.OrdinalIgnoreCase) ||
+                               (sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName) && string.Equals(sheet.CharacterFullName, member.CharacterName, StringComparison.OrdinalIgnoreCase));
 
                 int bonus = 0;
                 int initVal = 10;
@@ -113,7 +115,10 @@ namespace Soulstone.Managers
         public InitiativeParticipant AddParticipant(string name, int initiativeValue, int bonusModifier = 0, bool isCurrentChar = false, string notes = "", List<Buff>? buffs = null, CharacterSheet? characterSheet = null, string? sheetFilePath = null, bool autoSort = true, bool isNpc = false)
         {
             var sheet = CharacterManager.Instance.CharacterSheet;
-            bool isMatch = isCurrentChar || (sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName) && string.Equals(sheet.CharacterFullName, name, StringComparison.OrdinalIgnoreCase));
+            string localPlayerName = PartySyncManager.Instance.GetLocalPlayerName();
+            bool isMatch = isCurrentChar ||
+                           string.Equals(name, localPlayerName, StringComparison.OrdinalIgnoreCase) ||
+                           (sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName) && string.Equals(sheet.CharacterFullName, name, StringComparison.OrdinalIgnoreCase));
 
             List<Buff> initialBuffs = buffs != null ? new List<Buff>(buffs) : new List<Buff>();
             if (isMatch && initialBuffs.Count == 0 && sheet?.ActiveBuffs != null && sheet.ActiveBuffs.Count > 0)
@@ -436,7 +441,10 @@ namespace Soulstone.Managers
         {
             if (participant == null) return;
             var sheet = CharacterManager.Instance.CharacterSheet;
-            if (sheet != null && (participant.IsCurrentCharacter || (!string.IsNullOrWhiteSpace(sheet.CharacterFullName) && string.Equals(participant.Name, sheet.CharacterFullName, StringComparison.OrdinalIgnoreCase))))
+            string localPlayerName = PartySyncManager.Instance.GetLocalPlayerName();
+            if (sheet != null && (participant.IsCurrentCharacter ||
+                                  string.Equals(participant.Name, localPlayerName, StringComparison.OrdinalIgnoreCase) ||
+                                  (!string.IsNullOrWhiteSpace(sheet.CharacterFullName) && string.Equals(participant.Name, sheet.CharacterFullName, StringComparison.OrdinalIgnoreCase))))
             {
                 participant.IsCurrentCharacter = true;
                 sheet.ActiveBuffs = new List<Buff>(participant.Buffs ?? new List<Buff>());
@@ -533,8 +541,11 @@ namespace Soulstone.Managers
 
         public void AddOrUpdateCurrentCharacter(CharacterSheet sheet, DiceSystem? diceSystem, int rolledTotal, int bonus)
         {
-            string charName = !string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? sheet.CharacterFullName : "Player Character";
-            var existing = Participants.FirstOrDefault(p => p.IsCurrentCharacter || string.Equals(p.Name, charName, StringComparison.OrdinalIgnoreCase));
+            string localPlayerName = PartySyncManager.Instance.GetLocalPlayerName();
+            string charName = !string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? sheet.CharacterFullName : localPlayerName;
+            var existing = Participants.FirstOrDefault(p => p.IsCurrentCharacter ||
+                                                            string.Equals(p.Name, localPlayerName, StringComparison.OrdinalIgnoreCase) ||
+                                                            string.Equals(p.Name, charName, StringComparison.OrdinalIgnoreCase));
             InitiativeParticipant p;
             if (existing != null)
             {

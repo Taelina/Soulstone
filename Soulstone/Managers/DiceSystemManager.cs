@@ -112,6 +112,70 @@ namespace Soulstone.Managers
             }
         }
 
+        public bool ApplyPublishedUpdate(DiceSystem updatedSystem)
+        {
+            if (updatedSystem == null || currentDiceSystem == null)
+                return false;
+
+            try
+            {
+                var sheet = CharacterManager.Instance.CharacterSheet;
+                if (sheet != null && HasMajorSchemaConflict(currentDiceSystem, updatedSystem))
+                {
+                    var characterName = !string.IsNullOrWhiteSpace(CharacterManager.Instance.ActiveCharacterName)
+                        ? CharacterManager.Instance.ActiveCharacterName
+                        : sheet.CharacterFullName;
+                    CharacterSheet.SaveSheet(sheet, $"{characterName}_OLD_{currentDiceSystem.systemName}");
+                }
+
+                currentDiceSystem = updatedSystem;
+                isSessionRulesetActive = false;
+                localBackupDiceSystem = null;
+                DiceSystem.SaveDiceSystem(updatedSystem);
+
+                if (configuration != null)
+                {
+                    configuration.LastActiveDiceSystem = updatedSystem.systemName;
+                    configuration.Save();
+                }
+
+                if (sheet != null)
+                {
+                    sheet.ApplyRulesetTemplate(updatedSystem);
+                    CharacterSheet.SaveSheet(sheet);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log?.Error(ex, $"Failed to update published dice system '{updatedSystem.systemName}'");
+                return false;
+            }
+        }
+
+        internal static bool HasMajorSchemaConflict(DiceSystem currentSystem, DiceSystem updatedSystem)
+        {
+            if (currentSystem.systemType != updatedSystem.systemType)
+                return true;
+
+            var oldKeys = currentSystem.SystemAttributes.Keys
+                .Concat(currentSystem.SystemSkills.Keys)
+                .Concat(currentSystem.SystemAbilities.Keys)
+                .Concat(currentSystem.GetEffectiveResources().Select(resource => resource.Name))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (oldKeys.Count == 0)
+                return false;
+
+            var newKeys = updatedSystem.SystemAttributes.Keys
+                .Concat(updatedSystem.SystemSkills.Keys)
+                .Concat(updatedSystem.SystemAbilities.Keys)
+                .Concat(updatedSystem.GetEffectiveResources().Select(resource => resource.Name))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            int removedCount = oldKeys.Count(key => !newKeys.Contains(key));
+            return removedCount * 2 >= oldKeys.Count;
+        }
+
         private void SaveCurrentStateBeforeSwitch(string targetSystemName)
         {
             var sheet = CharacterManager.Instance.CharacterSheet;

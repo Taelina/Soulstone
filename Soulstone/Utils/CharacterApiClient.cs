@@ -16,15 +16,22 @@ namespace Soulstone.Utils
             Timeout = TimeSpan.FromSeconds(10)
         };
 
-        public static async Task<bool> UploadCharacterSheetAsync(string serverUrl, CharacterSheet sheet, string? world = null, CancellationToken ct = default)
+        public static async Task<bool> UploadCharacterSheetAsync(string serverUrl, CharacterSheet sheet, string? world = null, string? characterName = null, CancellationToken ct = default)
         {
-            if (string.IsNullOrWhiteSpace(serverUrl) || sheet == null || string.IsNullOrWhiteSpace(sheet.CharacterFullName))
+            if (string.IsNullOrWhiteSpace(serverUrl) || sheet == null)
+                return false;
+
+            string targetCharName = !string.IsNullOrWhiteSpace(characterName)
+                ? characterName
+                : (!string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? sheet.CharacterFullName : string.Empty);
+
+            if (string.IsNullOrWhiteSpace(targetCharName))
                 return false;
 
             try
             {
                 var baseUri = RelayCrypto.NormalizeServerUrl(serverUrl);
-                var charNameEscaped = Uri.EscapeDataString(sheet.CharacterFullName.Trim());
+                var charNameEscaped = Uri.EscapeDataString(targetCharName.Trim());
                 var worldEscaped = !string.IsNullOrWhiteSpace(world) ? Uri.EscapeDataString(world.Trim()) : string.Empty;
 
                 var endpoint = !string.IsNullOrEmpty(worldEscaped)
@@ -39,7 +46,7 @@ namespace Soulstone.Utils
             }
             catch (Exception ex)
             {
-                Plugin.Log?.Error(ex, $"Failed to upload character sheet for '{sheet?.CharacterFullName}' to '{serverUrl}'");
+                Plugin.Log?.Error(ex, $"Failed to upload character sheet for '{targetCharName}' to '{serverUrl}'");
                 return false;
             }
         }

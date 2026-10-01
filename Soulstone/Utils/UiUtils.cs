@@ -167,7 +167,8 @@ namespace Soulstone.Utils
             int? min = null,
             int? max = null,
             FontAwesomeIcon? icon = null,
-            Vector4? borderColor = null)
+            Vector4? borderColor = null,
+            Vector4? backgroundColor = null)
         {
             var scale = ImGuiHelpers.GlobalScale;
             if (width > 0)
@@ -179,9 +180,13 @@ namespace Soulstone.Utils
                 ImGui.SetNextItemWidth(-1.0f);
             }
 
-            var bgCol = new Vector4(0.10f, 0.12f, 0.16f, 0.85f);
-            var bgHoverCol = new Vector4(0.15f, 0.18f, 0.24f, 0.95f);
-            var bgActiveCol = new Vector4(0.18f, 0.22f, 0.30f, 1.00f);
+            var bgCol = backgroundColor ?? new Vector4(0.10f, 0.12f, 0.16f, 0.85f);
+            var bgHoverCol = backgroundColor.HasValue
+                ? new Vector4(Math.Min(bgCol.X + 0.05f, 1.0f), Math.Min(bgCol.Y + 0.05f, 1.0f), Math.Min(bgCol.Z + 0.05f, 1.0f), Math.Min(bgCol.W + 0.10f, 1.0f))
+                : new Vector4(0.15f, 0.18f, 0.24f, 0.95f);
+            var bgActiveCol = backgroundColor.HasValue
+                ? new Vector4(Math.Min(bgCol.X + 0.08f, 1.0f), Math.Min(bgCol.Y + 0.08f, 1.0f), Math.Min(bgCol.Z + 0.08f, 1.0f), 1.0f)
+                : new Vector4(0.18f, 0.22f, 0.30f, 1.00f);
             var border = borderColor ?? new Vector4(0.26f, 0.30f, 0.40f, 0.70f);
 
             using (ImRaii.PushColor(ImGuiCol.FrameBg, bgCol))
@@ -515,7 +520,7 @@ namespace Soulstone.Utils
 
             if (!string.IsNullOrEmpty(tooltip) && ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(tooltip);
+                SetTooltip(tooltip);
             }
         }
 
@@ -840,12 +845,20 @@ namespace Soulstone.Utils
             ImGui.TextDisabled("(?)");
             if (ImGui.IsItemHovered())
             {
-                ImGui.BeginTooltip();
-                ImGui.PushTextWrapPos(ImGui.GetFontSize() * 35.0f);
-                ImGui.TextUnformatted(desc);
-                ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
+                SetTooltip(desc);
             }
+        }
+
+        public static void SetTooltip(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+
+            ImGui.BeginTooltip();
+            var maxWidth = Math.Min(ImGui.GetFontSize() * 35.0f, ImGui.GetMainViewport().WorkSize.X * 0.4f);
+            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + maxWidth);
+            ImGui.TextUnformatted(text);
+            ImGui.PopTextWrapPos();
+            ImGui.EndTooltip();
         }
 
         public static bool SmallButton(string label, string tooltip = "", Vector2? size = null, bool enabled = true)
@@ -885,7 +898,7 @@ namespace Soulstone.Utils
             }
             if (!string.IsNullOrEmpty(tooltip) && ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(tooltip);
+                SetTooltip(tooltip);
             }
             return clicked;
         }
@@ -942,7 +955,7 @@ namespace Soulstone.Utils
 
             if (!string.IsNullOrEmpty(tooltip) && ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(tooltip);
+                SetTooltip(tooltip);
             }
 
             return clicked;
@@ -1000,7 +1013,7 @@ namespace Soulstone.Utils
 
             if (!string.IsNullOrEmpty(tooltip) && isHovered)
             {
-                ImGui.SetTooltip(tooltip);
+                SetTooltip(tooltip);
             }
 
             return clicked;
@@ -1322,7 +1335,8 @@ namespace Soulstone.Utils
 
                 if (modToRemove != null)
                 {
-                    item.RemoveStatModifier(modToRemove);
+                    var modifierName = modToRemove;
+                    DeleteConfirmation.Request(() => item.RemoveStatModifier(modifierName));
                 }
             }
         }
@@ -1437,7 +1451,8 @@ namespace Soulstone.Utils
 
                 if (modToRemove != null)
                 {
-                    feat.RemoveStatModifier(modToRemove);
+                    var modifierName = modToRemove;
+                    DeleteConfirmation.Request(() => feat.RemoveStatModifier(modifierName));
                 }
             }
         }
@@ -1627,7 +1642,7 @@ namespace Soulstone.Utils
 
             // Right side action & progress label
             float rightElementsWidth = 0f;
-            float actBtnW = !string.IsNullOrEmpty(actionLabel) ? ImGui.CalcTextSize(actionLabel).X + 24.0f * scale : 0f;
+            float actBtnW = !string.IsNullOrEmpty(actionLabel) ? 32.0f * scale : 0f;
             float progLabelW = !string.IsNullOrEmpty(progressLabel) ? ImGui.CalcTextSize(progressLabel).X + 20.0f * scale : 0f;
 
             rightElementsWidth = actBtnW + (progLabelW > 0 ? progLabelW + 8.0f * scale : 0f) + 16.0f * scale;
@@ -1647,7 +1662,7 @@ namespace Soulstone.Utils
                     if (!string.IsNullOrEmpty(actionLabel) && onAction != null)
                     {
                         if (!string.IsNullOrEmpty(progressLabel)) ImGui.SameLine(0, 8.0f * scale);
-                        if (ImGui.Button($"{actionLabel}###HeroBannerActionBtn"))
+                        if (IconButton("HeroBannerActionBtn", FontAwesomeIcon.Plus, actionLabel, new Vector2(actBtnW, 24.0f * scale)))
                         {
                             onAction.Invoke();
                         }

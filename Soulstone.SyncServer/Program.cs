@@ -20,6 +20,7 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["urls"]))
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<SessionRegistry>();
 builder.Services.AddSingleton<CharacterSheetRegistry>();
+builder.Services.AddSingleton<DiceSystemRegistry>();
 builder.Services.AddHostedService<SessionCleanupService>();
 builder.Services.AddRateLimiter(options =>
 {
@@ -140,6 +141,21 @@ app.MapDelete("/api/characters/{characterName}", (
     CharacterSheetRegistry sheets) =>
     sheets.TryDelete(characterName, null)
         ? Results.NoContent()
+        : Results.NotFound());
+
+app.MapPost("/api/dice-systems", (PublishDiceSystemRequest request, DiceSystemRegistry systems) =>
+    systems.TryPublish(request, out var published)
+        ? Results.Ok(published)
+        : Results.BadRequest());
+
+app.MapGet("/api/dice-systems/{code}", (string code, DiceSystemRegistry systems) =>
+    systems.TryGet(code, out var published)
+        ? Results.Ok(published)
+        : Results.NotFound());
+
+app.MapGet("/api/dice-systems/{code}/version", (string code, DiceSystemRegistry systems) =>
+    systems.TryGetVersion(code, out var version)
+        ? Results.Ok(version)
         : Results.NotFound());
 
 app.Map("/api/sessions/{sessionId}/connect", WebSocketRelay.HandleAsync);

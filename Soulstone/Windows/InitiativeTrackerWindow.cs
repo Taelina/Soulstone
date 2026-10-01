@@ -1,4 +1,4 @@
-﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Game.Text;
 using Dalamud.Interface.Colors;
@@ -152,7 +152,7 @@ namespace Soulstone.Windows
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
             if (UiUtils.IconButton("ClearAllInitBtn", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("InitiativeClearAll")))
             {
-                manager.FullReset();
+                DeleteConfirmation.Request(manager.FullReset);
             }
 
             // Order toggle button
@@ -288,7 +288,7 @@ namespace Soulstone.Windows
             }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeSheetSelectorHint"));
+                UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeSheetSelectorHint"));
             }
 
             // Initiative Value
@@ -327,7 +327,7 @@ namespace Soulstone.Windows
             ImGui.Checkbox("NPC##NewInitIsNpc", ref newParticipantIsNpc);
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeIsNpcTooltip"));
+                UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeIsNpcTooltip"));
             }
 
             // Add button
@@ -521,7 +521,7 @@ namespace Soulstone.Windows
                                 }
                             }
                         }
-                        if (ImGui.IsItemHovered()) ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeToggleToPcTooltip"));
+                        if (ImGui.IsItemHovered()) UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeToggleToPcTooltip"));
                     }
                     else
                     {
@@ -539,7 +539,7 @@ namespace Soulstone.Windows
                                 }
                             }
                         }
-                        if (ImGui.IsItemHovered()) ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeToggleToNpcTooltip"));
+                        if (ImGui.IsItemHovered()) UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeToggleToNpcTooltip"));
                     }
 
                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
@@ -714,7 +714,8 @@ namespace Soulstone.Windows
 
                 if (participantToRemove != null)
                 {
-                    manager.RemoveParticipant(participantToRemove);
+                    var participantId = participantToRemove;
+                    DeleteConfirmation.Request(() => manager.RemoveParticipant(participantId));
                 }
 
                 if (needsSort)
@@ -1194,7 +1195,9 @@ namespace Soulstone.Windows
 
                 if (buffToRemove != null)
                 {
-                    manager.RemoveBuffFromParticipant(participant.Id, buffToRemove);
+                    var participantId = participant.Id;
+                    var buffId = buffToRemove;
+                    DeleteConfirmation.Request(() => manager.RemoveBuffFromParticipant(participantId, buffId));
                 }
             }
             else

@@ -14,12 +14,14 @@ namespace Soulstone.Datamodels
         public Skill? linkedSkill;
         public string linkedAttribute = string.Empty;
         public int abilityModifier;
+        public int tempBonus;
 
         public string AbilityName { get => abilityName; set => abilityName = value; }
         public string AbilityDescription { get => abilityDescription; set => abilityDescription = value; }
         public Skill? LinkedSkill { get => linkedSkill; set => linkedSkill = value; }
         public string LinkedAttribute { get => linkedAttribute; set => linkedAttribute = value; }
         public int AbilityModifier { get => abilityModifier; set => abilityModifier = value; }
+        public int TempBonus { get => tempBonus; set => tempBonus = value; }
         public int Id { get => id; set => id = value; }
 
         public Ability()
@@ -44,7 +46,8 @@ namespace Soulstone.Datamodels
                 abilityDescription = this.abilityDescription,
                 linkedSkill = this.linkedSkill?.Clone(),
                 linkedAttribute = this.linkedAttribute,
-                abilityModifier = this.abilityModifier
+                abilityModifier = this.abilityModifier,
+                tempBonus = this.tempBonus
             };
         }
 

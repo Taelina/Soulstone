@@ -51,7 +51,8 @@ namespace Soulstone.Managers
 
             var serverUrl = RelayCrypto.NormalizeServerUrl(configuration?.SyncServerUrl);
             world ??= GetLocalPlayerWorld();
-            return await CharacterApiClient.UploadCharacterSheetAsync(serverUrl, sheet, world).ConfigureAwait(false);
+            string charName = GetLocalPlayerName();
+            return await CharacterApiClient.UploadCharacterSheetAsync(serverUrl, sheet, world, charName).ConfigureAwait(false);
         }
 
         public async Task<CharacterSheet?> FetchRemoteCharacterSheetAsync(string characterName, string? world = null)
@@ -737,6 +738,11 @@ namespace Soulstone.Managers
                 }
             }
             catch { }
+
+            if (!string.IsNullOrWhiteSpace(CharacterManager.Instance.ActiveCharacterName))
+            {
+                return CharacterManager.Instance.ActiveCharacterName;
+            }
 
             var sheet = CharacterManager.Instance.CharacterSheet;
             if (sheet != null && !string.IsNullOrWhiteSpace(sheet.characterFullName))

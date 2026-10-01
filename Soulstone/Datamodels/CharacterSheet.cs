@@ -428,6 +428,7 @@ namespace Soulstone.Datamodels
                             skillName = kv.Value.skillName,
                             linkedAttribute = kv.Value.linkedAttribute,
                             skillModifier = kv.Value.skillModifier,
+                            tempBonus = kv.Value.tempBonus,
                             skillDescription = kv.Value.skillDescription
                         };
                         characterSkills[kv.Key] = sk;
@@ -455,6 +456,7 @@ namespace Soulstone.Datamodels
                             linkedAttribute = kv.Value.linkedAttribute,
                             linkedSkill = kv.Value.linkedSkill,
                             abilityModifier = kv.Value.abilityModifier,
+                            tempBonus = kv.Value.tempBonus,
                             abilityDescription = kv.Value.abilityDescription
                         };
                         characterAbilities[kv.Key] = ab;
@@ -734,8 +736,11 @@ namespace Soulstone.Datamodels
                 var mgr = InitiativeTrackerManager.Instance;
                 if (mgr?.Participants != null && mgr.Participants.Count > 0)
                 {
+                    string localPlayerName = PartySyncManager.Instance.GetLocalPlayerName();
                     var participant = mgr.Participants.FirstOrDefault(p =>
-                        p.IsCurrentCharacter || (!string.IsNullOrWhiteSpace(CharacterFullName) && string.Equals(p.Name, CharacterFullName, StringComparison.OrdinalIgnoreCase)));
+                        p.IsCurrentCharacter ||
+                        string.Equals(p.Name, localPlayerName, StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrWhiteSpace(CharacterFullName) && string.Equals(p.Name, CharacterFullName, StringComparison.OrdinalIgnoreCase)));
                     if (participant != null)
                     {
                         participant.IsCurrentCharacter = true;
@@ -879,7 +884,7 @@ namespace Soulstone.Datamodels
             int baseMod = 0;
             if (characterSkills != null && characterSkills.TryGetValue(skillName, out var skill))
             {
-                baseMod = skill.SkillModifier;
+                baseMod = skill.SkillModifier + skill.TempBonus;
             }
             return baseMod + GetGearStatBonus(skillName) + GetBuffStatBonus(skillName) + GetFeatStatBonus(skillName);
         }
@@ -890,7 +895,7 @@ namespace Soulstone.Datamodels
             int skillGearBonus = GetGearStatBonus(skillName);
             int skillBuffBonus = GetBuffStatBonus(skillName);
             int skillFeatBonus = GetFeatStatBonus(skillName);
-            int total = skill.skillModifier + skillGearBonus + skillBuffBonus + skillFeatBonus;
+            int total = skill.skillModifier + skill.tempBonus + skillGearBonus + skillBuffBonus + skillFeatBonus;
             if (diceSystem?.dynamicSkillAttributeLinking != true && diceSystem?.skillLinkedToOneAttribute != false && !string.IsNullOrEmpty(skill.linkedAttribute))
             {
                 total += GetEffectiveAttributeValue(skill.linkedAttribute);
@@ -948,8 +953,7 @@ namespace Soulstone.Datamodels
                     "Initiative",
                     roll.RollResult,
                     string.Join(", ", roll.IndividualRolls),
-                    echoText: echo,
-                    characterName: actor
+                    echoText: echo
                 );
             }
             catch
@@ -963,7 +967,7 @@ namespace Soulstone.Datamodels
         public int GetEffectiveAbilityModifier(string abilityName)
         {
             if (characterAbilities == null || !characterAbilities.TryGetValue(abilityName, out var ability)) return 0;
-            int baseMod = ability.abilityModifier;
+            int baseMod = ability.abilityModifier + ability.tempBonus;
             int abilityBonus = GetGearStatBonus(ability.abilityName);
             int abilityBuffBonus = GetBuffStatBonus(ability.abilityName);
             int abilityFeatBonus = GetFeatStatBonus(ability.abilityName);
@@ -1083,8 +1087,7 @@ namespace Soulstone.Datamodels
                     resourceName,
                     roll.RollResult,
                     string.Join(", ", roll.IndividualRolls),
-                    echoText: displayMsg,
-                    characterName: actor
+                    echoText: displayMsg
                 );
             }
             catch
@@ -1138,6 +1141,7 @@ namespace Soulstone.Datamodels
                             skillName = kv.Value.skillName,
                             linkedAttribute = kv.Value.linkedAttribute,
                             skillModifier = kv.Value.skillModifier,
+                            tempBonus = kv.Value.tempBonus,
                             skillDescription = kv.Value.skillDescription
                         };
                     }
@@ -1157,6 +1161,7 @@ namespace Soulstone.Datamodels
                             linkedAttribute = kv.Value.linkedAttribute,
                             linkedSkill = kv.Value.linkedSkill,
                             abilityModifier = kv.Value.abilityModifier,
+                            tempBonus = kv.Value.tempBonus,
                             abilityDescription = kv.Value.abilityDescription
                         };
                     }
@@ -1224,7 +1229,7 @@ namespace Soulstone.Datamodels
                 newsheet.ApplyRulesetTemplate(activeSys);
             }
 
-            SaveSheet(newsheet);
+            SaveSheet(newsheet, characterName);
             CharacterManager.Instance.ForceLoadCharData(characterName);
         }
 
@@ -1244,7 +1249,7 @@ namespace Soulstone.Datamodels
                     {
                         newsheet.ApplyRulesetTemplate(activeSys);
                     }
-                    SaveSheet(newsheet);
+                    SaveSheet(newsheet, characterName);
                 }
 
                 Plugin.Log?.Information($"Loading existing character sheet from {path}");
@@ -1342,7 +1347,7 @@ namespace Soulstone.Datamodels
             }
         }
 
-        public static void SaveSheet(CharacterSheet sheet)
+        public static void SaveSheet(CharacterSheet sheet, string? characterName = null)
         {
             if (sheet == null) return;
             try
@@ -1351,9 +1356,32 @@ namespace Soulstone.Datamodels
                 {
                     Directory.CreateDirectory($"{Plugin.dataLocation}/sheets");
                 }
-                var characterName = (sheet.CharacterFullName ?? "character").Replace(" ", "_").ToLower();
-                var path = $"{Plugin.dataLocation}/sheets/{characterName}.json";
-                Plugin.Log?.Information($"Saving character sheet for {sheet.CharacterFullName} to {path}");
+
+                string rawName;
+                if (!string.IsNullOrWhiteSpace(characterName))
+                {
+                    rawName = characterName;
+                }
+                else if (sheet == CharacterManager.Instance.CharacterSheet && !string.IsNullOrWhiteSpace(CharacterManager.Instance.ActiveCharacterName))
+                {
+                    rawName = CharacterManager.Instance.ActiveCharacterName;
+                }
+                else if (sheet == CharacterManager.Instance.CharacterSheet && Plugin.ObjectTable?.LocalPlayer != null && !string.IsNullOrWhiteSpace(Plugin.ObjectTable.LocalPlayer.Name.TextValue))
+                {
+                    rawName = Plugin.ObjectTable.LocalPlayer.Name.TextValue;
+                }
+                else if (!string.IsNullOrWhiteSpace(sheet.CharacterFullName))
+                {
+                    rawName = sheet.CharacterFullName;
+                }
+                else
+                {
+                    rawName = "character";
+                }
+
+                var fileName = rawName.Replace(" ", "_").ToLower();
+                var path = $"{Plugin.dataLocation}/sheets/{fileName}.json";
+                Plugin.Log?.Information($"Saving character sheet for {rawName} to {path}");
                 File.WriteAllText(path, JsonSerializer.Serialize(sheet, new JsonSerializerOptions { WriteIndented = true }));
 
                 try

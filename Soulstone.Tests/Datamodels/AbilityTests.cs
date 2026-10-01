@@ -36,7 +36,8 @@ namespace Soulstone.Tests.Datamodels
                 AbilityDescription = "Performs a stylish acrobatic melee attack",
                 LinkedAttribute = "Dexterity",
                 LinkedSkill = skill,
-                AbilityModifier = 4
+                AbilityModifier = 4,
+                TempBonus = 2
             };
 
             // Assert
@@ -46,6 +47,7 @@ namespace Soulstone.Tests.Datamodels
             ability.LinkedAttribute.Should().Be("Dexterity");
             ability.LinkedSkill.Should().BeSameAs(skill);
             ability.AbilityModifier.Should().Be(4);
+            ability.TempBonus.Should().Be(2);
 
             // Verify public backing fields
             ability.id.Should().Be(7);
@@ -54,6 +56,7 @@ namespace Soulstone.Tests.Datamodels
             ability.linkedAttribute.Should().Be("Dexterity");
             ability.linkedSkill.Should().BeSameAs(skill);
             ability.abilityModifier.Should().Be(4);
+            ability.tempBonus.Should().Be(2);
         }
 
         [Fact]
@@ -67,6 +70,7 @@ namespace Soulstone.Tests.Datamodels
                 AbilityDescription = "Launches a fiery projectile",
                 LinkedAttribute = "Intelligence",
                 AbilityModifier = 8,
+                TempBonus = -3,
                 LinkedSkill = new Skill
                 {
                     Id = 2,
@@ -87,6 +91,7 @@ namespace Soulstone.Tests.Datamodels
             deserialized.AbilityDescription.Should().Be("Launches a fiery projectile");
             deserialized.LinkedAttribute.Should().Be("Intelligence");
             deserialized.AbilityModifier.Should().Be(8);
+            deserialized.TempBonus.Should().Be(-3);
             deserialized.LinkedSkill.Should().NotBeNull();
             deserialized.LinkedSkill.Id.Should().Be(2);
             deserialized.LinkedSkill.SkillName.Should().Be("Evocation");

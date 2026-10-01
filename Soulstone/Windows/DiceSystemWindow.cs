@@ -10,6 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 
 namespace Soulstone.Windows
 {
@@ -45,6 +46,11 @@ namespace Soulstone.Windows
         private bool modalResourceShowInGroup = true;
         private int modalResourceTypeIndex = 0;
         private string modalErrorMessage = string.Empty;
+        private string sharingCode = string.Empty;
+        private string sharingStatus = string.Empty;
+        private bool sharingRequestInProgress;
+        private bool showUpdatePrompt;
+        private DiceSystem? pendingPublishedUpdate;
 
         private static readonly (string Name, string Hex, Vector3 Color)[] ColorPresets = new[]
         {
@@ -80,6 +86,7 @@ namespace Soulstone.Windows
             selectedSystemTypeIndex = (int)currentSystem.systemType;
 
             DrawTopBar(currentSystem);
+            DrawSharingControls(currentSystem);
             ImGui.Spacing();
 
             using (var parent = ImRaii.Child("##DiceSystemContent", Vector2.Zero))
@@ -107,6 +114,117 @@ namespace Soulstone.Windows
             }
 
             DrawResourceModal(currentSystem);
+        }
+
+        private void DrawSharingControls(DiceSystem currentSystem)
+        {
+            ImGui.SetNextItemWidth(150.0f * ImGuiHelpers.GlobalScale);
+            ImGui.InputTextWithHint("##DiceSystemShareCode", LocalizationManager.Instance.GetLocalizedString("DiceSysShareCodeHint"), ref sharingCode, 10);
+            ImGui.SameLine();
+            ImGui.BeginDisabled(sharingRequestInProgress);
+            if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("DiceSysPublishButton")))
+                _ = PublishCurrentSystemAsync(currentSystem);
+            ImGui.SameLine();
+            if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("DiceSysDownloadButton")))
+                _ = DownloadSystemAsync();
+            ImGui.SameLine();
+            ImGui.BeginDisabled(string.IsNullOrWhiteSpace(currentSystem.publishedCode));
+            if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("DiceSysCheckUpdateButton")))
+                _ = CheckSystemUpdateAsync(currentSystem);
+            ImGui.EndDisabled();
+            ImGui.EndDisabled();
+
+            if (!string.IsNullOrWhiteSpace(sharingStatus))
+                ImGui.TextWrapped(sharingStatus);
+
+            if (showUpdatePrompt)
+            {
+                ImGui.OpenPopup("##DiceSystemUpdatePrompt");
+                showUpdatePrompt = false;
+            }
+
+            if (ImGui.BeginPopupModal("##DiceSystemUpdatePrompt", ImGuiWindowFlags.AlwaysAutoResize))
+            {
+                ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("DiceSysUpdatePrompt"));
+                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("DiceSysUpdateConfirm")) && pendingPublishedUpdate != null)
+                {
+                    bool updated = DiceSystemManager.Instance.ApplyPublishedUpdate(pendingPublishedUpdate);
+                    sharingStatus = LocalizationManager.Instance.GetLocalizedString(updated ? "DiceSysUpdateSuccess" : "DiceSysRequestFailed");
+                    pendingPublishedUpdate = null;
+                    ImGui.CloseCurrentPopup();
+                }
+                ImGui.SameLine();
+                if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("DiceSysUpdateCancel")))
+                {
+                    pendingPublishedUpdate = null;
+                    ImGui.CloseCurrentPopup();
+                }
+                ImGui.EndPopup();
+            }
+        }
+
+        private async Task PublishCurrentSystemAsync(DiceSystem currentSystem)
+        {
+            sharingRequestInProgress = true;
+            var published = await DiceSystemApiClient.Shared.PublishAsync(
+                configuration.SyncServerUrl,
+                currentSystem,
+                PartySyncManager.Instance.GetLocalPlayerName(),
+                PartySyncManager.Instance.GetLocalPlayerWorld());
+            sharingRequestInProgress = false;
+            if (published == null)
+            {
+                sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
+                return;
+            }
+
+            currentSystem.publishedCode = published.Code;
+            currentSystem.publishedAtUtc = published.UpdatedAtUtc;
+            currentSystem.publisherPlayerName = published.PlayerName;
+            currentSystem.publisherWorldName = published.WorldName;
+            sharingCode = published.Code;
+            DiceSystem.SaveDiceSystem(currentSystem);
+            sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysPublished", published.Code);
+        }
+
+        private async Task DownloadSystemAsync()
+        {
+            sharingRequestInProgress = true;
+            var published = await DiceSystemApiClient.Shared.DownloadAsync(configuration.SyncServerUrl, sharingCode);
+            var downloaded = published == null ? null : DiceSystemApiClient.DeserializeSystem(published);
+            sharingRequestInProgress = false;
+            if (downloaded == null)
+            {
+                sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
+                return;
+            }
+
+            DiceSystem.SaveDiceSystem(downloaded);
+            DiceSystemManager.Instance.SwitchDiceSystem(downloaded);
+            sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysDownloaded", downloaded.systemName);
+        }
+
+        private async Task CheckSystemUpdateAsync(DiceSystem currentSystem)
+        {
+            sharingRequestInProgress = true;
+            var version = await DiceSystemApiClient.Shared.GetVersionAsync(configuration.SyncServerUrl, currentSystem.publishedCode);
+            if (version == null || !currentSystem.publishedAtUtc.HasValue || version.UpdatedAtUtc <= currentSystem.publishedAtUtc.Value)
+            {
+                sharingRequestInProgress = false;
+                sharingStatus = LocalizationManager.Instance.GetLocalizedString(version == null ? "DiceSysRequestFailed" : "DiceSysAlreadyLatest");
+                return;
+            }
+
+            var published = await DiceSystemApiClient.Shared.DownloadAsync(configuration.SyncServerUrl, currentSystem.publishedCode);
+            pendingPublishedUpdate = published == null ? null : DiceSystemApiClient.DeserializeSystem(published);
+            sharingRequestInProgress = false;
+            if (pendingPublishedUpdate == null)
+            {
+                sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
+                return;
+            }
+
+            showUpdatePrompt = true;
         }
 
         private void DrawTopBar(DiceSystem currentSystem)
@@ -355,7 +473,7 @@ namespace Soulstone.Windows
                     }
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateTooltip"));
+                        UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysMakeSheetTemplateTooltip"));
                     }
                 }
             }
@@ -468,7 +586,7 @@ namespace Soulstone.Windows
                 UiUtils.StyledInputText("NewSysAttrDesc", ref newSystemAttrDesc, 200, width: 180.0f, hint: LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
-                if (UiUtils.IconTextButton("AddSysAttrBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton")))
+                if (UiUtils.IconButton("AddSysAttrBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     if (!string.IsNullOrWhiteSpace(newSystemAttrName))
                     {
@@ -618,7 +736,7 @@ namespace Soulstone.Windows
                 UiUtils.StyledInputText("NewSysSkillDesc", ref newSystemSkillDesc, 200, width: 150.0f, hint: LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
-                if (UiUtils.IconTextButton("AddSysSkillBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton")))
+                if (UiUtils.IconButton("AddSysSkillBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     if (!string.IsNullOrWhiteSpace(newSystemSkillName))
                     {
@@ -678,7 +796,7 @@ namespace Soulstone.Windows
                         UiUtils.StyledInputText("InitiativeFormulaInput", ref currentSystem.initiativeFormula, 100, width: 260.0f, hint: "e.g. 10 + [Dexterity] / 2");
                         if (ImGui.IsItemHovered())
                         {
-                            ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaTooltip"));
+                            UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaTooltip"));
                         }
 
                         var sheet = CharacterManager.Instance.CharacterSheet;
@@ -775,7 +893,7 @@ namespace Soulstone.Windows
                 var resources = currentSystem.GetEffectiveResources();
 
                 // Add Resource Button
-                if (UiUtils.IconTextButton("OpenAddResModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("DiceSysAddResourceBtn")))
+                if (UiUtils.IconButton("OpenAddResModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("DiceSysAddResourceBtn"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     OpenAddResourceModal();
                 }
@@ -860,7 +978,7 @@ namespace Soulstone.Windows
                                     UiUtils.Badge(res.Formula, new Vector4(0.2f, 0.35f, 0.45f, 0.7f), ImGuiColors.ParsedBlue);
                                     if (ImGui.IsItemHovered())
                                     {
-                                        ImGui.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("DiceSysResourceMax")}: {res.DefaultMax}\n{LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaTooltip")}");
+                                        UiUtils.SetTooltip($"{LocalizationManager.Instance.GetLocalizedString("DiceSysResourceMax")}: {res.DefaultMax}\n{LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaTooltip")}");
                                     }
                                 }
                                 else
@@ -1010,7 +1128,7 @@ namespace Soulstone.Windows
                 UiUtils.StyledInputText("ModalResFormula", ref modalResourceFormula, 150, width: 260.0f, hint: LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHint"));
                 if (ImGui.IsItemHovered())
                 {
-                    ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaTooltip"));
+                    UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaTooltip"));
                 }
 
                 // Max
@@ -1046,7 +1164,7 @@ namespace Soulstone.Windows
                     }
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip(preset.Name);
+                        UiUtils.SetTooltip(preset.Name);
                     }
                 }
 
@@ -1137,7 +1255,7 @@ namespace Soulstone.Windows
                 // Add slot control row
                 UiUtils.StyledInputText("NewEquipSlotName", ref newEquipSlotName, 50, width: 180.0f, hint: "Slot name...");
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                if (UiUtils.IconTextButton("AddEquipSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddEquipmentSlot")))
+                if (UiUtils.IconButton("AddEquipSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddEquipmentSlot"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
                     if (!string.IsNullOrWhiteSpace(newEquipSlotName))
                     {
@@ -1219,7 +1337,7 @@ namespace Soulstone.Windows
                     // Add slot control row
                     UiUtils.StyledInputText("NewAugSlotName", ref newAugSlotName, 50, width: 180.0f, hint: "Slot name...");
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    if (UiUtils.IconTextButton("AddAugSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddAugmentationSlot")))
+                    if (UiUtils.IconButton("AddAugSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddAugmentationSlot"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                     {
                         if (!string.IsNullOrWhiteSpace(newAugSlotName))
                         {
@@ -1384,7 +1502,7 @@ namespace Soulstone.Windows
 
             if (isHovered && displayName != slotName)
             {
-                ImGui.SetTooltip(slotName);
+                UiUtils.SetTooltip(slotName);
             }
 
             // Toolbar buttons at bottom
@@ -1476,7 +1594,7 @@ namespace Soulstone.Windows
                     UiUtils.StyledInputInt("DicePoolMaxSuccessCount", ref currentSystem.dicePoolMaxSuccessCount, step: 1, width: 90.0f, min: 1);
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DicePoolMaxSuccessCountTooltip"));
+                        UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DicePoolMaxSuccessCountTooltip"));
                     }
                 }
             }
@@ -1534,7 +1652,7 @@ namespace Soulstone.Windows
                     ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("DynamicSkillAttributeLinkingCheckbox"), ref currentSystem.dynamicSkillAttributeLinking);
                     if (ImGui.IsItemHovered())
                     {
-                        ImGui.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DynamicSkillAttributeLinkingTooltip"));
+                        UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("DynamicSkillAttributeLinkingTooltip"));
                     }
 
                     ImGui.TableNextColumn();

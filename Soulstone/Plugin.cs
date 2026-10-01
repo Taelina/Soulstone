@@ -13,6 +13,7 @@ using Soulstone.Sync;
 using System;
 using System.Threading.Tasks;
 using Soulstone.Utils;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 
 namespace Soulstone;
 
@@ -81,6 +82,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Tell the UI system that we want our windows to be drawn throught he window system
         PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
+        PluginInterface.UiBuilder.Draw += DeleteConfirmation.Draw;
 
         // This adds a button to the plugin installer entry of this plugin which allows
         // toggling the display status of the configuration ui
@@ -114,6 +116,7 @@ public sealed class Plugin : IDalamudPlugin
 
             // Unregister all actions to not leak anything during disposal of plugin
             PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+            PluginInterface.UiBuilder.Draw -= DeleteConfirmation.Draw;
             PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
             PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
 
@@ -138,7 +141,9 @@ public sealed class Plugin : IDalamudPlugin
     {
         try
         {
-            if (args.Target is Dalamud.Game.Gui.ContextMenu.MenuTargetDefault target && !string.IsNullOrWhiteSpace(target.TargetName))
+            if (args.Target is Dalamud.Game.Gui.ContextMenu.MenuTargetDefault target &&
+                (target.TargetObject is IPlayerCharacter || target.TargetCharacter != null) &&
+                !string.IsNullOrWhiteSpace(target.TargetName))
             {
                 var charName = target.TargetName;
                 var worldName = target.TargetHomeWorld.ValueNullable?.Name.ExtractText();
