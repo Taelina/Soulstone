@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
 using FluentAssertions;
@@ -107,7 +107,7 @@ namespace Soulstone.Tests.Datamodels
             };
 
             // Assert
-            sheet.CharacterFullName.Should().Be("Taelina Vael");
+            sheet!.CharacterFullName.Should().Be("Taelina Vael");
             sheet.characterFullName.Should().Be("Taelina Vael");
             sheet.CharacterNickName.Should().Be("Tae");
             sheet.CharacterRace.Should().Be("Elezen");
@@ -221,7 +221,7 @@ namespace Soulstone.Tests.Datamodels
 
             // Assert
             loaded.Should().NotBeNull();
-            loaded.CharacterFullName.Should().Be("Urianger Augurelt");
+            loaded!.CharacterFullName.Should().Be("Urianger Augurelt");
             loaded.CharacterJob.Should().Be("Astrologian");
             loaded.CharacterLevel.Should().Be(90);
         }
@@ -245,7 +245,7 @@ namespace Soulstone.Tests.Datamodels
 
             var loaded = CharacterSheet.LoadSheet("Y'shtola Rhul", isFullPath: false);
             loaded.Should().NotBeNull();
-            loaded.CharacterFullName.Should().Be("Y'shtola Rhul");
+            loaded!.CharacterFullName.Should().Be("Y'shtola Rhul");
             loaded.CharacterJob.Should().Be("Black Mage");
         }
 
@@ -257,7 +257,7 @@ namespace Soulstone.Tests.Datamodels
 
             // Assert
             sheet.Should().NotBeNull();
-            sheet.CharacterFullName.Should().Be("New Adventurer");
+            sheet!.CharacterFullName.Should().Be("New Adventurer");
             string expectedPath = Path.Combine(tempDirectory, "sheets", "new_adventurer.json");
             File.Exists(expectedPath).Should().BeTrue();
         }

@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Soulstone.Datamodels;
 using Soulstone.Managers;
 using Xunit;

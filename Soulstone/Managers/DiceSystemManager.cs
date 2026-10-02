@@ -239,6 +239,8 @@ namespace Soulstone.Managers
             try
             {
                 configuration = config;
+                isSessionRulesetActive = false;
+                localBackupDiceSystem = null;
                 string lastSys = config?.LastActiveDiceSystem ?? string.Empty;
                 DiceSystem? loaded = null;
                 if (!string.IsNullOrWhiteSpace(lastSys))
@@ -246,6 +248,7 @@ namespace Soulstone.Managers
                     loaded = DiceSystem.LoadDiceSystem(lastSys);
                 }
                 currentDiceSystem = loaded ?? DiceSystem.LoadDiceSystem("Standard_Dice_System");
+                PartySyncManager.Instance.OnRulesetOffered -= OnRulesetOfferedFromParty;
                 PartySyncManager.Instance.OnRulesetOffered += OnRulesetOfferedFromParty;
             }
             catch (Exception ex)

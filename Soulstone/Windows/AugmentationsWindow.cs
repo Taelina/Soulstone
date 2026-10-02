@@ -1,4 +1,4 @@
-﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
@@ -46,7 +46,7 @@ namespace Soulstone.Windows
 
             if (currentCharacter == null)
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedGearMessage"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedGearMessage"));
                 return;
             }
 
@@ -55,12 +55,13 @@ namespace Soulstone.Windows
             ImGui.Separator();
             ImGui.Spacing();
 
-            using (var table = ImRaii.Table("##AugmentationsLayoutTable", 2, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable))
+            var layoutColumns = ImGui.GetContentRegionAvail().X >= 760 * ImGuiHelpers.GlobalScale ? 2 : 1;
+            using (var table = ImRaii.Table("##AugmentationsLayoutTable", layoutColumns, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable))
             {
                 if (table.Success)
                 {
                     ImGui.TableSetupColumn("SlotsColumn", ImGuiTableColumnFlags.WidthStretch, 0.55f);
-                    ImGui.TableSetupColumn("SummaryColumn", ImGuiTableColumnFlags.WidthStretch, 0.45f);
+                    if (layoutColumns == 2) ImGui.TableSetupColumn("SummaryColumn", ImGuiTableColumnFlags.WidthStretch, 0.45f);
 
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
@@ -126,7 +127,7 @@ namespace Soulstone.Windows
         {
             var slots = diceSystem?.GetEffectiveAugmentationSlots() ?? GearItem.StandardAugmentationSlots.ToList();
 
-            using (var child = ImRaii.Child("##AugmentationSlotsChild", new Vector2(0, 0), true))
+            using (var child = SoulstoneTheme.BeginPanel("##AugmentationSlotsChild", LocalizationManager.Instance.GetLocalizedString("AugmentationSlotsHeader"), FontAwesomeIcon.Microchip, height: Math.Max(300 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y)))
             {
                 if (child.Success)
                 {
@@ -161,20 +162,20 @@ namespace Soulstone.Windows
             var drawList = ImGui.GetWindowDrawList();
             bool isSelected = string.Equals(selectedSlot, slot, StringComparison.OrdinalIgnoreCase);
             bool isHovered = ImGui.IsMouseHoveringRect(pos, pos + cardSize);
-            var rarityCol = item != null ? GetRarityColor(item.Rarity) : ImGuiColors.DalamudGrey;
+            var rarityCol = item != null ? GetRarityColor(item.Rarity) : SoulstoneTheme.Muted;
             var slotIcon = GetAugSlotIcon(slot);
 
             var bgCol = isSelected
                 ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.22f, 0.32f, 0.95f))
                 : (isHovered
-                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.15f, 0.16f, 0.20f, 0.90f))
-                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.11f, 0.13f, 0.85f)));
+                    ? ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field)
+                    : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field));
 
             var borderCol = isSelected
-                ? ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold)
+                ? ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Gold)
                 : (isHovered
                     ? ImGui.ColorConvertFloat4ToU32(new Vector4(rarityCol.X, rarityCol.Y, rarityCol.Z, 0.80f))
-                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.24f, 0.26f, 0.30f, 0.55f)));
+                    : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Border));
 
             drawList.AddRectFilled(pos, pos + cardSize, bgCol, 6.0f * scale);
             drawList.AddRect(pos, pos + cardSize, borderCol, 6.0f * scale, ImDrawFlags.None, isSelected ? 1.8f : 1.0f);
@@ -189,13 +190,13 @@ namespace Soulstone.Windows
             // Framed slot icon emblem
             var iconBoxSize = 36.0f * scale;
             var iconBoxPos = pos + new Vector2(10.0f * scale, (cardHeight - iconBoxSize) * 0.5f);
-            drawList.AddRectFilled(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.14f, 0.15f, 0.18f, 0.95f)), 6.0f * scale);
-            drawList.AddRect(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(item != null ? rarityCol : ImGuiColors.DalamudGrey), 6.0f * scale, ImDrawFlags.None, 1.0f);
+            drawList.AddRectFilled(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field), 6.0f * scale);
+            drawList.AddRect(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(item != null ? rarityCol : SoulstoneTheme.Muted), 6.0f * scale, ImDrawFlags.None, 1.0f);
 
             ImGui.PushFont(UiBuilder.IconFont);
             var iconStr = slotIcon.ToIconString();
             var iconSize = ImGui.CalcTextSize(iconStr);
-            drawList.AddText(iconBoxPos + new Vector2((iconBoxSize - iconSize.X) * 0.5f, (iconBoxSize - iconSize.Y) * 0.5f), ImGui.ColorConvertFloat4ToU32(item != null ? rarityCol : ImGuiColors.DalamudGrey), iconStr);
+            drawList.AddText(iconBoxPos + new Vector2((iconBoxSize - iconSize.X) * 0.5f, (iconBoxSize - iconSize.Y) * 0.5f), ImGui.ColorConvertFloat4ToU32(item != null ? rarityCol : SoulstoneTheme.Muted), iconStr);
             ImGui.PopFont();
 
             // Slot Details
@@ -204,7 +205,7 @@ namespace Soulstone.Windows
             {
                 // Slot Label
                 string localizedSlot = GetLocalizedSlotName(slot);
-                ImGui.TextColored(ImGuiColors.ParsedGold, localizedSlot);
+                ImGui.TextColored(SoulstoneTheme.Gold, localizedSlot);
 
                 if (item != null)
                 {
@@ -300,7 +301,7 @@ namespace Soulstone.Windows
 
         private void DrawSidePanel(CharacterSheet sheet)
         {
-            using (var child = ImRaii.Child("##AugSidePanelChild", new Vector2(0, 0), true))
+            using (var child = SoulstoneTheme.BeginPanel("##AugSidePanelChild", LocalizationManager.Instance.GetLocalizedString("FeatStatModifiersHeader"), FontAwesomeIcon.Scroll, height: Math.Max(300 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y)))
             {
                 if (child.Success)
                 {
@@ -348,7 +349,7 @@ namespace Soulstone.Windows
                 return;
             }
 
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.12f, 0.14f, 0.85f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(8f, 6f) * scale))
             using (var bonusCard = ImRaii.Child("##TotalAugModsPanel", new Vector2(0, 0), true))
@@ -471,7 +472,7 @@ namespace Soulstone.Windows
                                 var rarityCol = GetRarityColor(item.Rarity);
                                 ImGui.TextColored(rarityCol, item.Name);
                                 ImGui.SameLine();
-                                UiUtils.Badge(item.Rarity, new Vector4(0.2f, 0.2f, 0.2f, 0.7f), rarityCol);
+                                UiUtils.Badge(item.Rarity, SoulstoneTheme.Field, rarityCol);
 
                                 if (item.StatModifiers != null && item.StatModifiers.Count > 0)
                                 {
@@ -511,13 +512,13 @@ namespace Soulstone.Windows
 
             if (ImGui.Begin(title, ref showCreateAugModal, ImGuiWindowFlags.NoCollapse))
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, "Name:");
+                ImGui.TextColored(SoulstoneTheme.Muted, "Name:");
                 UiUtils.StyledInputText("NewAugName", ref creatingAug.name, 100, width: -1.0f);
 
                 var slots = diceSystem?.GetEffectiveAugmentationSlots() ?? GearItem.StandardAugmentationSlots.ToList();
                 var slotsArray = slots.ToArray();
 
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
                 int slotIdx = Array.IndexOf(slotsArray, creatingAug.Slot);
                 if (slotIdx < 0) slotIdx = 0;
                 if (UiUtils.StyledCombo("##NewAugSlotCombo", ref slotIdx, slotsArray, icon: FontAwesomeIcon.Microchip, width: 200.0f))
@@ -525,7 +526,7 @@ namespace Soulstone.Windows
                     creatingAug.Slot = slotsArray[slotIdx];
                 }
 
-                ImGui.TextColored(ImGuiColors.DalamudGrey, "Rarity:");
+                ImGui.TextColored(SoulstoneTheme.Muted, "Rarity:");
                 int rarityIdx = Array.IndexOf(rarities, creatingAug.Rarity);
                 if (rarityIdx < 0) rarityIdx = 0;
                 if (UiUtils.StyledCombo("##NewAugRarityCombo", ref rarityIdx, rarities, icon: FontAwesomeIcon.Gem, width: 200.0f))
@@ -533,7 +534,7 @@ namespace Soulstone.Windows
                     creatingAug.Rarity = rarities[rarityIdx];
                 }
 
-                ImGui.TextColored(ImGuiColors.DalamudGrey, "Description:");
+                ImGui.TextColored(SoulstoneTheme.Muted, "Description:");
                 UiUtils.StyledInputMultiline("NewAugDesc", ref creatingAug.description, 500, new Vector2(-1.0f, 50.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Separator();
@@ -589,7 +590,7 @@ namespace Soulstone.Windows
                 "Rare" => ImGuiColors.ParsedBlue,
                 "Epic" => ImGuiColors.ParsedPurple,
                 "Legendary" => ImGuiColors.ParsedOrange,
-                "Artifact" => ImGuiColors.ParsedGold,
+                "Artifact" => SoulstoneTheme.Gold,
                 _ => ImGuiColors.DalamudWhite
             };
         }

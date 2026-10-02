@@ -10,6 +10,7 @@ namespace Soulstone.SyncServer.Tests;
 
 public class CharacterSheetRegistryTests : IClassFixture<WebApplicationFactory<Program>>
 {
+    private const string Token = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     private readonly WebApplicationFactory<Program> factory;
 
     public CharacterSheetRegistryTests(WebApplicationFactory<Program> factory)
@@ -22,7 +23,7 @@ public class CharacterSheetRegistryTests : IClassFixture<WebApplicationFactory<P
     {
         var registry = new CharacterSheetRegistry(TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
 
-        Assert.True(registry.TryStore("Test Character", "Ragnarok", "{\"name\":\"Test Character\"}"));
+        Assert.True(registry.TryStore("Test Character", "Ragnarok", "{\"name\":\"Test Character\"}", Token));
         Assert.True(registry.TryGet("Test Character", "Ragnarok", out var payload));
         Assert.Equal("{\"name\":\"Test Character\"}", payload);
 
@@ -35,7 +36,7 @@ public class CharacterSheetRegistryTests : IClassFixture<WebApplicationFactory<P
         Assert.Equal("{\"name\":\"Test Character\"}", payloadNoWorld);
 
         // Delete
-        Assert.True(registry.TryDelete("test character", "ragnarok"));
+        Assert.True(registry.TryDelete("test character", "ragnarok", Token));
         Assert.False(registry.TryGet("test character", "ragnarok", out _));
     }
 
@@ -44,15 +45,16 @@ public class CharacterSheetRegistryTests : IClassFixture<WebApplicationFactory<P
     {
         var registry = new CharacterSheetRegistry(TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
 
-        Assert.False(registry.TryStore("", "Ragnarok", "{}"));
-        Assert.False(registry.TryStore("Test", "Ragnarok", ""));
-        Assert.False(registry.TryStore("Test", "Ragnarok", new string('x', CharacterSheetRegistry.MaxPayloadLength + 1)));
+        Assert.False(registry.TryStore("", "Ragnarok", "{}", Token));
+        Assert.False(registry.TryStore("Test", "Ragnarok", "", Token));
+        Assert.False(registry.TryStore("Test", "Ragnarok", new string('x', CharacterSheetRegistry.MaxPayloadLength + 1), Token));
     }
 
     [Fact]
     public async Task HttpEndpoints_PutAndGetCharacterSheet()
     {
         using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Token);
 
         const string charName = "Taelina Vael";
         const string world = "Moogle";

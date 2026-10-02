@@ -1,487 +1,444 @@
-# Soulstone Sync Server - Installation & Deployment Guide
-
-This guide provides comprehensive, step-by-step instructions for installing, configuring, deploying, and routing the **Soulstone Sync Server** (`Soulstone.SyncServer`) on a dedicated machine, home server, VPS, or cloud instance.
-
----
-
-## 📑 Table of Contents
-1. [Architecture Overview](#1-architecture-overview)
-2. [Prerequisites](#2-prerequisites)
-3. [Building the Server](#3-building-the-server)
-   - [Method A: Standalone Single-File Executable (Recommended)](#method-a-standalone-single-file-executable-recommended)
-   - [Method B: Docker Container](#method-b-docker-container)
-4. [Host Machine Setup](#4-host-machine-setup)
-   - [Network Binding & Static IP](#network-binding--static-ip)
-   - [Firewall Configuration](#firewall-configuration)
-   - [Running as a Persistent Background Service](#running-as-a-persistent-background-service)
-     - [Linux (systemd)](#linux-systemd-service)
-     - [Windows (Task Scheduler / NSSM)](#windows-background-service)
-5. [Router & Network Routing](#5-router--network-routing)
-   - [Static DHCP Reservation](#static-dhcp-reservation)
-   - [Port Forwarding](#port-forwarding)
-   - [Dynamic DNS (DDNS)](#dynamic-dns-ddns)
-6. [TLS / HTTPS Reverse Proxy Setup (Optional)](#6-tls--https-reverse-proxy-setup-optional)
-   - [Option A: Cloudflare Tunnel (Recommended - No Port Forwarding Required)](#option-a-cloudflare-tunnel-recommended)
-   - [Option B: Caddy Reverse Proxy (Automated Let's Encrypt)](#option-b-caddy-reverse-proxy)
-   - [Option C: NGINX + Certbot](#option-c-nginx--certbot)
-7. [Verification & Client Connection](#7-verification--client-connection)
-8. [Troubleshooting & FAQ](#8-troubleshooting--faq)
-
----
-
-## 1. Architecture Overview
-
-```
-┌───────────────────────────────────────────────────────────────────┐
-│                      Internet / External Players                  │
-│       (Soulstone Dalamud Plugin Instances: Party Members & DM)    │
-└─────────────────┬───────────────────────────────┬─────────────────┘
-                  │                               │
-       (Option A: Direct HTTP / WS)      (Option B: HTTPS / WSS)
-                  │ (Port 5077)                   │ (Port 443)
-                  │                               ▼
-                  │                 ┌───────────────────────────────┐
-                  │                 │   TLS Reverse Proxy (Optional)│
-                  │                 │  (Cloudflare / Caddy / NGINX) │
-                  │                 └─────────────┬─────────────────┘
-                  │                               │ (Port 5077)
-                  ▼                               ▼
-┌───────────────────────────────────────────────────────────────────┐
-│                    Soulstone.SyncServer (ASP.NET)                 │
-│  - In-memory WebSocket session relay                              │
-│  - In-memory Character Sheet Cloud Registry                       │
-│  - Full HTTP (`http://`) & HTTPS (`https://`) support             │
-│  - Zero persistence, zero logging of credentials/payloads         │
-│  - Health Check: GET /health                                      │
-└───────────────────────────────────────────────────────────────────┘
-```
-
-- **Transport Flexibility**: The Soulstone Dalamud plugin natively supports both plain HTTP/WS (`http://`, `ws://`) and secure HTTPS/WSS (`https://`, `wss://`) endpoints without requiring HTTPS or localhost restrictions. Direct IP connections (LAN, port-forwarded WAN, or VPN networks like Tailscale / WireGuard) work directly with plain HTTP.
-- **Transport Security**: All character data, dice rolls, and shared resource bars are end-to-end encrypted (AES-GCM for group broadcasts, RSA-2048 for DM-only stats). The relay server operates in memory and only routes encrypted envelopes.
-- **REST & Relay API Surface**:
-  - `GET /health` — Health check endpoint.
-  - `POST /api/sessions` — Creates a party sync room session.
-  - `PUT /api/sessions/{sessionId}/invite` — Registers an invite payload with host bearer token.
-  - `GET /api/invites/{inviteId}` — Resolves invite payload for joining party members.
-  - `GET /api/sessions/{sessionId}/connect` — WebSocket relay upgrade endpoint.
-  - `PUT /api/characters/{characterName}[/{worldName}]` — Registers/updates a character sheet JSON profile.
-  - `GET /api/characters/{characterName}[/{worldName}]` — Retrieves a stored character sheet JSON profile.
-  - `DELETE /api/characters/{characterName}[/{worldName}]` — Deletes a stored character sheet.
-
----
-
-## 2. Prerequisites
-
-- **Development / Build Machine**:
-  - [.NET 8.0 SDK or higher](https://dotnet.microsoft.com/download)
-  - Git
-- **Target Host Machine** (Where the server will run):
-  - **Option 1 (Standalone Binary)**: Windows 10/11/Server (x64) or Linux (Ubuntu, Debian, Alpine, CentOS, etc. x64/ARM64). *No .NET runtime installation required if built as self-contained.*
-  - **Option 2 (Docker)**: Any OS with Docker / Docker Compose installed.
-- **Network / Domain Requirements**:
-  - A public IP address or a domain name (e.g. via DuckDNS, No-IP, or custom domain).
-  - Access to your home router admin panel (if self-hosting with port forwarding).
-
----
-
-## 3. Building the Server
-
-### Method A: Standalone Single-File Executable (Recommended)
-
-Self-contained publishing bundles the .NET runtime into a single standalone binary. You do not need to install the .NET SDK or runtime on the target machine.
-
-#### 1. Build for Windows Host (x64)
-Run from the root of the repository:
-```powershell
-dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\publish\server-win
-```
-*Output artifact:* `.\publish\server-win\Soulstone.SyncServer.exe`
-
-#### 2. Build for Linux Host (x64)
-```powershell
-dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o .\publish\server-linux
-```
-*Output artifact:* `.\publish\server-linux\Soulstone.SyncServer`
-
-#### 3. Build for Linux Host (ARM64 / Raspberry Pi)
-```powershell
-dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release -r linux-arm64 --self-contained true -p:PublishSingleFile=true -o .\publish\server-arm64
-```
-
-Transfer the contents of the generated `publish` directory to your target machine using SCP, SFTP, or a USB drive.
-
----
-
-### Method B: Docker Container
-
-If you prefer deploying with Docker:
-
-#### 1. Publish and Build the Image
-```bash
-# Publish binaries for Linux container
-dotnet publish ./Soulstone.SyncServer/Soulstone.SyncServer.csproj -c Release -o ./Soulstone.SyncServer/publish
-
-# Build Docker image
-docker build -t soulstone-sync ./Soulstone.SyncServer
-```
-
-#### 2. Run the Container
-```bash
-docker run -d \
-  --name soulstone-sync \
-  --restart unless-stopped \
-  -p 5077:5077 \
-  -e ASPNETCORE_URLS="http://0.0.0.0:5077" \
-  soulstone-sync
-```
-
-#### 3. (Optional) Docker Compose
-Create a `docker-compose.yml`:
-```yaml
-version: '3.8'
-
-services:
-  soulstone-sync:
-    image: soulstone-sync
-    build:
-      context: ./Soulstone.SyncServer
-      dockerfile: Dockerfile
-    container_name: soulstone-sync
-    restart: unless-stopped
-    environment:
-      - ASPNETCORE_URLS=http://0.0.0.0:5077
-    ports:
-      - "5077:5077"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5077/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-```
-
-Run with:
-```bash
-docker compose up -d
-```
-
----
-
-## 4. Host Machine Setup
-
-### Network Binding & Static IP
-
-By default, the server listens on `http://127.0.0.1:5077`. To accept connections from your local network or reverse proxy, configure it to bind to `0.0.0.0:5077`.
-
-#### Setting Static Local IP on the Host Machine:
-Assign a static local IP address (e.g. `192.168.1.150`) to the host machine in its network adapter settings, or configure a DHCP reservation on your router (see Section 5).
-
----
-
-### Firewall Configuration
-
-Allow inbound traffic on port `5077` (and port `80`/`443` if terminating TLS directly on this machine).
-
-#### Windows Firewall:
-Run PowerShell as Administrator:
-```powershell
-New-NetFirewallRule -DisplayName "Soulstone Sync Server (5077)" -Direction Inbound -LocalPort 5077 -Protocol TCP -Action Allow
-```
-
-#### Linux (ufw):
-```bash
-sudo ufw allow 5077/tcp
-sudo ufw reload
-```
-
-#### Linux (firewalld):
-```bash
-sudo firewall-cmd --permanent --add-port=5077/tcp
-sudo firewall-cmd --reload
-```
-
----
-
-### Running as a Persistent Background Service
-
-#### Linux (systemd service)
-
-1. Copy the published executable to `/opt/soulstone-sync`:
-   ```bash
-   sudo mkdir -p /opt/soulstone-sync
-   sudo cp -r ./publish/server-linux/* /opt/soulstone-sync/
-   sudo chmod +x /opt/soulstone-sync/Soulstone.SyncServer
-   ```
-
-2. Create a system user:
-   ```bash
-   sudo useradd -r -s /bin/false soulstone
-   sudo chown -R soulstone:soulstone /opt/soulstone-sync
-   ```
-
-3. Create the systemd service file:
-   ```bash
-   sudo nano /etc/systemd/system/soulstone-sync.service
-   ```
-   Add the following content:
-   ```ini
-   [Unit]
-   Description=Soulstone Sync Server Relay
-   After=network.target
-
-   [Service]
-   Type=simple
-   User=soulstone
-   WorkingDirectory=/opt/soulstone-sync
-   ExecStart=/opt/soulstone-sync/Soulstone.SyncServer
-   Restart=always
-   RestartSec=10
-   Environment=ASPNETCORE_URLS=http://0.0.0.0:5077
-   Environment=DOTNET_PRINT_TELEMETRY_MESSAGE=false
-
-   # Security hardening
-   NoNewPrivileges=true
-   PrivateTmp=true
-   ProtectSystem=full
-
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-4. Enable and start the service:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable soulstone-sync
-   sudo systemctl start soulstone-sync
-   sudo systemctl status soulstone-sync
-   ```
-
-5. View logs:
-   ```bash
-   journalctl -u soulstone-sync -f
-   ```
-
----
-
-#### Windows (Background Service)
-
-##### Option 1: Using NSSM (Non-Sucking Service Manager)
-1. Download [NSSM](https://nssm.cc/).
-2. In Administrator Command Prompt / PowerShell:
-   ```cmd
-   nssm install SoulstoneSync "C:\Path\To\Soulstone.SyncServer.exe"
-   nssm set SoulstoneSync AppDirectory "C:\Path\To\"
-   nssm set SoulstoneSync AppEnvironmentExtra ASPNETCORE_URLS=http://0.0.0.0:5077
-   nssm start SoulstoneSync
-   ```
-
-##### Option 2: Windows Task Scheduler (At Startup)
-1. Open **Task Scheduler** (`taskschd.msc`).
-2. Create a new Task named `Soulstone Sync Server`.
-3. Set Security options to **"Run whether user is logged on or not"**.
-4. Set Trigger to **"At startup"**.
-5. Set Action to **"Start a program"**:
-   - Program: `C:\Path\To\Soulstone.SyncServer.exe`
-   - Start in: `C:\Path\To\`
-6. In Settings, enable **"If the task fails, restart every 1 minute"**.
-
----
-
-## 5. Router & Network Routing
-
-If hosting at home and making the server accessible across the internet via standard port forwarding, follow these steps:
-
-### Static DHCP Reservation
-1. Log into your router’s administration console (typically `192.168.1.1` or `192.168.0.1`).
-2. Find **LAN Setup / DHCP Server / Static IP Assignment**.
-3. Locate your host machine's MAC address and assign it a fixed IP (e.g. `192.168.1.150`).
-
-### Port Forwarding
-Create port forwarding rules to direct incoming traffic from your public IP to your host machine:
-
-| Rule Name | Protocol | External (WAN) Port | Internal IP Address | Internal (LAN) Port |
-| :--- | :--- | :--- | :--- | :--- |
-| **Soulstone Direct (HTTP/WS)** | TCP | `5077` | `192.168.1.150` | `5077` |
-| **Soulstone Reverse Proxy (TLS)** | TCP | `80` & `443` | `192.168.1.150` | `80` & `443` |
-
-> 💡 **Note**: The Soulstone plugin natively supports direct `http://` and `ws://` connections on port `5077`. If you prefer using a custom domain with SSL certificates (port `443`), set up an optional reverse proxy as described in Section 6.
-
-### Dynamic DNS (DDNS)
-Most home ISPs provide dynamic public IP addresses that change over time. Use a DDNS service so players can connect to a domain name instead of an IP:
-1. Register a free hostname on [DuckDNS](https://www.duckdns.org/), [No-IP](https://www.noip.com/), or [Dynu](https://www.dynu.com/).
-   * Example: `my-soulstone-sync.duckdns.org`
-2. Configure the DDNS updater in your router's **Dynamic DNS** settings, or run a lightweight DDNS client/cron script on the host machine.
-
----
-
-## 6. TLS / HTTPS Reverse Proxy Setup (Optional)
-
-While Soulstone works directly with plain HTTP/WS, setting up an optional reverse proxy allows you to use custom domain names, automatic TLS certificate management, and DDoS protection through Cloudflare.
-
----
-
-### Option A: Cloudflare Tunnel (Recommended)
-**Benefits:**
-- **Zero port forwarding**: No ports need to be opened on your home router.
-- **Hidden IP**: Your home public IP address is never exposed to players or the internet.
-- **Free Automatic SSL**: Cloudflare manages the certificate.
-
-#### Setup Steps:
-1. Sign up for a free [Cloudflare](https://www.cloudflare.com/) account and add your domain (or a free sub-domain).
-2. Install `cloudflared` on the host machine:
-   - **Linux**: `sudo apt install cloudflared` (or download the binary)
-   - **Windows**: Download `cloudflared.exe` from GitHub releases.
-3. Authenticate and create a tunnel:
-   ```bash
-   cloudflared tunnel login
-   cloudflared tunnel create soulstone-relay
-   ```
-4. Configure the tunnel (`~/.cloudflared/config.yml`):
-   ```yaml
-   tunnel: <TUNNEL_UUID>
-   credentials-file: /path/to/<TUNNEL_UUID>.json
-
-   ingress:
-     - hostname: sync.yourdomain.com
-       service: http://localhost:5077
-     - service: http_status:404
-   ```
-5. Route the DNS:
-   ```bash
-   cloudflared tunnel route dns soulstone-relay sync.yourdomain.com
-   ```
-6. Run as a service:
-   ```bash
-   sudo cloudflared service install
-   sudo systemctl start cloudflared
-   ```
-Players can now connect using: `https://sync.yourdomain.com`
-
----
-
-### Option B: Caddy Reverse Proxy
-**Benefits:**
-- Simplest standalone reverse proxy.
-- Automatically acquires and renews free Let's Encrypt / ZeroSSL TLS certificates with zero manual certificate management.
-
-#### 1. Install Caddy:
-- **Debian/Ubuntu**:
-  ```bash
-  sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
-  curl -1sLF 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
-  curl -1sLF 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
-  sudo apt update && sudo apt install caddy
-  ```
-- **Windows**: Download `caddy.exe` from [caddyserver.com](https://caddyserver.com/).
-
-#### 2. Configure `/etc/caddy/Caddyfile`:
-```caddy
-sync.yourdomain.com {
-    reverse_proxy localhost:5077
+# Soulstone 1.4.0 server deployment
+
+The API and WebSocket relay are one application: `Soulstone.SyncServer` (`net8.0`).
+It runs independently of FFXIV, Dalamud, and the plugin. This guide uses Windows
+Task Scheduler to start it at boot, even before anyone logs in.
+
+The main deployment uses **HTTP on TCP 5077** and **WS** for party connections.
+No certificate or reverse proxy is required. HTTPS instructions are retained
+below as an optional alternative.
+
+## Choose how players will connect
+
+| Deployment | Listener on the host | Player URL | Networking |
+| --- | --- | --- | --- |
+| Same PC | http://127.0.0.1:5077 | http://127.0.0.1:5077 | No inbound firewall rule |
+| LAN or private VPN | http://0.0.0.0:5077 | http://HOST-LAN-OR-VPN-IP:5077 | Allow TCP 5077 from the intended network |
+| Public direct HTTP | http://0.0.0.0:5077 | http://PUBLIC-IP-OR-DOMAIN:5077 | Allow and forward TCP 5077 to the host |
+| Public HTTPS tunnel | http://127.0.0.1:5077 | https://sync.example.com | Cloudflare Tunnel; no router forwarding |
+| Public HTTPS proxy | http://127.0.0.1:5077 | https://sync.example.com | Caddy; forward TCP 80/443 |
+
+With HTTP, REST publications and bearer credentials travel without TLS transport
+encryption. Party message payloads retain their end-to-end encryption. The
+optional HTTPS setup provides transport encryption if you need it later.
+0.0.0.0 is a listening address, never the URL to give players.
+
+All rooms, invites, profiles, rulesets, and ownership hashes are in memory.
+Every process restart clears them. Automatic startup restores the API, not
+previous sessions or publications. Local plugin sheets and configuration remain
+on players' machines. See [publication ownership and migration](PUBLICATION_API.md).
+
+## 1. Publish the Windows server
+
+On the build machine, install a .NET SDK capable of targeting .NET 8. Building
+the complete plugin solution also requires .NET 10 and Dalamud; building just
+this server does not. Use a maintained Windows x64 host. For Windows ARM64,
+replace win-x64 with win-arm64 in the publish command.
+
+Open PowerShell in the repository root:
+
+~~~powershell
+dotnet test .\Soulstone.SyncServer.Tests\Soulstone.SyncServer.Tests.csproj
+dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\Soulstone.SyncServer\bin\publish\win-x64
+~~~
+
+Stop if either command fails. Copy **all** files in the output directory,
+including appsettings.json and any native libraries, to the server machine.
+Single-file publishing can still produce supporting files. Self-contained
+output includes the runtime, so the host does not need an installed SDK or
+ASP.NET Core runtime. Rebuild and redeploy to receive runtime security updates.
+See Microsoft's [single-file deployment reference](https://learn.microsoft.com/en-us/dotnet/core/deploying/single-file/overview).
+
+On the target machine, open **Windows PowerShell as Administrator**.
+If you built on this machine, install with:
+
+~~~powershell
+$installDir = 'C:\Program Files\SoulstoneSync'
+New-Item -ItemType Directory -Path $installDir -Force
+Copy-Item -Path '.\Soulstone.SyncServer\bin\publish\win-x64\*' -Destination $installDir -Force
+~~~
+
+If you built elsewhere, copy the same complete output into that directory.
+Use an administrator-controlled deployment directory rather than Downloads.
+All examples below use this installation path.
+
+## 2. Run once and check the API
+
+In PowerShell on the host:
+
+~~~powershell
+& 'C:\Program Files\SoulstoneSync\Soulstone.SyncServer.exe' --urls 'http://0.0.0.0:5077'
+~~~
+
+Leave the terminal open and check from a second terminal:
+
+~~~powershell
+Invoke-RestMethod -Uri 'http://127.0.0.1:5077/health' -TimeoutSec 10
+~~~
+
+Expected result: status is healthy (HTTP 200). Stop the foreground server with
+**Ctrl+C** before configuring startup so two instances do not compete for 5077.
+
+Without a listener setting, the application defaults to http://0.0.0.0:5077.
+The --urls argument explicitly selects the listener and takes precedence over
+ASPNETCORE_URLS. appsettings.json is loaded from the executable's directory.
+It contains logging settings and AllowedHosts; it is not a database or a place
+for plugin ownership credentials.
+
+## 3. Configure automatic Windows startup
+
+Run this block in **Windows PowerShell as Administrator** after installation.
+The listener below accepts direct HTTP connections on the host's network
+interfaces. A local health check still uses 127.0.0.1.
+
+~~~powershell
+$installDir = 'C:\Program Files\SoulstoneSync'
+$listenUrl = 'http://0.0.0.0:5077'
+$taskName = 'Soulstone Sync Server'
+$exePath = Join-Path $installDir 'Soulstone.SyncServer.exe'
+if (-not (Test-Path -LiteralPath $exePath)) { throw 'Install the published server first.' }
+
+# Allow Local Service to read and execute, without modifying the deployment.
+icacls.exe $installDir /grant '*S-1-5-19:(OI)(CI)RX'
+if ($LASTEXITCODE -ne 0) { throw 'Could not grant Local Service access.' }
+
+$action = New-ScheduledTaskAction -Execute $exePath -Argument "--urls $listenUrl" -WorkingDirectory $installDir
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$principal = New-ScheduledTaskPrincipal -UserId 'LOCALSERVICE' -LogonType ServiceAccount
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Description 'Soulstone API and WebSocket relay; starts at boot and restarts after failure.'
+Start-ScheduledTask -TaskName $taskName
+~~~
+
+This creates a new task. If that name exists, inspect it first. To intentionally
+update this task's definition, stop it and rerun registration with -Force added
+to Register-ScheduledTask.
+
+The task uses built-in Local Service without a password or interactive login.
+It runs continuously, ignores duplicate launches, and retries failed exits after
+one minute, up to 999 times. A zero execution limit prevents the normal runtime
+cutoff. Manual stops are not crashes; explicitly start afterward. These settings
+follow Microsoft's [task principal](https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtaskprincipal)
+and [task settings](https://learn.microsoft.com/en-us/powershell/module/scheduledtasks/new-scheduledtasksettingsset) references.
+
+Check startup:
+
+~~~powershell
+Get-ScheduledTask -TaskName 'Soulstone Sync Server' | Select-Object TaskName, State
+Get-ScheduledTaskInfo -TaskName 'Soulstone Sync Server'
+Invoke-RestMethod -Uri 'http://127.0.0.1:5077/health' -TimeoutSec 10
+~~~
+
+Expected state: Running. For this continuous task, LastTaskResult can be 267009
+(0x41301, still running); use /health to confirm API availability. Reboot at a
+convenient time and check health from another device before anyone logs in to
+the host. Manual startup alone does not verify boot startup.
+
+In **Settings > System > Power**, disable automatic sleep while plugged in if
+the host must serve players continuously. A sleeping or shut-down computer
+cannot serve requests.
+
+The executable is a console application and does not implement the Windows
+Service Control Manager protocol. Do not register it directly with sc.exe
+create. Task Scheduler handles it directly; a Windows service needs a wrapper.
+
+### Start, stop, disable, or remove startup
+
+Run as Administrator:
+
+~~~powershell
+Stop-ScheduledTask -TaskName 'Soulstone Sync Server'
+Start-ScheduledTask -TaskName 'Soulstone Sync Server'
+~~~
+
+To prevent boot launches, run Disable-ScheduledTask with the same task name and
+stop the running task. To restore them, run Enable-ScheduledTask and start it.
+To remove startup, stop the task and run:
+
+~~~powershell
+Unregister-ScheduledTask -TaskName 'Soulstone Sync Server'
+~~~
+
+Removing the task does not delete the published files.
+
+## 4. Make the server reachable
+
+### LAN or private VPN
+
+The startup task already uses http://0.0.0.0:5077. Reserve the host's LAN address in
+your router's DHCP settings, for example 192.168.1.150. On the host, run as
+Administrator:
+
+~~~powershell
+New-NetFirewallRule -DisplayName 'Soulstone Sync LAN' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5077 -Profile Private -RemoteAddress LocalSubnet
+~~~
+
+This permits local-subnet clients on a Private network profile. For a VPN,
+adapt -RemoteAddress to the actual VPN subnet and -Profile to the adapter.
+From another device, check http://192.168.1.150:5077/health. Give players the
+host's address; localhost refers to each player's own computer.
+
+### Public direct HTTP with router port forwarding
+
+1. Reserve the host's LAN address in your router's DHCP settings, for example
+   192.168.1.150. Keep the task listener on http://0.0.0.0:5077.
+2. In Administrator PowerShell, permit direct HTTP traffic. Unlike the LAN rule,
+   this rule accepts remote source addresses:
+
+   ~~~powershell
+   New-NetFirewallRule -DisplayName 'Soulstone Sync HTTP' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5077 -Profile Any
+   ~~~
+
+3. Add a router forwarding rule: **external TCP 5077 -> 192.168.1.150 TCP 5077**.
+   Replace the address with your host's reserved address. UDP is not needed.
+4. Give players http://YOUR-PUBLIC-IP:5077 or a DNS hostname pointing to that
+   IP, such as http://sync.example.com:5077. A changing public IP needs a DNS updater.
+5. From another network, such as mobile data, check:
+
+   ~~~powershell
+   Invoke-RestMethod -Uri 'http://YOUR-PUBLIC-IP:5077/health' -TimeoutSec 10
+   ~~~
+
+6. Verify a real plugin session using that same base URL. HTTP maps to WS;
+   there is no HTTPS redirect or certificate setup in this deployment.
+
+If external access fails, check the host firewall, router forwarding, double
+NAT, and ISP CGNAT. CGNAT usually prevents direct inbound forwarding; ask your
+ISP for a reachable public address or use a private VPN. Some routers cannot
+reach their public IP from the LAN, so test externally. You only need port 5077
+for this path; the optional proxy ports 80/443 are unrelated to direct HTTP.
+
+### Optional HTTPS through Cloudflare Tunnel
+
+If choosing this alternative, update the API task listener to
+http://127.0.0.1:5077 and remove the direct HTTP router forwarding/firewall rule
+if it is no longer used. The API still speaks HTTP locally; the tunnel exposes
+HTTPS to players.
+
+You need a domain managed through Cloudflare and a tunnel connector on the host.
+This works without inbound router ports, including with CGNAT. Keep the API
+bound to 127.0.0.1:5077.
+
+1. Follow Cloudflare's [tunnel setup guide](https://developers.cloudflare.com/tunnel/get-started/)
+   to create a remotely managed tunnel and select its Windows connector.
+2. Download cloudflared.exe through the official guide into a stable directory,
+   for example C:\Program Files\cloudflared.
+3. In Administrator PowerShell, run the service command shown for your tunnel:
+
+   ~~~powershell
+   & 'C:\Program Files\cloudflared\cloudflared.exe' service install '<YOUR-TUNNEL-TOKEN>'
+   Get-Service -Name cloudflared
+   Set-Service -Name cloudflared -StartupType Automatic
+   Start-Service -Name cloudflared
+   ~~~
+
+4. Add a published application route for sync.example.com targeting **HTTP**
+   127.0.0.1:5077. The external player URL is HTTPS.
+5. Check https://sync.example.com/health from another network, then test a real
+   plugin party session. HTTP health does not test WebSocket upgrades.
+
+Keep the tunnel token private. Do not add a browser authentication challenge
+or Cloudflare Access login requirement to the API: the plugin has no interactive
+browser authentication flow. Preserve bearer headers and WebSocket upgrades.
+Proxy request/body/header logging must also avoid credentials and private data.
+
+Both the API task and cloudflared service must start after reboot. Check them
+independently. No firewall rule or router forwarding for 5077 is needed when
+the connector and API run on the same host.
+
+### Optional HTTPS through Caddy and router forwarding
+
+For this alternative, update the API task listener to http://127.0.0.1:5077
+and remove the direct HTTP router forwarding/firewall rule if unused.
+
+Use this if you have a reachable public IP and control router forwarding.
+Point DNS for sync.example.com at that IP. Forward TCP 80 and 443 to the host's
+reserved LAN address and allow them through Windows Firewall. Keep 5077 on
+loopback and do not forward it.
+
+Download Caddy from its [official installation page](https://caddyserver.com/docs/install).
+Create C:\Program Files\Caddy\Caddyfile:
+
+~~~caddy
+sync.example.com {
+    reverse_proxy 127.0.0.1:5077
 }
-```
+~~~
 
-#### 3. Start Caddy:
-```bash
-sudo systemctl enable --now caddy
-```
+Validate and test:
 
----
+~~~powershell
+& 'C:\Program Files\Caddy\caddy.exe' validate --config 'C:\Program Files\Caddy\Caddyfile' --adapter caddyfile
+& 'C:\Program Files\Caddy\caddy.exe' run --config 'C:\Program Files\Caddy\Caddyfile' --adapter caddyfile
+~~~
 
-### Option C: NGINX + Certbot
+Caddy's [automatic HTTPS](https://caddyserver.com/docs/automatic-https) manages
+certificates; its [reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)
+supports WebSocket upgrades. For unattended startup, follow its
+[Windows service instructions](https://caddyserver.com/docs/running#windows-service)
+and configure automatic startup and failure recovery. Give that service account
+persistent writable certificate storage. A foreground command alone does not
+configure proxy startup.
 
-If you already use NGINX on your server:
+If outside access fails, check double NAT/CGNAT with your ISP. Dynamic public IPs
+need a DNS updater. Test from a mobile connection; some routers cannot reach
+their own public hostname from the LAN.
 
-#### 1. NGINX Site Configuration (`/etc/nginx/sites-available/soulstone-sync`):
-```nginx
-server {
-    listen 80;
-    server_name sync.yourdomain.com;
+### Rate limits behind proxies
 
-    location / {
-        proxy_pass http://127.0.0.1:5077;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 86400s;
-        proxy_send_timeout 86400s;
-    }
-}
-```
+The server uses the connection's RemoteIpAddress and does not process forwarded
+client IP headers. Players using one tunnel or reverse proxy can share its limits:
+10 session creations/minute and 60 publication writes/deletes/minute. A 429 can
+affect multiple players. Adding X-Forwarded-For at the proxy alone does not change
+this behavior.
 
-#### 2. Enable Site and Obtain SSL Certificate:
-```bash
-sudo ln -s /etc/nginx/sites-available/soulstone-sync /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d sync.yourdomain.com
-```
+## 5. Connect the 1.4.0 plugin
 
----
+1. Open /soulstone and select **Group** in the **Tools** sidebar.
+2. Select **Host**, enter the base URL such as http://YOUR-PUBLIC-IP:5077
+   (without /api or /health), and create a session.
+3. Share the generated invite privately with the intended players.
+4. Players select **Join**, paste the entire invite, and join. The invite
+   supplies the URL; HTTP uses WS and HTTPS uses WSS automatically.
+5. Verify roster presence, a shared roll, a visible resource update, and a
+   host-controlled initiative update. Test profile publication/inspection and
+   dice-system sharing separately from the party WebSocket.
 
-## 7. Verification & Client Connection
+Use the same reachable relay URL for publications and sessions. Ownership
+credentials are scoped to that URL in plugin configuration, so switching between
+LAN/public URLs can change the credential used.
 
-### 1. Verify Health Endpoint
-From a device outside or inside your local network, run:
-```bash
-# Direct HTTP check
-curl -i http://<your-host-ip-or-domain>:5077/health
+Invites are plugin input, not a browser setup page. A /join/... URL need not
+render a page. Do not include actual invites or session tokens in support reports.
 
-# Or via HTTPS reverse proxy
-curl -i https://sync.yourdomain.com/health
-```
-Expected output:
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
+## 6. Updates, rollback, and diagnostics
 
-{"status":"healthy"}
-```
+For 1.4.0, upgrade plugin and server together, restart the relay, and republish
+content. Old plugins can download public content but unauthenticated publication
+writes are rejected. Existing rulesets without a local credential get a new code.
 
-### 2. Configure the Soulstone Plugin in FFXIV
+For later deployments:
 
-1. Open FFXIV and type `/soulstone` to open the plugin window.
-2. Navigate to **Settings (`ConfigWindow`)** -> **Party Synchronization**.
-3. In **Sync Server URL**, enter your endpoint:
-   - **Direct HTTP (LAN, IP, or Port Forwarding):**
-     ```
-     http://192.168.1.150:5077
-     ```
-     or
-     ```
-     http://my-soulstone-sync.duckdns.org:5077
-     ```
-   - **HTTPS Domain (via Reverse Proxy):**
-     ```
-     https://sync.yourdomain.com
-     ```
-4. **As the DM / Host:**
-   - Click **Create Sync Session**.
-   - Copy the generated **Invite Link** and send it to your party members over Discord / private message. It combines this relay URL and a random 16-character validation code in one value, for example `http://192.168.1.150:5077/join/AbCdEf1234567890` or `https://sync.yourdomain.com/join/AbCdEf1234567890`.
-5. **As a Party Member:**
-   - Paste the complete **Invite Link** and click **Join Session**; no separate server URL is needed.
-   - The plugin will connect over `ws://` (for HTTP) or `wss://` (for HTTPS) and synchronize resource bars, rolls, and initiative turns automatically.
+1. Publish and test into a separate build directory.
+2. Notify players: restarting clears rooms, invites, and publications.
+3. In Administrator PowerShell, disable and stop before replacing files:
 
----
+   ~~~powershell
+   Disable-ScheduledTask -TaskName 'Soulstone Sync Server'
+   Stop-ScheduledTask -TaskName 'Soulstone Sync Server'
+   Get-Process -Name 'Soulstone.SyncServer' -ErrorAction SilentlyContinue
+   ~~~
 
-## 8. Troubleshooting & FAQ
+4. Wait for the process to exit. Save the old deployment outside the installation
+   directory, including custom configuration. Replace the complete output and
+   reapply deliberate appsettings.json customizations.
+5. Enable and start:
 
-### Q: Can I use plain HTTP / direct IP without HTTPS?
-**A**: Yes! Soulstone fully supports direct `http://` and `ws://` endpoints. You can connect via local IP (`http://192.168.1.x:5077`), public IP, VPN (Tailscale, WireGuard, ZeroTier), or Dynamic DNS domain without setting up SSL certificates. HTTPS is recommended when exposing the server publicly on the open internet with custom domains, but is completely optional.
+   ~~~powershell
+   Enable-ScheduledTask -TaskName 'Soulstone Sync Server'
+   Start-ScheduledTask -TaskName 'Soulstone Sync Server'
+   Invoke-RestMethod -Uri 'http://127.0.0.1:5077/health' -TimeoutSec 10
+   ~~~
 
-### Q: The health check works in browser, but WebSocket fails to connect.
-**A**: Ensure your reverse proxy supports WebSocket upgrades:
-- In NGINX, verify `proxy_set_header Upgrade $http_upgrade;` and `proxy_set_header Connection "upgrade";` are present.
-- In Cloudflare, ensure WebSockets are enabled under **Network** settings in the Cloudflare dashboard.
-- If using direct HTTP, ensure port `5077` is open in host and router firewalls.
+6. Check public health and a real plugin session. Create a new room and invite;
+   republish profiles and rulesets.
 
-### Q: Do players need to open any ports?
-**A**: No. Only the server host needs port forwarding or a tunnel. Players connect outward via standard HTTP/WS (port 5077) or HTTPS/WSS (port 443).
+To roll back, disable/stop, restore the old deployment, enable/start, and verify.
+Rollback also clears memory and needs compatible plugin/server versions.
+Securely back up players' plugin configurations for ownership credentials.
+There is no server database to back up or restore.
 
-### Q: How much RAM / CPU does the relay use?
-**A**: The server is extremely lightweight. It typically consumes less than **30 MB of RAM** and negligible CPU, making it suitable for low-cost VPS instances or a Raspberry Pi.
+| Symptom | Check |
+| --- | --- |
+| Task Ready instead of Running | Get-ScheduledTaskInfo; enable Task Scheduler history and inspect its Operational event log |
+| Local health fails | Action path, file permissions, listener, and port usage |
+| Address already in use | Stop an old foreground instance or choose another port consistently |
+| Local health works, remote fails | Binding, host firewall profile, router route, tunnel, and DNS |
+| Health works, party connection fails | WebSocket upgrades, proxy authentication, current invite, and session expiry |
+| Publication 401 | Missing/invalid bearer credential or plugin/server version mismatch |
+| Publication 403 | Wrong owner credential; restore original plugin configuration |
+| 404 after restart | Republish content and create a new session |
+| 429 | Wait for the rate window; proxy users may share a limit |
+| 413 or 503 | Payload or registry capacity limit; see API reference |
+| Works only while logged in | Startup trigger, Local Service principal, host sleep, and proxy/tunnel startup |
 
-### Q: What happens if the server restarts during a session?
-**A**: Sessions and character registry caches are kept strictly in memory for maximum privacy. If the server restarts, the DM simply clicks **Create Sync Session** to generate a new session code for the party.
+Inspect port usage with:
+
+~~~powershell
+Get-NetTCPConnection -LocalPort 5077 -ErrorAction SilentlyContinue
+~~~
+
+Task Scheduler records execution events, not API console output. To see startup
+errors, stop the task and run the executable in a terminal with the same --urls
+argument. For a short diagnostic log:
+
+~~~powershell
+& 'C:\Program Files\SoulstoneSync\Soulstone.SyncServer.exe' --urls 'http://0.0.0.0:5077' *> "$env:TEMP\soulstone-startup.log"
+~~~
+
+Stop this process before restarting the task. The application logs lifecycle and
+transport errors, not credentials or payloads. Avoid request-body/authorization
+logging at proxies. Health confirms responsiveness, not surviving state or
+connectivity for every player.
+
+## 7. Linux and containers
+
+These use the same API, limits, and in-memory lifecycle.
+
+### Linux systemd
+
+Publish for the host architecture (linux-x64 or linux-arm64):
+
+~~~bash
+dotnet publish Soulstone.SyncServer/Soulstone.SyncServer.csproj -c Release -r linux-x64 --self-contained true -p:PublishSingleFile=true -o Soulstone.SyncServer/bin/publish/linux-x64
+~~~
+
+Copy the complete output to /opt/soulstone-sync, make the executable runnable,
+and create a dedicated soulstone system user with read/execute access. Install
+/etc/systemd/system/soulstone-sync.service:
+
+~~~ini
+[Unit]
+Description=Soulstone API and WebSocket relay
+After=network.target
+
+[Service]
+Type=simple
+User=soulstone
+WorkingDirectory=/opt/soulstone-sync
+ExecStart=/opt/soulstone-sync/Soulstone.SyncServer --urls http://0.0.0.0:5077
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+~~~
+
+Run sudo systemctl daemon-reload, then sudo systemctl enable --now soulstone-sync.
+Inspect systemctl status soulstone-sync and journalctl -u soulstone-sync.
+Choose loopback/proxy or LAN binding as described above.
+
+### Docker
+
+The existing Dockerfile uses ASP.NET Core 8 Alpine. Publish portable,
+framework-dependent output first, rather than copying a Windows executable:
+
+~~~powershell
+dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release --self-contained false -o .\Soulstone.SyncServer\publish
+docker build -t soulstone-sync:1.4.0 .\Soulstone.SyncServer
+docker run -d --name soulstone-sync --restart unless-stopped -p 5077:5077 soulstone-sync:1.4.0
+~~~
+
+The container and published host port accept direct HTTP on 5077. Apply the
+firewall/router policy for your intended network. For an optional host-side
+HTTPS proxy, use -p 127.0.0.1:5077:5077 instead. Docker must start at boot too;
+Docker Desktop may depend on
+user login, so verify your host's boot behavior. Inspect docker logs soulstone-sync
+and check health from the host. The runtime image does not promise curl is
+installed; do not use an unverified curl-based container health check.
+
+Restarting or recreating a container clears state. The Docker publish directory
+is a build artifact; keep it out of commits.

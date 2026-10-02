@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace Soulstone.Windows
 {
-    internal class CharacterWindow
+    internal partial class CharacterWindow
     {
         private string newCharname = "Nouveau personnage";
 
@@ -41,10 +41,27 @@ namespace Soulstone.Windows
             configuration = plugin.Configuration;
         }
 
+        private async Task PublishCurrentCharacterAsync(CharacterSheet sheet)
+        {
+            bool success = await PartySyncManager.Instance.PublishCharacterSheetAsync(sheet).ConfigureAwait(false);
+            await FrameworkDispatcher.RunAsync(() =>
+            {
+                if (plugin.IsDisposed) return;
+                Messages.PrintEcho(LocalizationManager.Instance.GetLocalizedString(success ? "SheetPublishedSuccess" : "SheetPublishFailed"));
+            }).ConfigureAwait(false);
+        }
+
         public void Dispose() { }
 
         public void DrawCharTab()
         {
+            using var sheetBackground = ImRaii.PushColor(ImGuiCol.ChildBg, SheetBackground);
+            using var sheetButtons = ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.14f, 0.17f, 0.21f, 1));
+            using var sheetButtonHover = ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.28f, 0.25f, 0.18f, 1));
+            using var sheetButtonActive = ImRaii.PushColor(ImGuiCol.ButtonActive, new Vector4(0.39f, 0.31f, 0.16f, 1));
+            using var sheetRounding = ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 5.0f * ImGuiHelpers.GlobalScale);
+            ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetWindowPos(), ImGui.GetWindowPos() + ImGui.GetWindowSize(),
+                ImGui.ColorConvertFloat4ToU32(SheetBackground));
             if (CharacterManager.Instance.CharacterSheet != null)
             {
                 currentCharacter = CharacterManager.Instance.CharacterSheet;
@@ -60,7 +77,7 @@ namespace Soulstone.Windows
                     if (emptyCard.Success)
                     {
                         ImGui.Spacing();
-                        ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedMessage"));
+                        ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedMessage"));
                         ImGui.Spacing();
                         if (UiUtils.IconButton("CreateFirstCharBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("NewCharButton")))
                         {
@@ -78,17 +95,15 @@ namespace Soulstone.Windows
                 return;
             }
 
-            DrawHeroCard();
+            DrawSheetHero();
             ImGui.Spacing();
-            DrawIdentitySection();
+            DrawSheetColumns(DrawSheetIdentity, DrawSheetDescription);
             ImGui.Spacing();
-            DrawOocSection();
+            DrawSheetColumns(DrawSheetAppearance, DrawSheetQuickLook);
             ImGui.Spacing();
-            DrawAppearanceSection();
+            DrawSheetColumns(DrawSheetOoc, DrawSheetBackground);
             ImGui.Spacing();
-            DrawQuickLookSection();
-            ImGui.Spacing();
-            DrawBackgroundSection();
+            DrawSheetRelationships();
 
             DrawModals();
         }
@@ -114,7 +129,7 @@ namespace Soulstone.Windows
                     int effectiveMax = currentCharacter.GetEffectiveResourceMax(res.Name, currentDiceSys);
                     int gearBonus = currentCharacter.GetGearStatBonus(res.Name) + currentCharacter.GetGearStatBonus($"Max {res.Name}") + currentCharacter.GetGearStatBonus($"Max{res.Name}");
 
-                    using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.11f, 0.12f, 0.15f, 0.90f)))
+                    using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
                     using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(resCol.X, resCol.Y, resCol.Z, 0.45f)))
                     using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
                     using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 6.0f) * scale))
@@ -139,7 +154,7 @@ namespace Soulstone.Windows
                             if (res.ResourceType == ResourceType.FlatNumber)
                             {
                                 string valText = $"{effectiveMax}{(gearBonus != 0 ? $" (+{gearBonus})" : "")}";
-                                UiUtils.PillBadge(valText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
+                                UiUtils.PillBadge(valText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), SoulstoneTheme.Gold);
 
                                 if (res.IsRollable)
                                 {
@@ -221,116 +236,9 @@ namespace Soulstone.Windows
 
         private void DrawFieldLabelWithToggle(string label, string fieldName)
         {
-            ImGui.TextColored(ImGuiColors.DalamudGrey, label);
+            ImGui.TextColored(SoulstoneTheme.Muted, label);
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
             DrawVisibilityToggle(fieldName);
-        }
-
-        private void DrawPropertyCard(string label, string? value, FontAwesomeIcon icon, Vector4 accentColor, float width = -1f, string? fieldName = null)
-        {
-            var scale = ImGuiHelpers.GlobalScale;
-            var cardWidth = width > 0 ? width : ImGui.GetContentRegionAvail().X;
-            var cardHeight = 55.0f * scale;
-
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.11f, 0.12f, 0.15f, 0.90f)))
-            using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.22f, 0.25f, 0.32f, 0.65f)))
-            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
-            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 6.0f) * scale))
-            using (var child = ImRaii.Child($"##PropCard_{label}", new Vector2(cardWidth, cardHeight), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
-            {
-                if (child.Success)
-                {
-                    var drawList = ImGui.GetWindowDrawList();
-                    var pos = ImGui.GetWindowPos();
-                    var size = ImGui.GetWindowSize();
-
-                    // Left mini accent line
-                    drawList.AddRectFilled(
-                        pos + new Vector2(2.0f * scale, 4.0f * scale),
-                        pos + new Vector2(4.5f * scale, size.Y - 4.0f * scale),
-                        ImGui.ColorConvertFloat4ToU32(accentColor),
-                        1.5f * scale);
-
-                    // Icon + Label on top
-                    ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(accentColor, icon.ToIconString());
-                    ImGui.PopFont();
-                    ImGui.SameLine(0, 6.0f * scale);
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, label.Replace(":", "").Trim());
-
-                    if (!string.IsNullOrEmpty(fieldName))
-                    {
-                        var toggleW = 22.0f * scale;
-                        var rightX = ImGui.GetWindowContentRegionMax().X - toggleW;
-                        if (ImGui.GetCursorPosX() < rightX)
-                            ImGui.SameLine(rightX);
-                        else
-                            ImGui.SameLine();
-                        DrawVisibilityToggle(fieldName);
-                    }
-
-                    // Value line
-                    var displayVal = !string.IsNullOrWhiteSpace(value) ? value : "-";
-                    var valCol = !string.IsNullOrWhiteSpace(value) ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey2;
-                    ImGui.TextColored(valCol, displayVal);
-                }
-            }
-        }
-
-        private void DrawStoryBlock(string title, string? content, FontAwesomeIcon icon, Vector4 accentColor, string? fieldName = null)
-        {
-            var scale = ImGuiHelpers.GlobalScale;
-            var availWidth = ImGui.GetContentRegionAvail().X;
-
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.11f, 0.14f, 0.90f)))
-            using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(accentColor.X, accentColor.Y, accentColor.Z, 0.45f)))
-            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
-            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(12.0f, 8.0f) * scale))
-            using (var child = ImRaii.Child($"##StoryBlock_{title}", new Vector2(availWidth, 0), true, ImGuiWindowFlags.AlwaysAutoResize))
-            {
-                if (child.Success)
-                {
-                    var drawList = ImGui.GetWindowDrawList();
-                    var pos = ImGui.GetWindowPos();
-                    var size = ImGui.GetWindowSize();
-
-                    // Left vertical accent
-                    drawList.AddRectFilled(
-                        pos + new Vector2(2.5f * scale, 5.0f * scale),
-                        pos + new Vector2(5.5f * scale, size.Y - 5.0f * scale),
-                        ImGui.ColorConvertFloat4ToU32(accentColor),
-                        1.5f * scale);
-
-                    ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(accentColor, icon.ToIconString());
-                    ImGui.PopFont();
-                    ImGui.SameLine(0, 6.0f * scale);
-                    ImGui.TextColored(accentColor, title.Replace(":", "").Trim());
-
-                    if (!string.IsNullOrEmpty(fieldName))
-                    {
-                        var toggleW = 22.0f * scale;
-                        var rightX = ImGui.GetWindowContentRegionMax().X - toggleW;
-                        if (ImGui.GetCursorPosX() < rightX)
-                            ImGui.SameLine(rightX);
-                        else
-                            ImGui.SameLine();
-                        DrawVisibilityToggle(fieldName);
-                    }
-
-                    ImGui.Separator();
-                    ImGui.Spacing();
-
-                    if (!string.IsNullOrWhiteSpace(content))
-                    {
-                        ImGui.TextWrapped(content);
-                    }
-                    else
-                    {
-                        ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoneText"));
-                    }
-                }
-            }
         }
 
         private void DrawTopActionBar()
@@ -342,8 +250,8 @@ namespace Soulstone.Windows
             var drawList = ImGui.GetWindowDrawList();
 
             // Background card
-            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.12f, 0.15f, 0.95f));
-            var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.24f, 0.28f, 0.35f, 0.75f));
+            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.07f, 0.085f, 0.11f, 1));
+            var borderCol = ImGui.ColorConvertFloat4ToU32(SheetGold with { W = 0.45f });
             drawList.AddRectFilled(pos, pos + new Vector2(availWidth, barHeight), bgCol, 6.0f * scale);
             drawList.AddRect(pos, pos + new Vector2(availWidth, barHeight), borderCol, 6.0f * scale, ImDrawFlags.None, 1.2f);
 
@@ -352,7 +260,7 @@ namespace Soulstone.Windows
             ImGui.BeginGroup();
             {
                 // Edit mode toggle
-                var editColor = editingCharsheet ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudGrey;
+                var editColor = editingCharsheet ? ImGuiColors.DalamudOrange : SoulstoneTheme.Muted;
                 if (UiUtils.IconButton("EditCheck", FontAwesomeIcon.PencilAlt, LocalizationManager.Instance.GetLocalizedString("EditCharsheetCheck"), customColor: editColor))
                 {
                     editingCharsheet = !editingCharsheet;
@@ -386,18 +294,7 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 6.0f * scale);
                     if (UiUtils.IconButton("PublishCharBtn", FontAwesomeIcon.CloudUploadAlt, LocalizationManager.Instance.GetLocalizedString("PublishSheetToServer")))
                     {
-                        _ = Task.Run(async () =>
-                        {
-                            var success = await PartySyncManager.Instance.PublishCharacterSheetAsync(currentCharacter).ConfigureAwait(false);
-                            if (success)
-                            {
-                                Messages.PrintEcho(LocalizationManager.Instance.GetLocalizedString("SheetPublishedSuccess"));
-                            }
-                            else
-                            {
-                                Messages.PrintEcho(LocalizationManager.Instance.GetLocalizedString("SheetPublishFailed"));
-                            }
-                        });
+                        _ = PublishCurrentCharacterAsync(currentCharacter);
                     }
                 }
 
@@ -433,703 +330,6 @@ namespace Soulstone.Windows
             });
         }
 
-        private void DrawHeroCard()
-        {
-            if (currentCharacter == null) return;
-
-            var scale = ImGuiHelpers.GlobalScale;
-            var portraitWidth = 135.0f * scale;
-            var portraitHeight = 165.0f * scale;
-
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.11f, 0.14f, 0.95f)))
-            using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.80f, 0.65f, 0.25f, 0.85f)))
-            using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 8.0f * scale))
-            using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(14.0f, 12.0f) * scale))
-            using (var card = ImRaii.Child("##HeroCard", new Vector2(0, 190.0f * scale), true, ImGuiWindowFlags.NoScrollbar))
-            {
-                if (!card.Success) return;
-
-                var drawList = ImGui.GetWindowDrawList();
-                var cardPos = ImGui.GetWindowPos();
-                var cardSize = ImGui.GetWindowSize();
-
-                // Left gold accent stripe
-                drawList.AddRectFilled(
-                    cardPos + new Vector2(2.5f * scale, 6.0f * scale),
-                    cardPos + new Vector2(6.0f * scale, cardSize.Y - 6.0f * scale),
-                    ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold),
-                    2.0f * scale);
-
-                // Portrait column
-                ImGui.BeginGroup();
-                {
-                    var placeholder = !string.IsNullOrWhiteSpace(currentCharacter.characterFullName)
-                        ? (currentCharacter.characterFullName.Length > 2 ? currentCharacter.characterFullName[..2].ToUpper() : currentCharacter.characterFullName.ToUpper())
-                        : "RP";
-                    ImageHelper.DrawThumbnailOrPlaceholder(currentCharacter.characterPictureUrl, new Vector2(portraitWidth, portraitHeight), placeholder, ImGuiColors.ParsedGold, 6.0f);
-                }
-                ImGui.EndGroup();
-
-                ImGui.SameLine(0, 18.0f * scale);
-
-                // Character Details Column
-                ImGui.BeginGroup();
-                {
-                    var displayName = !string.IsNullOrWhiteSpace(currentCharacter.characterFullName) ? currentCharacter.characterFullName : LocalizationManager.Instance.GetLocalizedString("UnnamedCharacter");
-                    ImGui.TextColored(ImGuiColors.ParsedGold, displayName);
-
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.characterNickName))
-                    {
-                        ImGui.SameLine(0, 8.0f * scale);
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, $"\"{currentCharacter.characterNickName}\"");
-                    }
-
-                    ImGui.Spacing();
-
-                    // Badges row
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.characterJob))
-                    {
-                        UiUtils.PillBadge(currentCharacter.characterJob, new Vector4(0.20f, 0.35f, 0.60f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.UserShield);
-                        ImGui.SameLine(0, 6.0f * scale);
-                    }
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.characterRace))
-                    {
-                        var raceText = !string.IsNullOrWhiteSpace(currentCharacter.characterSubRace) ? $"{currentCharacter.characterRace} ({currentCharacter.characterSubRace})" : currentCharacter.characterRace;
-                        UiUtils.PillBadge(raceText, new Vector4(0.35f, 0.20f, 0.50f, 0.85f), ImGuiColors.DalamudViolet, FontAwesomeIcon.Dna);
-                        ImGui.SameLine(0, 6.0f * scale);
-                    }
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.characterGender) || !string.IsNullOrWhiteSpace(currentCharacter.characterPronouns))
-                    {
-                        var genderText = !string.IsNullOrWhiteSpace(currentCharacter.characterPronouns) ? $"{currentCharacter.characterGender} ({currentCharacter.characterPronouns})" : currentCharacter.characterGender;
-                        UiUtils.PillBadge(genderText, new Vector4(0.18f, 0.40f, 0.28f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.VenusMars);
-                        ImGui.SameLine(0, 6.0f * scale);
-                    }
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.characterAge))
-                    {
-                        UiUtils.PillBadge(string.Format(LocalizationManager.Instance.GetLocalizedString("AgeYearsFormat"), currentCharacter.characterAge), new Vector4(0.28f, 0.28f, 0.35f, 0.85f), ImGuiColors.DalamudWhite, FontAwesomeIcon.HourglassHalf);
-                    }
-
-                    ImGui.NewLine();
-                    ImGui.Spacing();
-
-                    if (editingCharsheet)
-                    {
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("CharPictureField"));
-                        float picInputWidth = Math.Max(120.0f * scale, ImGui.GetContentRegionAvail().X - 190.0f * scale);
-                        UiUtils.StyledInputText("HeroPicUrlInput", ref currentCharacter.characterPictureUrl, 500, width: picInputWidth);
-
-                        ImGui.SameLine(0, 6.0f * scale);
-                        if (UiUtils.IconTextButton("BrowseHeroPic", FontAwesomeIcon.FolderOpen, LocalizationManager.Instance.GetLocalizedString("CharPictureBrowse")))
-                        {
-                            plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("ChooseCharPicPickerTitle"), ".png;.jpg;.jpeg;.bmp;.webp;.gif", (path) =>
-                            {
-                                var localCopy = ImageHelper.CopyImageToLocalFolder(path, "portraits");
-                                currentCharacter.characterPictureUrl = localCopy;
-                            });
-                        }
-
-                        ImGui.SameLine(0, 4.0f * scale);
-                        if (UiUtils.IconTextButton("ClearHeroPic", FontAwesomeIcon.Times, LocalizationManager.Instance.GetLocalizedString("CharPictureClear")))
-                        {
-                            currentCharacter.characterPictureUrl = string.Empty;
-                        }
-                    }
-                    else
-                    {
-                        if (!string.IsNullOrWhiteSpace(currentCharacter.characterOccupation))
-                        {
-                            ImGui.TextColored(ImGuiColors.DalamudGrey, $"{LocalizationManager.Instance.GetLocalizedString("CharWorkField")} ");
-                            ImGui.SameLine(0, 4.0f * scale);
-                            ImGui.TextUnformatted(currentCharacter.characterOccupation);
-                        }
-                        if (!string.IsNullOrWhiteSpace(currentCharacter.characterAffiliation))
-                        {
-                            ImGui.TextColored(ImGuiColors.DalamudGrey, $"{LocalizationManager.Instance.GetLocalizedString("CharAffiliationField")} ");
-                            ImGui.SameLine(0, 4.0f * scale);
-                            ImGui.TextUnformatted(currentCharacter.characterAffiliation);
-                        }
-                        if (!string.IsNullOrWhiteSpace(currentCharacter.characterHomeland))
-                        {
-                            ImGui.TextColored(ImGuiColors.DalamudGrey, $"{LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField")} ");
-                            ImGui.SameLine(0, 4.0f * scale);
-                            ImGui.TextUnformatted(currentCharacter.characterHomeland);
-                        }
-                    }
-                }
-                ImGui.EndGroup();
-            }
-        }
-
-        private void DrawIdentitySection()
-        {
-            if (currentCharacter == null) return;
-
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("CharFullnameField").Replace(":", "").Trim(), defaultOpen: true, icon: FontAwesomeIcon.IdCard, accentColor: ImGuiColors.ParsedGold))
-            {
-                if (editingCharsheet)
-                {
-                    using var table = ImRaii.Table("##IdentityEditTable", 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
-                    if (table.Success)
-                    {
-                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.TableSetupColumn("Value1", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.TableSetupColumn("Value2", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-
-                        // Row 1: Full name & Nickname
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharFullnameField"), "CharacterFullName");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterFullName, "FullName", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharNicknameField"), "CharacterNickName");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterNickName, "NickName", editingCharsheet, -1f);
-
-                        // Row 2: Specie & Sub-specie
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharSpecieField"), "CharacterRace");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterRace, "CharacterRace", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharSubSpecieField"), "CharacterSubRace");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterSubRace, "CharacterSubRace", editingCharsheet, -1f);
-
-                        // Row 3: Class & Age
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharClassField"), "CharacterJob");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterJob, "CharacterJob", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharAgeField"), "CharacterAge");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterAge, "CharacterAge", editingCharsheet, -1f);
-
-                        // Row 4: Sex & Gender
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharSexField"), "CharacterSex");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterSex, "CharacterSex", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharGenderField"), "CharacterGender");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterGender, "CharacterGender", editingCharsheet, -1f);
-
-                        // Row 5: Pronouns & Linked System
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharPronounsField"), "CharacterPronouns");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterPronouns, "CharacterPronouns", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"), "CharacterLinkedSystem");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.linkedDiceSystem, "CharacterLinkedSystem", editingCharsheet, -1f);
-                    }
-                }
-                else
-                {
-                    using var table = ImRaii.Table("##IdentityViewGrid", 2, ImGuiTableFlags.SizingStretchSame);
-                    if (table.Success)
-                    {
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharFullnameField"), currentCharacter.characterFullName, FontAwesomeIcon.IdCard, ImGuiColors.ParsedGold, fieldName: "CharacterFullName");
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharNicknameField"), currentCharacter.characterNickName, FontAwesomeIcon.QuoteRight, ImGuiColors.ParsedGold, fieldName: "CharacterNickName");
-
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSpecieField"), currentCharacter.characterRace, FontAwesomeIcon.Dna, ImGuiColors.DalamudViolet, fieldName: "CharacterRace");
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSubSpecieField"), currentCharacter.characterSubRace, FontAwesomeIcon.Dna, ImGuiColors.DalamudViolet, fieldName: "CharacterSubRace");
-
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharClassField"), currentCharacter.characterJob, FontAwesomeIcon.UserShield, ImGuiColors.ParsedBlue, fieldName: "CharacterJob");
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharAgeField"), currentCharacter.characterAge, FontAwesomeIcon.HourglassHalf, ImGuiColors.DalamudWhite, fieldName: "CharacterAge");
-
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSexField"), currentCharacter.characterSex, FontAwesomeIcon.VenusMars, ImGuiColors.ParsedGreen, fieldName: "CharacterSex");
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharGenderField"), currentCharacter.characterGender, FontAwesomeIcon.VenusMars, ImGuiColors.ParsedGreen, fieldName: "CharacterGender");
-
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharPronounsField"), currentCharacter.characterPronouns, FontAwesomeIcon.CommentDots, ImGuiColors.ParsedGreen, fieldName: "CharacterPronouns");
-                        ImGui.TableNextColumn();
-                        DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"), currentCharacter.linkedDiceSystem, FontAwesomeIcon.DiceD20, ImGuiColors.ParsedGold, fieldName: "CharacterLinkedSystem");
-                    }
-                }
-            }
-        }
-
-        private void DrawOocSection()
-        {
-            if (currentCharacter == null) return;
-
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo").Replace(":", "").Trim(), defaultOpen: false, icon: FontAwesomeIcon.UserFriends, accentColor: ImGuiColors.ParsedBlue))
-            {
-                if (editingCharsheet)
-                {
-                    using var table = ImRaii.Table("##OOCTable", 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
-                    if (table.Success)
-                    {
-                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.TableSetupColumn("Value1", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.TableSetupColumn("Value2", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("PlayerAvailability"), "PlayerAvailability");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.playerAvailability, "PlayerAvailability", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("PlayerTimezone"), "PlayerTimezone");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.playerTimezone, "PlayerTimezone", editingCharsheet, -1f);
-
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo"), "CharacterInfo");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterInfo, "CharacterInfo", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharNotesField"), "CharacterNotes");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterNotes, "CharacterNotes", editingCharsheet, -1f);
-                    }
-
-                    ImGui.Spacing();
-                    DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("PlayerOOCNotes"), "PlayerNotes");
-                    UiUtils.ManageBigInputField(ref currentCharacter.playerNotes, "PlayerNotes", editingCharsheet, 60.0f);
-                }
-                else
-                {
-                    using (var table = ImRaii.Table("##OOCViewGrid", 2, ImGuiTableFlags.SizingStretchSame))
-                    {
-                        if (table.Success)
-                        {
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerAvailability"), currentCharacter.playerAvailability, FontAwesomeIcon.Clock, ImGuiColors.ParsedBlue, fieldName: "PlayerAvailability");
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerTimezone"), currentCharacter.playerTimezone, FontAwesomeIcon.Globe, ImGuiColors.ParsedBlue, fieldName: "PlayerTimezone");
-
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo"), currentCharacter.characterInfo, FontAwesomeIcon.UserCircle, ImGuiColors.ParsedBlue, fieldName: "CharacterInfo");
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharNotesField"), currentCharacter.characterNotes, FontAwesomeIcon.StickyNote, ImGuiColors.ParsedBlue, fieldName: "CharacterNotes");
-                        }
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.playerNotes))
-                    {
-                        ImGui.Spacing();
-                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("PlayerOOCNotes"), currentCharacter.playerNotes, FontAwesomeIcon.StickyNote, ImGuiColors.ParsedBlue, fieldName: "PlayerNotes");
-                    }
-                }
-            }
-        }
-
-        private void DrawAppearanceSection()
-        {
-            if (currentCharacter == null) return;
-
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("PhysicalAppearanceTab").Replace(":", "").Trim(), defaultOpen: false, icon: FontAwesomeIcon.User, accentColor: ImGuiColors.DalamudViolet))
-            {
-                if (editingCharsheet)
-                {
-                    using var table = ImRaii.Table("##AppearanceTable", 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
-                    if (table.Success)
-                    {
-                        ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.TableSetupColumn("Value1", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                        ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.TableSetupColumn("Value2", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-
-                        // Row 1: Height & Weight
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharHeightField"), "CharacterHeight");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterHeight, "CharacterHeight", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharWeightField"), "CharacterWeight");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterWeight, "CharacterWeight", editingCharsheet, -1f);
-
-                        // Row 2: Body type & Complexion
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharBuildField"), "CharacterBuild");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterBuild, "CharacterBuild", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharSkinColorField"), "CharacterSkinTone");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterSkinTone, "CharacterSkinTone", editingCharsheet, -1f);
-
-                        // Row 3: Eye color & Hair color
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharEyeColorField"), "CharacterEyeColor");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterEyeColor, "CharacterEyeColor", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharHairColorField"), "CharacterHairColor");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterHairColor, "CharacterHairColor", editingCharsheet, -1f);
-
-                        // Row 4: Scars & Tattoos
-                        ImGui.TableNextRow();
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharScarsField"), "CharacterScars");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterScars, "CharacterScars", editingCharsheet, -1f);
-                        ImGui.TableNextColumn();
-                        DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharTatooField"), "CharacterTattoos");
-                        ImGui.TableNextColumn();
-                        UiUtils.ManageInputField(ref currentCharacter.characterTattoos, "CharacterTattoos", editingCharsheet, -1f);
-                    }
-
-                    ImGui.Spacing();
-                    DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharOtherQuirkField"), "CharacterDistinctiveFeatures");
-                    UiUtils.ManageBigInputField(ref currentCharacter.characterDistinctiveFeatures, "CharacterDistinctiveFeatures", editingCharsheet, 50.0f);
-                }
-                else
-                {
-                    using (var table = ImRaii.Table("##AppearanceViewGrid", 2, ImGuiTableFlags.SizingStretchSame))
-                    {
-                        if (table.Success)
-                        {
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharHeightField"), currentCharacter.characterHeight, FontAwesomeIcon.RulerVertical, ImGuiColors.DalamudViolet, fieldName: "CharacterHeight");
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharWeightField"), currentCharacter.characterWeight, FontAwesomeIcon.WeightHanging, ImGuiColors.DalamudViolet, fieldName: "CharacterWeight");
-
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharBuildField"), currentCharacter.characterBuild, FontAwesomeIcon.UserTag, ImGuiColors.DalamudViolet, fieldName: "CharacterBuild");
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharSkinColorField"), currentCharacter.characterSkinTone, FontAwesomeIcon.Palette, ImGuiColors.DalamudViolet, fieldName: "CharacterSkinTone");
-
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharEyeColorField"), currentCharacter.characterEyeColor, FontAwesomeIcon.Eye, ImGuiColors.DalamudViolet, fieldName: "CharacterEyeColor");
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharHairColorField"), currentCharacter.characterHairColor, FontAwesomeIcon.Magic, ImGuiColors.DalamudViolet, fieldName: "CharacterHairColor");
-
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharScarsField"), currentCharacter.characterScars, FontAwesomeIcon.Cut, ImGuiColors.DalamudViolet, fieldName: "CharacterScars");
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharTatooField"), currentCharacter.characterTattoos, FontAwesomeIcon.PaintBrush, ImGuiColors.DalamudViolet, fieldName: "CharacterTattoos");
-                        }
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.characterDistinctiveFeatures))
-                    {
-                        ImGui.Spacing();
-                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharOtherQuirkField"), currentCharacter.characterDistinctiveFeatures, FontAwesomeIcon.Star, ImGuiColors.DalamudViolet, fieldName: "CharacterDistinctiveFeatures");
-                    }
-                }
-            }
-        }
-
-        private void DrawQuickLookSection()
-        {
-            if (currentCharacter == null) return;
-
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("QuickLookSectionTitle").Replace(":", "").Trim(), defaultOpen: false, icon: FontAwesomeIcon.Eye, accentColor: ImGuiColors.ParsedGreen))
-            {
-                if (editingCharsheet)
-                {
-                    using var table = ImRaii.Table("##QuickLookTable", 2, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg);
-                    if (table.Success)
-                    {
-                        ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 140.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-
-                        string[] qlLabels = {
-                            LocalizationManager.Instance.GetLocalizedString("QuickLookField1"),
-                            LocalizationManager.Instance.GetLocalizedString("QuickLookField2"),
-                            LocalizationManager.Instance.GetLocalizedString("QuickLookField3"),
-                            LocalizationManager.Instance.GetLocalizedString("QuickLookField4"),
-                            LocalizationManager.Instance.GetLocalizedString("QuickLookField5"),
-                        };
-
-                        DrawQuickLookRow(qlLabels[0], ref currentCharacter.characterQuickLook1, "CharacterQuickLook1");
-                        DrawQuickLookRow(qlLabels[1], ref currentCharacter.characterQuickLook2, "CharacterQuickLook2");
-                        DrawQuickLookRow(qlLabels[2], ref currentCharacter.characterQuickLook3, "CharacterQuickLook3");
-                        DrawQuickLookRow(qlLabels[3], ref currentCharacter.characterQuickLook4, "CharacterQuickLook4");
-                        DrawQuickLookRow(qlLabels[4], ref currentCharacter.characterQuickLook5, "CharacterQuickLook5");
-                    }
-                }
-                else
-                {
-                    string[] qlValues = {
-                        currentCharacter.characterQuickLook1,
-                        currentCharacter.characterQuickLook2,
-                        currentCharacter.characterQuickLook3,
-                        currentCharacter.characterQuickLook4,
-                        currentCharacter.characterQuickLook5,
-                    };
-
-                    var scale = ImGuiHelpers.GlobalScale;
-                    bool anyFound = false;
-                    for (int i = 0; i < 5; i++)
-                    {
-                        var val = qlValues[i];
-                        if (string.IsNullOrWhiteSpace(val)) continue;
-                        anyFound = true;
-
-                        using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.12f, 0.14f, 0.85f)))
-                        using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.20f, 0.45f, 0.30f, 0.6f)))
-                        using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
-                        using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 6.0f) * scale))
-                        using (var card = ImRaii.Child($"##QLCard_{i}", new Vector2(0, 36.0f * scale), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
-                        {
-                            if (card.Success)
-                            {
-                                UiUtils.Badge($"#{i + 1}", new Vector4(0.18f, 0.40f, 0.28f, 0.85f), ImGuiColors.ParsedGreen);
-                                ImGui.SameLine(0, 8.0f * scale);
-                                ImGui.TextColored(ImGuiColors.DalamudWhite, val);
-
-                                var toggleW = 22.0f * scale;
-                                var rightX = ImGui.GetWindowContentRegionMax().X - toggleW;
-                                if (ImGui.GetCursorPosX() < rightX)
-                                    ImGui.SameLine(rightX);
-                                else
-                                    ImGui.SameLine();
-                                DrawVisibilityToggle($"CharacterQuickLook{i + 1}");
-                            }
-                        }
-                        ImGui.Spacing();
-                    }
-
-                    if (!anyFound)
-                    {
-                        ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoneText"));
-                    }
-                }
-            }
-        }
-
-        private void DrawQuickLookRow(string label, ref string field, string fieldName)
-        {
-            ImGui.TableNextRow();
-            ImGui.TableNextColumn();
-            DrawFieldLabelWithToggle(label, fieldName);
-            ImGui.TableNextColumn();
-            UiUtils.ManageInputField(ref field, fieldName, editingCharsheet, -1f);
-        }
-
-        private void DrawBackgroundSection()
-        {
-            if (currentCharacter == null) return;
-
-            if (UiUtils.StyledCollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("CharBackgroundField").Replace(":", "").Trim()} & {LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab").Replace(":", "").Trim()}", defaultOpen: false, icon: FontAwesomeIcon.BookOpen, accentColor: ImGuiColors.ParsedGold))
-            {
-                if (editingCharsheet)
-                {
-                    using (var table = ImRaii.Table("##BgMetaTable", 4, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.RowBg))
-                    {
-                        if (table.Success)
-                        {
-                            ImGui.TableSetupColumn("Label1", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
-                            ImGui.TableSetupColumn("Value1", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-                            ImGui.TableSetupColumn("Label2", ImGuiTableColumnFlags.WidthFixed, 130.0f * ImGuiHelpers.GlobalScale);
-                            ImGui.TableSetupColumn("Value2", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-
-                            // Row 1: Birthplace & Origin
-                            ImGui.TableNextRow();
-                            ImGui.TableNextColumn();
-                            DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField"), "CharacterHomeland");
-                            ImGui.TableNextColumn();
-                            UiUtils.ManageInputField(ref currentCharacter.characterHomeland, "CharacterHomeland", editingCharsheet, -1f);
-                            ImGui.TableNextColumn();
-                            DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharOriginField"), "CharacterOrigin");
-                            ImGui.TableNextColumn();
-                            UiUtils.ManageInputField(ref currentCharacter.characterOrigin, "CharacterOrigin", editingCharsheet, -1f);
-
-                            // Row 2: Affiliation & Occupation
-                            ImGui.TableNextRow();
-                            ImGui.TableNextColumn();
-                            DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharAffiliationField"), "CharacterAffiliation");
-                            ImGui.TableNextColumn();
-                            UiUtils.ManageInputField(ref currentCharacter.characterAffiliation, "CharacterAffiliation", editingCharsheet, -1f);
-                            ImGui.TableNextColumn();
-                            DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharWorkField"), "CharacterOccupation");
-                            ImGui.TableNextColumn();
-                            UiUtils.ManageInputField(ref currentCharacter.characterOccupation, "CharacterOccupation", editingCharsheet, -1f);
-                        }
-                    }
-
-                    ImGui.Spacing();
-                    DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharReputationField"), "CharacterReputation");
-                    UiUtils.ManageBigInputField(ref currentCharacter.characterReputation, "CharacterReputation", editingCharsheet, 50.0f);
-
-                    ImGui.Spacing();
-                    DrawFieldLabelWithToggle(LocalizationManager.Instance.GetLocalizedString("CharBackgroundField"), "CharacterBackground");
-                    UiUtils.ManageBigInputField(ref currentCharacter.characterBackground, "CharacterBackground", editingCharsheet, 90.0f);
-                }
-                else
-                {
-                    using (var table = ImRaii.Table("##BgViewGrid", 2, ImGuiTableFlags.SizingStretchSame))
-                    {
-                        if (table.Success)
-                        {
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField"), currentCharacter.characterHomeland, FontAwesomeIcon.MapMarkerAlt, ImGuiColors.ParsedGold, fieldName: "CharacterHomeland");
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharOriginField"), currentCharacter.characterOrigin, FontAwesomeIcon.GlobeAmericas, ImGuiColors.ParsedGold, fieldName: "CharacterOrigin");
-
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharAffiliationField"), currentCharacter.characterAffiliation, FontAwesomeIcon.Building, ImGuiColors.ParsedGold, fieldName: "CharacterAffiliation");
-                            ImGui.TableNextColumn();
-                            DrawPropertyCard(LocalizationManager.Instance.GetLocalizedString("CharWorkField"), currentCharacter.characterOccupation, FontAwesomeIcon.Briefcase, ImGuiColors.ParsedGold, fieldName: "CharacterOccupation");
-                        }
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.characterReputation))
-                    {
-                        ImGui.Spacing();
-                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharReputationField"), currentCharacter.characterReputation, FontAwesomeIcon.Award, ImGuiColors.ParsedGold, fieldName: "CharacterReputation");
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(currentCharacter.characterBackground))
-                    {
-                        ImGui.Spacing();
-                        DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharBackgroundField"), currentCharacter.characterBackground, FontAwesomeIcon.BookOpen, ImGuiColors.ParsedGold, fieldName: "CharacterBackground");
-                    }
-                }
-
-                ImGui.Spacing();
-                DrawRelationsColumns();
-            }
-        }
-
-        private void DrawRelationsColumns()
-        {
-            if (currentCharacter == null) return;
-
-            var boxHeight = 160.0f * ImGuiHelpers.GlobalScale;
-
-            using (var table = ImRaii.Table("##RelationsColumnsTable", 3, ImGuiTableFlags.SizingStretchSame))
-            {
-                if (table.Success)
-                {
-                    ImGui.TableNextColumn();
-                    DrawRelationCard("Family", ImGuiColors.ParsedGold,
-                        LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab"),
-                        currentCharacter.characterFamily ??= new Dictionary<string, string>(),
-                        () => showFamilyPopup = true, boxHeight, "CharacterFamily");
-
-                    ImGui.TableNextColumn();
-                    DrawRelationCard("Friends", ImGuiColors.ParsedGreen,
-                        LocalizationManager.Instance.GetLocalizedString("CharFriendsTab"),
-                        currentCharacter.characterFriends ??= new Dictionary<string, string>(),
-                        () => showFriendsPopup = true, boxHeight, "CharacterFriends");
-
-                    ImGui.TableNextColumn();
-                    DrawRelationCard("Enemies", ImGuiColors.DPSRed,
-                        LocalizationManager.Instance.GetLocalizedString("CharEnemiesTab"),
-                        currentCharacter.characterEnnemies ??= new Dictionary<string, string>(),
-                        () => showEnemiesPopup = true, boxHeight, "CharacterEnnemies");
-                }
-            }
-        }
-
-        private void DrawRelationCard(string id, Vector4 color, string title, Dictionary<string, string> relations, Action onAddClick, float height, string fieldName)
-        {
-            using (var child = ImRaii.Child($"##{id}Card", new Vector2(0, height), true))
-            {
-                if (child.Success)
-                {
-                    ImGui.TextColored(color, title.Replace(":", "").Trim());
-                    ImGui.SameLine();
-                    UiUtils.Badge(relations.Count.ToString(), new Vector4(0.2f, 0.2f, 0.2f, 0.5f), ImGuiColors.DalamudGrey);
-                    ImGui.SameLine();
-                    DrawVisibilityToggle(fieldName);
-
-                    var addBtnWidth = 24.0f * ImGuiHelpers.GlobalScale;
-                    var rightX = ImGui.GetWindowContentRegionMax().X - addBtnWidth;
-                    if (ImGui.GetCursorPosX() < rightX)
-                        ImGui.SameLine(rightX);
-                    else
-                        ImGui.SameLine();
-
-                    if (UiUtils.IconButton($"Add_{id}", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale))
-                    {
-                        newMemberName = "";
-                        newMemberDescription = "";
-                        onAddClick();
-                    }
-
-                    ImGui.Separator();
-
-                    if (relations.Count == 0)
-                    {
-                        ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoneText"));
-                    }
-                    else
-                    {
-                        string? keyToRemove = null;
-                        using (var relTable = ImRaii.Table($"##{id}RelTable", editingCharsheet ? 3 : 2, ImGuiTableFlags.SizingStretchProp))
-                        {
-                            if (relTable.Success)
-                            {
-                                if (editingCharsheet)
-                                {
-                                    ImGui.TableSetupColumn("Del", ImGuiTableColumnFlags.WidthFixed, 24.0f * ImGuiHelpers.GlobalScale);
-                                }
-                                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed, 75.0f * ImGuiHelpers.GlobalScale);
-                                ImGui.TableSetupColumn("Desc", ImGuiTableColumnFlags.WidthStretch, 1.0f);
-
-                                foreach (var kvp in relations.ToList())
-                                {
-                                    ImGui.TableNextRow();
-                                    ImGui.PushID($"{id}_{kvp.Key}");
-                                    if (editingCharsheet)
-                                    {
-                                        ImGui.TableNextColumn();
-                                        if (UiUtils.IconButton($"Del_{kvp.Key}", FontAwesomeIcon.Trash, LocalizationManager.Instance.GetLocalizedString("RemoveTooltip"), new Vector2(20, 20) * ImGuiHelpers.GlobalScale))
-                                        {
-                                            keyToRemove = kvp.Key;
-                                        }
-                                    }
-
-                                    ImGui.TableNextColumn();
-                                    ImGui.TextColored(color, kvp.Key);
-
-                                    ImGui.TableNextColumn();
-                                    var desc = kvp.Value;
-                                    if (editingCharsheet)
-                                    {
-                                        if (UiUtils.StyledInputText($"desc_{kvp.Key}", ref desc, 300, width: -1f))
-                                        {
-                                            relations[kvp.Key] = desc;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        ImGui.TextWrapped(desc);
-                                    }
-                                    ImGui.PopID();
-                                }
-                            }
-                        }
-
-                        if (keyToRemove != null)
-                        {
-                            var relationKey = keyToRemove;
-                            DeleteConfirmation.Request(() => relations.Remove(relationKey));
-                        }
-                    }
-                }
-            }
-        }
-
         private void DrawModals()
         {
             if (currentCharacter == null) return;
@@ -1143,7 +343,7 @@ namespace Soulstone.Windows
             }
             if (ImGui.BeginPopupModal("CreateCharacterModal", ref showCreateCharPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("NewCharButton"));
+                ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("NewCharButton"));
                 ImGui.Separator();
                 ImGui.Spacing();
 
@@ -1176,7 +376,7 @@ namespace Soulstone.Windows
             }
             if (ImGui.BeginPopupModal("NewFamilyMemberModal", ref showFamilyPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab"));
+                ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab"));
                 ImGui.Separator();
                 ImGui.Spacing();
 

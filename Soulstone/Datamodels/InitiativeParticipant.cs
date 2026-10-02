@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Soulstone.Managers;
@@ -12,11 +12,13 @@ namespace Soulstone.Datamodels
         public string Name { get; set; } = string.Empty;
         public int InitiativeValue { get; set; } = 0;
         public int BonusModifier { get; set; } = 0;
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool IsCurrentCharacter { get; set; } = false;
         public bool IsNpc { get; set; } = false;
         public string Notes { get; set; } = string.Empty;
         public List<Buff> Buffs { get; set; } = new();
         internal CharacterSheet? CharacterSheet { get; set; } = null;
+        [System.Text.Json.Serialization.JsonIgnore]
         public string? SheetFilePath { get; set; } = null;
 
         public InitiativeParticipant() { }

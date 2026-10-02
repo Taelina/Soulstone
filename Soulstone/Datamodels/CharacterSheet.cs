@@ -91,7 +91,7 @@ namespace Soulstone.Datamodels
         public Dictionary<string, Ability> characterAbilities = new Dictionary<string, Ability>();
         public string linkedDiceSystem = string.Empty;
 
-        public string CharacterFullName { get => characterFullName; set => characterFullName = value;}
+        public string CharacterFullName { get => characterFullName; set => characterFullName = value; }
         public string CharacterNickName { get => characterNickName; set => characterNickName = value; }
         public string CharacterRace { get => characterRace; set => characterRace = value; }
         public string CharacterSubRace { get => characterSubRace; set => characterSubRace = value; }
@@ -1235,10 +1235,11 @@ namespace Soulstone.Datamodels
 
         public static CharacterSheet? LoadSheet(string characterName, bool isFullPath = false)
         {
-            string path = isFullPath ? characterName : $"{Plugin.dataLocation}/sheets/{characterName.Replace(" ", "_").ToLower()}.json";
+            string path = characterName;
             CharacterSheet? loadedSheet = null;
             try
             {
+                path = isFullPath ? Path.GetFullPath(characterName) : StoragePath.ForJson(Path.Combine(Plugin.dataLocation, "sheets"), characterName);
                 if (!File.Exists(path))
                 {
                     Plugin.Log?.Information("No existing character sheet found, creating a new one.");
@@ -1379,22 +1380,21 @@ namespace Soulstone.Datamodels
                     rawName = "character";
                 }
 
-                var fileName = rawName.Replace(" ", "_").ToLower();
-                var path = $"{Plugin.dataLocation}/sheets/{fileName}.json";
+                var path = StoragePath.ForJson(Path.Combine(Plugin.dataLocation, "sheets"), rawName);
                 Plugin.Log?.Information($"Saving character sheet for {rawName} to {path}");
                 File.WriteAllText(path, JsonSerializer.Serialize(sheet, new JsonSerializerOptions { WriteIndented = true }));
 
                 try
                 {
-                    if (PartySyncManager.Instance.IsConnected)
+                    if (ReferenceEquals(sheet, CharacterManager.Instance.CharacterSheet) && PartySyncManager.Instance.IsConnected)
                     {
                         PartySyncManager.Instance.BroadcastResourceUpdate();
                         PartySyncManager.Instance.BroadcastPrivateStats();
                     }
 
-                    if (PartySyncManager.Instance.Configuration != null && !string.IsNullOrWhiteSpace(PartySyncManager.Instance.Configuration.SyncServerUrl))
+                    if (ReferenceEquals(sheet, CharacterManager.Instance.CharacterSheet) && string.IsNullOrWhiteSpace(characterName) && PartySyncManager.Instance.Configuration != null && !string.IsNullOrWhiteSpace(PartySyncManager.Instance.Configuration.SyncServerUrl))
                     {
-                        _ = PartySyncManager.Instance.PublishCharacterSheetAsync(sheet);
+                        PartySyncManager.Instance.ScheduleCharacterPublication(sheet);
                     }
                 }
                 catch (Exception syncEx)

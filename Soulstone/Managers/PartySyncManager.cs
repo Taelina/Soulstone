@@ -35,8 +35,11 @@ namespace Soulstone.Managers
 
         private bool isInitialized = false;
         private DateTime lastPresenceBroadcast = DateTime.MinValue;
-        private readonly RelaySyncClient relayClient = new();
+        private RelaySyncClient relayClient = new();
+        private int lifecycleVersion;
+        private readonly System.Threading.SemaphoreSlim sessionLock = new(1, 1);
         private Configuration? configuration;
+        private System.Threading.CancellationTokenSource? publicationCancellation;
 
         public string ConnectionStatus => relayClient.Status;
         public bool IsConnected => relayClient.IsConnected;
@@ -44,15 +47,39 @@ namespace Soulstone.Managers
         public string InviteCode => configuration?.SyncInviteCode ?? string.Empty;
         public Configuration? Configuration => configuration;
 
+        public void ScheduleCharacterPublication(CharacterSheet sheet)
+        {
+            publicationCancellation?.Cancel();
+            publicationCancellation?.Dispose();
+            publicationCancellation = new System.Threading.CancellationTokenSource();
+            _ = PublishAfterDelayAsync(sheet, publicationCancellation.Token);
+        }
+
+        private async Task PublishAfterDelayAsync(CharacterSheet sheet, System.Threading.CancellationToken ct)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(1), ct).ConfigureAwait(false);
+                if (!ct.IsCancellationRequested) await PublishCharacterSheetAsync(sheet).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+            catch (Exception ex) { Plugin.Log?.Warning(ex, "Failed to publish the public character profile"); }
+        }
         public async Task<bool> PublishCharacterSheetAsync(CharacterSheet sheet, string? world = null)
         {
-            if (sheet == null)
-                return false;
-
-            var serverUrl = RelayCrypto.NormalizeServerUrl(configuration?.SyncServerUrl);
-            world ??= GetLocalPlayerWorld();
-            string charName = GetLocalPlayerName();
-            return await CharacterApiClient.UploadCharacterSheetAsync(serverUrl, sheet, world, charName).ConfigureAwait(false);
+            if (sheet == null) return false;
+            Task<bool>? upload = null;
+            await FrameworkDispatcher.RunAsync(() =>
+            {
+                if (configuration == null || !ReferenceEquals(sheet, CharacterManager.Instance.CharacterSheet)) return;
+                string serverUrl = RelayCrypto.NormalizeServerUrl(configuration.SyncServerUrl);
+                world ??= GetLocalPlayerWorld();
+                string characterName = GetLocalPlayerName();
+                string token = configuration.GetPublicationToken(serverUrl, $"character:{characterName}@{world}");
+                // Snapshot on the framework thread before awaiting HTTP I/O.
+                upload = CharacterApiClient.UploadCharacterSheetAsync(serverUrl, sheet, world, characterName, ownerToken: token);
+            }).ConfigureAwait(false);
+            return upload != null && await upload.ConfigureAwait(false);
         }
 
         public async Task<CharacterSheet?> FetchRemoteCharacterSheetAsync(string characterName, string? world = null)
@@ -64,16 +91,23 @@ namespace Soulstone.Managers
             return await CharacterApiClient.FetchCharacterSheetAsync(serverUrl, characterName, world).ConfigureAwait(false);
         }
 
-        public void Init(Configuration config)
+        public void Init(Configuration config, bool autoConnect = true)
         {
             configuration = config;
-            if (isInitialized) return;
+            if (isInitialized)
+            {
+                RefreshPartyList();
+                if (autoConnect && config.SyncAutoConnect && !IsConnected && !string.IsNullOrWhiteSpace(config.SyncSessionId))
+                    _ = ReconnectAsync();
+                return;
+            }
             isInitialized = true;
+            lifecycleVersion++;
             relayClient.MessageReceived += OnRelayMessage;
             relayClient.StatusChanged += OnRelayStatusChanged;
 
             RefreshPartyList();
-            if (config.SyncAutoConnect && !string.IsNullOrWhiteSpace(config.SyncSessionId))
+            if (autoConnect && config.SyncAutoConnect && !string.IsNullOrWhiteSpace(config.SyncSessionId))
             {
                 _ = ReconnectAsync();
             }
@@ -87,17 +121,29 @@ namespace Soulstone.Managers
                 return;
             }
             isInitialized = false;
+            lifecycleVersion++;
+            publicationCancellation?.Cancel();
+            publicationCancellation?.Dispose();
+            publicationCancellation = null;
 
             relayClient.MessageReceived -= OnRelayMessage;
             relayClient.StatusChanged -= OnRelayStatusChanged;
-            relayClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _ = DisposeRelayAsync(relayClient);
+            relayClient = new RelaySyncClient();
             configuration = null;
             ConnectedPartyMembers.Clear();
             PendingRollRequests.Clear();
         }
 
+        private static async Task DisposeRelayAsync(RelaySyncClient client)
+        {
+            try { await client.DisposeAsync().ConfigureAwait(false); }
+            catch (Exception ex) { Plugin.Log?.Warning(ex, "Failed to dispose the relay connection"); }
+        }
+
         public async Task<bool> CreateSessionAsync(string serverUrl)
         {
+            await sessionLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (configuration == null)
@@ -110,8 +156,13 @@ namespace Soulstone.Managers
                 if (!RelayCrypto.TryParseShortInviteLink(shortInviteLink, out string normalizedServerUrl, out _))
                     throw new InvalidOperationException("Failed to create the short invite link.");
                 string roomKey = RelayCrypto.CreateRoomKey();
-                string hostName = GetLocalPlayerName();
-                string hostWorld = GetLocalPlayerWorld();
+                string hostName = string.Empty;
+                string hostWorld = string.Empty;
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    hostName = GetLocalPlayerName();
+                    hostWorld = GetLocalPlayerWorld();
+                }).ConfigureAwait(false);
                 var invite = new RelayInvite
                 {
                     ServerUrl = normalizedServerUrl,
@@ -129,17 +180,22 @@ namespace Soulstone.Managers
                     RelayCrypto.CreateInviteId(shortCode),
                     RelayCrypto.EncryptInvite(invite, shortCode)).ConfigureAwait(false);
 
-                configuration.SyncServerUrl = normalizedServerUrl;
-                configuration.SyncSessionId = session.SessionId;
-                configuration.SyncHostToken = session.HostToken;
-                configuration.SyncMemberToken = session.MemberToken;
-                configuration.SyncRoomKey = roomKey;
-                configuration.SyncHostPublicKey = keys.PublicKey;
-                configuration.SyncHostPrivateKey = keys.PrivateKey;
-                configuration.SyncHostName = hostName;
-                configuration.SyncHostWorld = hostWorld;
-                configuration.SyncInviteCode = shortInviteLink;
-                configuration.Save();
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    if (configuration == null) throw new ObjectDisposedException(nameof(PartySyncManager));
+                    lifecycleVersion++;
+                    configuration.SyncServerUrl = normalizedServerUrl;
+                    configuration.SyncSessionId = session.SessionId;
+                    configuration.SyncHostToken = session.HostToken;
+                    configuration.SyncMemberToken = session.MemberToken;
+                    configuration.SyncRoomKey = roomKey;
+                    configuration.SyncHostPublicKey = keys.PublicKey;
+                    configuration.SyncHostPrivateKey = keys.PrivateKey;
+                    configuration.SyncHostName = hostName;
+                    configuration.SyncHostWorld = hostWorld;
+                    configuration.SyncInviteCode = shortInviteLink;
+                    configuration.Save();
+                }).ConfigureAwait(false);
                 await ConnectFromConfigurationAsync().ConfigureAwait(false);
                 return true;
             }
@@ -148,10 +204,12 @@ namespace Soulstone.Managers
                 Plugin.Log?.Error(ex, "Failed to create Soulstone relay session");
                 return false;
             }
+            finally { sessionLock.Release(); }
         }
 
         public async Task<bool> JoinSessionAsync(string inviteCode)
         {
+            await sessionLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (configuration == null)
@@ -171,20 +229,25 @@ namespace Soulstone.Managers
                         return false;
                 }
 
-                if (invite == null || !IsSenderInCurrentParty(invite.HostName))
+                if (invite == null)
                     return false;
 
-                configuration.SyncServerUrl = invite.ServerUrl;
-                configuration.SyncSessionId = invite.SessionId;
-                configuration.SyncHostToken = string.Empty;
-                configuration.SyncMemberToken = invite.MemberToken;
-                configuration.SyncRoomKey = invite.RoomKey;
-                configuration.SyncHostPublicKey = invite.HostPublicKey;
-                configuration.SyncHostPrivateKey = string.Empty;
-                configuration.SyncHostName = invite.HostName;
-                configuration.SyncHostWorld = invite.HostWorld;
-                configuration.SyncInviteCode = string.Empty;
-                configuration.Save();
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    if (configuration == null) throw new ObjectDisposedException(nameof(PartySyncManager));
+                    lifecycleVersion++;
+                    configuration.SyncServerUrl = invite.ServerUrl;
+                    configuration.SyncSessionId = invite.SessionId;
+                    configuration.SyncHostToken = string.Empty;
+                    configuration.SyncMemberToken = invite.MemberToken;
+                    configuration.SyncRoomKey = invite.RoomKey;
+                    configuration.SyncHostPublicKey = invite.HostPublicKey;
+                    configuration.SyncHostPrivateKey = string.Empty;
+                    configuration.SyncHostName = invite.HostName;
+                    configuration.SyncHostWorld = invite.HostWorld;
+                    configuration.SyncInviteCode = string.Empty;
+                    configuration.Save();
+                }).ConfigureAwait(false);
                 await ConnectFromConfigurationAsync().ConfigureAwait(false);
                 return true;
             }
@@ -193,32 +256,44 @@ namespace Soulstone.Managers
                 Plugin.Log?.Error(ex, "Failed to join Soulstone relay session");
                 return false;
             }
+            finally { sessionLock.Release(); }
         }
 
         public async Task DisconnectAsync(bool forgetSession = false)
         {
-            await relayClient.DisconnectAsync().ConfigureAwait(false);
-            if (forgetSession && configuration != null)
+            await sessionLock.WaitAsync().ConfigureAwait(false);
+            try
             {
-                configuration.SyncSessionId = string.Empty;
-                configuration.SyncHostToken = string.Empty;
-                configuration.SyncMemberToken = string.Empty;
-                configuration.SyncRoomKey = string.Empty;
-                configuration.SyncHostPublicKey = string.Empty;
-                configuration.SyncHostPrivateKey = string.Empty;
-                configuration.SyncHostName = string.Empty;
-                configuration.SyncHostWorld = string.Empty;
-                configuration.SyncInviteCode = string.Empty;
-                configuration.Save();
-                ConnectedPartyMembers.Clear();
-                PendingRollRequests.Clear();
+                await relayClient.DisconnectAsync().ConfigureAwait(false);
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    publicationCancellation?.Cancel();
+                    lifecycleVersion++;
+                    if (forgetSession && configuration != null)
+                    {
+                        configuration.SyncSessionId = string.Empty;
+                        configuration.SyncHostToken = string.Empty;
+                        configuration.SyncMemberToken = string.Empty;
+                        configuration.SyncRoomKey = string.Empty;
+                        configuration.SyncHostPublicKey = string.Empty;
+                        configuration.SyncHostPrivateKey = string.Empty;
+                        configuration.SyncHostName = string.Empty;
+                        configuration.SyncHostWorld = string.Empty;
+                        configuration.SyncInviteCode = string.Empty;
+                        configuration.Save();
+                        ConnectedPartyMembers.Clear();
+                        PendingRollRequests.Clear();
+                    }
+                    OnConnectionChanged?.Invoke();
+                    OnPartyRosterUpdated?.Invoke();
+                }).ConfigureAwait(false);
             }
-            OnConnectionChanged?.Invoke();
-            OnPartyRosterUpdated?.Invoke();
+            finally { sessionLock.Release(); }
         }
 
         public async Task<bool> ReconnectAsync()
         {
+            await sessionLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 await ConnectFromConfigurationAsync().ConfigureAwait(false);
@@ -229,6 +304,7 @@ namespace Soulstone.Managers
                 Plugin.Log?.Warning(ex, "Failed to reconnect to the Soulstone relay");
                 return false;
             }
+            finally { sessionLock.Release(); }
         }
 
         private async Task ConnectFromConfigurationAsync()
@@ -238,17 +314,31 @@ namespace Soulstone.Managers
                 ? configuration.SyncHostToken
                 : configuration.SyncMemberToken;
             await relayClient.ConnectAsync(configuration.SyncServerUrl, configuration.SyncSessionId, token).ConfigureAwait(false);
-            BroadcastPresence();
-            BroadcastPrivateStats();
-            OnConnectionChanged?.Invoke();
+            await FrameworkDispatcher.RunAsync(() =>
+            {
+                if (!isInitialized) return;
+                BroadcastPresence();
+                BroadcastPrivateStats();
+                OnConnectionChanged?.Invoke();
+            }).ConfigureAwait(false);
         }
 
         private void OnRelayStatusChanged(string status)
         {
-            OnConnectionChanged?.Invoke();
+            _ = FrameworkDispatcher.RunAsync(() => { if (isInitialized) OnConnectionChanged?.Invoke(); });
         }
 
         private void OnRelayMessage(string json)
+        {
+            var currentConfiguration = configuration;
+            int version = lifecycleVersion;
+            _ = FrameworkDispatcher.RunAsync(() =>
+            {
+                if (isInitialized && version == lifecycleVersion && ReferenceEquals(configuration, currentConfiguration)) ProcessRelayMessage(json);
+            });
+        }
+
+        internal void ProcessRelayMessage(string json)
         {
             if (configuration == null) return;
             try
@@ -429,7 +519,7 @@ namespace Soulstone.Managers
                 case SyncEventType.InitiativeRemove:
                     try
                     {
-                        string participantId = packet.PayloadJson.Trim('"', ' ');
+                        string? participantId = JsonSerializer.Deserialize<string>(packet.PayloadJson);
                         if (!string.IsNullOrEmpty(participantId))
                         {
                             OnParticipantRemovedReceived?.Invoke(participantId);
@@ -541,7 +631,7 @@ namespace Soulstone.Managers
                                             IconId = 0
                                         };
                                         string privTag = request.IsPrivate ? $"[{LocalizationManager.Instance.GetLocalizedString("RollPrivateTag")}] " : "";
-                                        Plugin.ToastGui.ShowQuest($"{privTag}Roll Requested: {request.RollName} ({request.Formula}) by {senderName}", options);
+                                        Plugin.ToastGui.ShowQuest(privTag + LocalizationManager.Instance.GetLocalizedString("RollRequestedToast", request.RollName, request.Formula, senderName), options);
                                     }
                                 }
                                 catch { }
@@ -558,7 +648,7 @@ namespace Soulstone.Managers
                     try
                     {
                         var stats = JsonSerializer.Deserialize<PrivateStatsPayload>(packet.PayloadJson);
-                        if (stats != null && IsSessionHost && (string.IsNullOrWhiteSpace(stats.TargetName) || IsAddressedToLocalPlayer(stats.TargetName)))
+                        if (stats != null && IsSessionHost && (string.IsNullOrWhiteSpace(stats.TargetName) || string.Equals(stats.TargetName, configuration?.SyncHostName, StringComparison.OrdinalIgnoreCase) || IsAddressedToLocalPlayer(stats.TargetName)))
                         {
                             stats.CharacterName = senderName;
                             var member = ConnectedPartyMembers.GetOrAdd(senderName, name => new PartyMemberSyncData { CharacterName = name });
@@ -786,14 +876,12 @@ namespace Soulstone.Managers
 
         private bool IsAddressedToLocalPlayer(string targetName)
         {
-            return string.Equals(targetName, GetLocalPlayerName(), StringComparison.OrdinalIgnoreCase) ||
-                   (!string.IsNullOrWhiteSpace(configuration?.SyncHostName) &&
-                    string.Equals(targetName, configuration.SyncHostName, StringComparison.OrdinalIgnoreCase));
+            return string.Equals(targetName, GetLocalPlayerName(), StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool RequiresHostSignature(SyncEventType eventType)
         {
-            return eventType is SyncEventType.RulesetBroadcast
+            return eventType is SyncEventType.InitiativeSync or SyncEventType.RulesetBroadcast
                 or SyncEventType.InitiativeAddOrUpdate
                 or SyncEventType.InitiativeTurnAdvance
                 or SyncEventType.InitiativeReset

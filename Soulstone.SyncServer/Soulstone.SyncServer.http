@@ -1,0 +1,49 @@
+@baseUrl = http://localhost:5077
+@ownerToken = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+@code = REPLACE_ME
+
+### Health
+GET {{baseUrl}}/health
+
+### Create a relay session (credentials are returned only to its creator)
+POST {{baseUrl}}/api/sessions
+
+### Publish a public profile; use a fresh random 32-byte hex credential outside this example
+PUT {{baseUrl}}/api/characters/Example%20Player/Moogle
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{"CharacterFullName":"Example Player","CharacterBackground":"Public biography"}
+
+### Fetch without credentials
+GET {{baseUrl}}/api/characters/Example%20Player/Moogle
+
+### Anonymous overwrite is rejected with 401
+PUT {{baseUrl}}/api/characters/Example%20Player/Moogle
+Content-Type: application/json
+
+{}
+
+### Delete using the original credential
+DELETE {{baseUrl}}/api/characters/Example%20Player/Moogle
+Authorization: Bearer {{ownerToken}}
+
+### Publish a ruleset; copy the response code into @code
+POST {{baseUrl}}/api/dice-systems
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{"playerName":"Example Player","worldName":"Moogle","systemName":"Example Rules","payload":"{\"SystemName\":\"Example Rules\"}"}
+
+### Public download
+GET {{baseUrl}}/api/dice-systems/{{code}}
+
+### Public version check
+GET {{baseUrl}}/api/dice-systems/{{code}}/version
+
+### Update using the original credential
+POST {{baseUrl}}/api/dice-systems
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{"playerName":"Example Player","worldName":"Moogle","systemName":"Example Rules","payload":"{\"SystemName\":\"Example Rules\"}","code":"{{code}}"}

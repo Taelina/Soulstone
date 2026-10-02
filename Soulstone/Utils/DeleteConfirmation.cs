@@ -1,4 +1,4 @@
-﻿using Dalamud.Bindings.ImGui;
+using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Soulstone.Managers;
@@ -36,6 +36,8 @@ public static class DeleteConfirmation
     {
         if (!IsPending)
             return;
+
+        using var theme = SoulstoneTheme.Push();
 
         ImGui.OpenPopup(PopupId);
         ImGui.SetNextWindowSize(new Vector2(420, 0), ImGuiCond.Appearing);

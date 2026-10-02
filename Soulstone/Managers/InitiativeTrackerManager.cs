@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Gui.Toast;
+using Dalamud.Game.Gui.Toast;
 using Soulstone.Datamodels;
 using Soulstone.Utils;
 using System;
@@ -604,6 +604,8 @@ namespace Soulstone.Managers
         public void ApplyRemoteParticipantUpsert(InitiativeParticipant participant)
         {
             if (participant == null) return;
+            participant.IsCurrentCharacter = false;
+            participant.SheetFilePath = null;
             isHandlingRemoteUpdate = true;
             try
             {
@@ -687,6 +689,8 @@ namespace Soulstone.Managers
                     Participants = new List<InitiativeParticipant>(payload.Participants);
                     foreach (var p in Participants)
                     {
+                        p.IsCurrentCharacter = false;
+                        p.SheetFilePath = null;
                         SyncParticipantWithCharacterSheet(p);
                     }
                     SortParticipants(IsAscendingOrder);

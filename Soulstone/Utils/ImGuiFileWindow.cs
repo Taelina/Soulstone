@@ -111,7 +111,7 @@ namespace Soulstone.Utils
                 currentDirectory = path;
                 RefreshDirectory();
             }
-        }   
+        }
 
         public void SetConfiguration(Configuration config)
         {
@@ -257,11 +257,11 @@ namespace Soulstone.Utils
         public override void Draw()
         {
             // Push dark styling
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.08f, 0.08f, 0.95f));
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.12f, 0.12f, 0.12f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.2f, 0.4f, 0.6f, 0.6f));
-            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.3f, 0.5f, 0.7f, 0.8f));
-            ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(0.25f, 0.45f, 0.65f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, SoulstoneTheme.Field);
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, SoulstoneTheme.Field);
+            ImGui.PushStyleColor(ImGuiCol.Header, SoulstoneTheme.Selection);
+            ImGui.PushStyleColor(ImGuiCol.HeaderHovered, SoulstoneTheme.Hover);
+            ImGui.PushStyleColor(ImGuiCol.HeaderActive, SoulstoneTheme.Active);
             ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4f);
             ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 6f);
 
@@ -283,7 +283,7 @@ namespace Soulstone.Utils
             ImGui.BeginGroup();
 
             // Fixed header (no scrolling)
-            ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.1f, 0.1f, 0.12f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.ChildBg, SoulstoneTheme.Field);
             ImGui.BeginChild("FileListHeader", new Vector2(340, 32), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse);
             DrawFileListHeader();
             ImGui.EndChild();
@@ -313,8 +313,8 @@ namespace Soulstone.Utils
         private void DrawPathBar()
         {
             // Navigation buttons
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.25f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.35f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.Button, SoulstoneTheme.Header);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, SoulstoneTheme.Hover);
 
             if (ImGui.Button("^##UpBtn", new Vector2(30, 26)))
                 NavigateUp();
@@ -333,10 +333,10 @@ namespace Soulstone.Utils
             ImGui.SameLine();
 
             // Path input - lighter background to show it's editable
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.18f, 0.18f, 0.2f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.22f, 0.22f, 0.25f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.25f, 0.25f, 0.28f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.3f, 0.3f, 0.35f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, SoulstoneTheme.Field);
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, SoulstoneTheme.Hover);
+            ImGui.PushStyleColor(ImGuiCol.FrameBgActive, SoulstoneTheme.Active);
+            ImGui.PushStyleColor(ImGuiCol.Border, SoulstoneTheme.Border);
             ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
 
             ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 180);
@@ -359,9 +359,9 @@ namespace Soulstone.Utils
             ImGui.PopFont();
             ImGui.SameLine();
 
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.18f, 0.18f, 0.2f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.22f, 0.22f, 0.25f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.3f, 0.3f, 0.35f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, SoulstoneTheme.Field);
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, SoulstoneTheme.Hover);
+            ImGui.PushStyleColor(ImGuiCol.Border, SoulstoneTheme.Border);
             ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
             ImGui.SetNextItemWidth(145);
             ImGui.InputTextWithHint("##Search", LocalizationManager.Instance.GetLocalizedString("FileBrowserFilterHint"), ref searchFilter, 100);
@@ -378,9 +378,9 @@ namespace Soulstone.Utils
             ImGui.TextColored(new Vector4(0.7f, 0.8f, 0.9f, 1f), LocalizationManager.Instance.GetLocalizedString("FileBrowserUrlLabel"));
             ImGui.SameLine();
 
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.18f, 0.18f, 0.2f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.22f, 0.22f, 0.25f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.3f, 0.3f, 0.35f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, SoulstoneTheme.Field);
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, SoulstoneTheme.Hover);
+            ImGui.PushStyleColor(ImGuiCol.Border, SoulstoneTheme.Border);
             ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 1f);
 
             var previewBtnWidth = 90.0f;
@@ -418,7 +418,7 @@ namespace Soulstone.Utils
             {
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 0.4f, 0.4f, 1f));
+                ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Border);
             }
             else
             {
@@ -617,9 +617,9 @@ namespace Soulstone.Utils
             ImGui.SetCursorPosX(ImGui.GetContentRegionMax().X - sortControlsWidth);
 
             // Sort dropdown
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.15f, 0.15f, 0.18f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.2f, 0.2f, 0.23f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.15f, 0.15f, 0.18f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, SoulstoneTheme.Field);
+            ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, SoulstoneTheme.Hover);
+            ImGui.PushStyleColor(ImGuiCol.Button, SoulstoneTheme.Field);
             ImGui.SetNextItemWidth(100);
             var sortIndex = (int)currentSort;
             var localizedSortNames = GetLocalizedSortOptionNames();
@@ -633,8 +633,8 @@ namespace Soulstone.Utils
             ImGui.SameLine();
 
             // Sort direction button
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.25f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.3f, 0.3f, 0.35f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.Button, SoulstoneTheme.Header);
+            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, SoulstoneTheme.Hover);
             var sortText = sortDescending ? "v" : "^";
             if (ImGui.Button($"{sortText}##SortDirBtn", new Vector2(26, 0)))
             {
@@ -845,8 +845,8 @@ namespace Soulstone.Utils
         {
             var hasUrl = !string.IsNullOrWhiteSpace(urlInput);
             // Selected file display
-            var selectedDisplay = selectedFile != null 
-                ? Path.GetFileName(selectedFile) 
+            var selectedDisplay = selectedFile != null
+                ? Path.GetFileName(selectedFile)
                 : (hasUrl ? urlInput : LocalizationManager.Instance.GetLocalizedString("FileBrowserNoFileSelected"));
             ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1f), string.Format(LocalizationManager.Instance.GetLocalizedString("FileBrowserSelectedLabel"), selectedDisplay));
 
@@ -861,7 +861,7 @@ namespace Soulstone.Utils
             {
                 ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 0.4f, 0.4f, 1f));
+                ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Border);
             }
             else
             {
@@ -891,7 +891,7 @@ namespace Soulstone.Utils
             ImGui.SameLine();
 
             // Cancel button (now second)
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.2f, 0.2f, 1f));
+            ImGui.PushStyleColor(ImGuiCol.Button, SoulstoneTheme.Header);
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.5f, 0.25f, 0.25f, 1f));
             if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("CancelButton"), new Vector2(buttonWidth, 28)))
             {

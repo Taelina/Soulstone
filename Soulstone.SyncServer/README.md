@@ -1,88 +1,82 @@
-# Soulstone Sync Server
+# Soulstone Sync Server — 1.4.0
 
-This is a standalone, non-interactive ASP.NET Core WebSocket relay and character sheet cloud registry for the **Soulstone** Dalamud plugin. It stores active party rooms and registered character sheet profiles in memory and forwards end-to-end encrypted messages; credentials and sync payloads are never logged or stored on disk.
+Standalone ASP.NET Core 8 API and WebSocket relay for Soulstone. There is no
+Dalamud dependency, database, interactive setup, or durable publication store.
+It forwards encrypted party messages and stores public profiles, shared rulesets,
+invites, and rooms in memory. Restarting clears all of them.
 
-## Features
+## Deploy on Windows
 
-- **Encrypted WebSocket Relay**: Forwards end-to-end encrypted party sync envelopes without storing message history.
-- **Character Sheet Cloud Registry**: In-memory REST API (`/api/characters/...`) for uploading, retrieving, and inspecting player character sheets remotely.
-- **Protocol Flexibility (HTTP & HTTPS)**: Supports both plain HTTP/WS (`http://`, `ws://`) and secure HTTPS/WSS (`https://`, `wss://`) connections. HTTPS is optional and recommended for public internet deployments, while plain HTTP works directly for LAN, VPN (Tailscale/WireGuard), or direct IP setups.
-- **Zero Disk Footprint**: Operates completely in-memory with automatic session timeouts and garbage collection.
+Follow the [Windows deployment guide](../docs/DEPLOYMENT.md) in order. It covers
+installation, boot startup through Task Scheduler, failure recovery, direct HTTP,
+upgrades, rollback, and troubleshooting. This console executable needs Task
+Scheduler or a service wrapper; sc.exe create alone does not make it a service.
 
-## Run directly
+From the repository root:
 
-```powershell
-dotnet run --project .\Soulstone.SyncServer\Soulstone.SyncServer.csproj
-```
+~~~powershell
+dotnet test .\Soulstone.SyncServer.Tests\Soulstone.SyncServer.Tests.csproj
+dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\Soulstone.SyncServer\bin\publish\win-x64
+& '.\Soulstone.SyncServer\bin\publish\win-x64\Soulstone.SyncServer.exe' --urls 'http://0.0.0.0:5077'
+~~~
 
-The unattended default listener is `http://0.0.0.0:5077`. Set `ASPNETCORE_URLS` to configure custom hostnames, IP addresses, or ports.
+Copy the complete output, including configuration and native supporting files.
+Self-contained output needs no installed runtime on the host. Development-only
+startup: dotnet run --project Soulstone.SyncServer.
 
-## Publish a standalone executable
+The default listener is http://0.0.0.0:5077. Override with --urls or
+ASPNETCORE_URLS. The main deployment uses direct HTTP/WS on port 5077, including
+router forwarding for internet access. Optional HTTPS proxy/tunnel instructions
+remain in the guide; those use a loopback HTTP listener. appsettings.json is loaded from the
+executable directory, not the terminal's working directory.
 
-```powershell
-dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
-```
+## API surface
 
-Run the generated `Soulstone.SyncServer.exe` directly or install it as a persistent service. No console input or setup wizard is required.
+| Method and route | Purpose | Authorization |
+| --- | --- | --- |
+| GET /health | HTTP 200 with {"status":"healthy"} | Public |
+| POST /api/sessions | Returns sessionId, hostToken, memberToken | Public; 10/minute per observed IP |
+| PUT /api/sessions/{sessionId}/invite | Registers inviteId/payload JSON; success 204 | Host bearer token |
+| GET /api/invites/{inviteId} | Returns encrypted invite payload | Public lookup by opaque ID |
+| GET /api/sessions/{sessionId}/connect | WebSocket upgrade for group/host envelopes | Host or member bearer token |
+| PUT /api/characters/{characterName}[/{worldName}] | Publishes public profile JSON; success 204 | Owner bearer credential |
+| GET /api/characters/{characterName}[/{worldName}] | Returns public profile JSON or 404 | Public |
+| DELETE /api/characters/{characterName}[/{worldName}] | Deletes profile; success 204 | Owner bearer credential |
+| POST /api/dice-systems | Publishes/updates a ruleset; success 200 | Owner bearer credential |
+| GET /api/dice-systems/{code} | Downloads publication and serialized payload | Public |
+| GET /api/dice-systems/{code}/version | Returns code, systemName, updatedAtUtc | Public |
 
-## Container
+Brackets denote an optional world segment, not literal brackets. URL-encode
+character/world names. World-qualified lookups are exact; unqualified lookups
+can return the latest matching name.
 
-```powershell
-dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release -o .\Soulstone.SyncServer\publish
-docker build -t soulstone-sync .\Soulstone.SyncServer
-docker run --rm -p 5077:5077 soulstone-sync
-```
+Publication credentials are random 32-byte values encoded as 64 hex characters.
+First publication claims the resource; updates/deletes need the same credential.
+Session tokens and publication credentials serve different purposes.
+See [publication contracts and migration](../docs/PUBLICATION_API.md) and
+[HTTP examples](Soulstone.SyncServer.http).
 
-## REST API & Protocol Reference
+## Limits and operations
 
-### Health Check
+- Sessions: 12-hour lifetime; empty rooms expire after five minutes; 16 clients
+  per room. WebSockets: 64 KiB messages and 20 messages/10 seconds per connection.
+- Publications: 2 MiB per payload, 1,024 entries and 64 MiB per registry.
+  Profiles expire after seven days; rulesets after 30 days.
+- Publication writes/deletes: 60/minute per observed connection IP. Missing or
+  invalid credentials return 401; another owner's credential returns 403.
+- No forwarded-header middleware: proxy users can share IP-based limits.
+- Console logs contain lifecycle/transport events, without credentials or payloads.
+  Proxy logging needs the same care.
 
-- **`GET /health`**
-  - **Description**: Verifies relay availability.
-  - **Response**: `200 OK` `{"status":"healthy"}`
+On direct HTTP, REST profiles and bearer credentials have no TLS transport
+encryption. Optional HTTPS adds that protection. The plugin filters private
+profile fields before upload; the server
+stores submitted JSON and does not independently apply plugin visibility rules.
+Do not upload a full private sheet through manual API calls.
 
-### Session Relay & Party Sync
+Upgrade plugin and server together for 1.4.0. Restart the relay, recreate sessions,
+and republish content. Old unauthenticated writes fail. Back up plugin
+configuration securely to preserve local ownership credentials.
 
-- **`POST /api/sessions`**
-  - **Description**: Creates a new in-memory sync room session (rate-limited to 10/min per IP).
-  - **Response**: `200 OK` JSON with `sessionId`, `hostToken`, and `memberToken`.
-
-- **`PUT /api/sessions/{sessionId}/invite`**
-  - **Description**: Registers an opaque, encrypted invite payload.
-  - **Headers**: `Authorization: Bearer <hostToken>`, `Content-Type: application/json`
-  - **Body**: `{"inviteId": "...", "payload": "..."}`
-  - **Response**: `204 NoContent` (or `401 Unauthorized`, `404 NotFound`, `409 Conflict`)
-
-- **`GET /api/invites/{inviteId}`**
-  - **Description**: Resolves invite ciphertext for joining a session.
-  - **Response**: `200 OK` `{"payload": "..."}` (or `404 NotFound`)
-
-- **`GET /api/sessions/{sessionId}/connect`** (WebSocket Upgrade)
-  - **Description**: Establishes a persistent bidirectional WebSocket connection for party sync.
-  - **Headers**: `Authorization: Bearer <hostToken|memberToken>`
-  - **Protocol**: Encrypted JSON `RelayEnvelope` messages (group-scoped or DM-scoped).
-
-### Character Sheet Cloud Registry
-
-- **`PUT /api/characters/{characterName}`**
-- **`PUT /api/characters/{characterName}/{worldName}`**
-  - **Description**: Uploads and registers a character sheet JSON payload in memory.
-  - **Headers**: `Content-Type: application/json`
-  - **Body**: Serialized `CharacterSheet` JSON payload.
-  - **Response**: `204 NoContent` on success, `400 BadRequest` if empty or invalid.
-
-- **`GET /api/characters/{characterName}`**
-- **`GET /api/characters/{characterName}/{worldName}`**
-  - **Description**: Retrieves a registered character sheet JSON profile.
-  - **Response**: `200 OK` with `application/json` payload, or `404 NotFound`.
-
-- **`DELETE /api/characters/{characterName}`**
-- **`DELETE /api/characters/{characterName}/{worldName}`**
-  - **Description**: Removes a registered character sheet from the registry.
-  - **Response**: `204 NoContent` on success, `404 NotFound` if not registered.
-
-## Full Deployment & Router Setup Guide
-
-For detailed step-by-step instructions on publishing self-contained executables for Linux/Windows, configuring static IPs and firewall rules, setting up persistent background services (systemd / Windows Service), configuring router port forwarding and Dynamic DNS, or setting up optional TLS/HTTPS reverse proxies (Cloudflare Tunnel, Caddy, NGINX), see:
-
-👉 [**Full Installation & Deployment Guide (`docs/DEPLOYMENT.md`)**](../docs/DEPLOYMENT.md)
+[Linux and Docker deployment](../docs/DEPLOYMENT.md#7-linux-and-containers)
+uses the same server contracts.

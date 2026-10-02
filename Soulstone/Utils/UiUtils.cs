@@ -113,10 +113,10 @@ namespace Soulstone.Utils
                 ImGui.BeginDisabled();
             }
 
-            var bgCol = new Vector4(0.10f, 0.12f, 0.16f, 0.85f);
+            var bgCol = SoulstoneTheme.Field;
             var bgHoverCol = new Vector4(0.15f, 0.18f, 0.24f, 0.95f);
             var bgActiveCol = new Vector4(0.18f, 0.22f, 0.30f, 1.00f);
-            var border = borderColor ?? new Vector4(0.26f, 0.30f, 0.40f, 0.70f);
+            var border = borderColor ?? SoulstoneTheme.Border;
 
             bool changed;
             using (ImRaii.PushColor(ImGuiCol.FrameBg, bgCol))
@@ -180,14 +180,14 @@ namespace Soulstone.Utils
                 ImGui.SetNextItemWidth(-1.0f);
             }
 
-            var bgCol = backgroundColor ?? new Vector4(0.10f, 0.12f, 0.16f, 0.85f);
+            var bgCol = backgroundColor ?? SoulstoneTheme.Field;
             var bgHoverCol = backgroundColor.HasValue
                 ? new Vector4(Math.Min(bgCol.X + 0.05f, 1.0f), Math.Min(bgCol.Y + 0.05f, 1.0f), Math.Min(bgCol.Z + 0.05f, 1.0f), Math.Min(bgCol.W + 0.10f, 1.0f))
                 : new Vector4(0.15f, 0.18f, 0.24f, 0.95f);
             var bgActiveCol = backgroundColor.HasValue
                 ? new Vector4(Math.Min(bgCol.X + 0.08f, 1.0f), Math.Min(bgCol.Y + 0.08f, 1.0f), Math.Min(bgCol.Z + 0.08f, 1.0f), 1.0f)
                 : new Vector4(0.18f, 0.22f, 0.30f, 1.00f);
-            var border = borderColor ?? new Vector4(0.26f, 0.30f, 0.40f, 0.70f);
+            var border = borderColor ?? SoulstoneTheme.Border;
 
             using (ImRaii.PushColor(ImGuiCol.FrameBg, bgCol))
             using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, bgHoverCol))
@@ -240,10 +240,10 @@ namespace Soulstone.Utils
                 ImGui.SetNextItemWidth(-1.0f);
             }
 
-            var bgCol = new Vector4(0.10f, 0.12f, 0.16f, 0.85f);
+            var bgCol = SoulstoneTheme.Field;
             var bgHoverCol = new Vector4(0.15f, 0.18f, 0.24f, 0.95f);
             var bgActiveCol = new Vector4(0.18f, 0.22f, 0.30f, 1.00f);
-            var border = borderColor ?? new Vector4(0.26f, 0.30f, 0.40f, 0.70f);
+            var border = borderColor ?? SoulstoneTheme.Border;
 
             using (ImRaii.PushColor(ImGuiCol.FrameBg, bgCol))
             using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, bgHoverCol))
@@ -286,10 +286,10 @@ namespace Soulstone.Utils
             if (targetSize.X == 0) targetSize.X = -1.0f;
             if (targetSize.Y <= 0) targetSize.Y = 80.0f * scale;
 
-            var bgCol = new Vector4(0.10f, 0.12f, 0.16f, 0.85f);
+            var bgCol = SoulstoneTheme.Field;
             var bgHoverCol = new Vector4(0.15f, 0.18f, 0.24f, 0.95f);
             var bgActiveCol = new Vector4(0.18f, 0.22f, 0.30f, 1.00f);
-            var border = borderColor ?? new Vector4(0.26f, 0.30f, 0.40f, 0.70f);
+            var border = borderColor ?? SoulstoneTheme.Border;
 
             using (ImRaii.PushColor(ImGuiCol.FrameBg, bgCol))
             using (ImRaii.PushColor(ImGuiCol.FrameBgHovered, bgHoverCol))
@@ -313,12 +313,12 @@ namespace Soulstone.Utils
             Vector4? badgeColor = null)
         {
             var scale = ImGuiHelpers.GlobalScale;
-            var accent = accentColor ?? ImGuiColors.ParsedGold;
+            var accent = accentColor ?? SoulstoneTheme.Gold;
 
-            var headerBg = new Vector4(0.12f, 0.14f, 0.18f, 0.90f);
-            var headerHover = new Vector4(0.18f, 0.21f, 0.27f, 0.95f);
-            var headerActive = new Vector4(0.22f, 0.26f, 0.34f, 1.0f);
-            var headerBorder = new Vector4(0.28f, 0.32f, 0.42f, 0.70f);
+            var headerBg = SoulstoneTheme.Header;
+            var headerHover = SoulstoneTheme.Hover;
+            var headerActive = SoulstoneTheme.Active;
+            var headerBorder = SoulstoneTheme.Border;
 
             var flags = ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth;
             if (defaultOpen)
@@ -393,7 +393,7 @@ namespace Soulstone.Utils
             Vector4? badgeColor = null)
         {
             var scale = ImGuiHelpers.GlobalScale;
-            var accent = accentColor ?? ImGuiColors.ParsedGold;
+            var accent = accentColor ?? SoulstoneTheme.Gold;
             ImGui.Spacing();
 
             var startPos = ImGui.GetCursorScreenPos();
@@ -479,14 +479,14 @@ namespace Soulstone.Utils
             var scale = ImGuiHelpers.GlobalScale;
             var w = width * scale;
             var h = 52.0f * scale;
-            var accent = accentColor ?? ImGuiColors.ParsedGold;
+            var accent = accentColor ?? SoulstoneTheme.Gold;
             var pos = ImGui.GetCursorScreenPos();
             var drawList = ImGui.GetWindowDrawList();
 
             var isHovered = ImGui.IsMouseHoveringRect(pos, pos + new Vector2(w, h));
-            var bgCol = isHovered 
-                ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.18f, 0.22f, 0.95f))
-                : ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.12f, 0.14f, 0.90f));
+            var bgCol = isHovered
+                ? ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field)
+                : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
             var borderCol = isHovered
                 ? ImGui.ColorConvertFloat4ToU32(new Vector4(accent.X, accent.Y, accent.Z, 0.7f))
                 : ImGui.ColorConvertFloat4ToU32(new Vector4(0.28f, 0.28f, 0.32f, 0.5f));
@@ -512,7 +512,7 @@ namespace Soulstone.Utils
                 ImGui.SameLine(0, 4.0f * scale);
             }
             ImGui.TextColored(accent, value);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, label);
+            ImGui.TextColored(SoulstoneTheme.Muted, label);
             ImGui.EndGroup();
 
             ImGui.SetCursorScreenPos(pos);
@@ -568,8 +568,8 @@ namespace Soulstone.Utils
 
             var fraction = max > 0 ? Math.Clamp(current / max, 0f, 1f) : 0f;
             var fill = fillColor ?? ImGuiColors.ParsedGreen;
-            var bg = bgColor ?? new Vector4(0.10f, 0.10f, 0.13f, 0.95f);
-            var border = borderColor ?? new Vector4(0.28f, 0.28f, 0.35f, 0.75f);
+            var bg = bgColor ?? SoulstoneTheme.Field;
+            var border = borderColor ?? SoulstoneTheme.Border;
 
             float skew = Math.Min(w * 0.12f, Math.Max(4.0f * scale, 6.0f * scale));
 
@@ -643,9 +643,9 @@ namespace Soulstone.Utils
             float scaledGap = gap * scale;
             float skew = Math.Min(height * 0.35f, 5.0f * scale);
 
-            var fillCol = activeColor ?? ImGuiColors.ParsedGold;
-            var emptyCol = inactiveColor ?? new Vector4(0.12f, 0.12f, 0.16f, 0.9f);
-            var borderCol = borderColor ?? new Vector4(0.30f, 0.30f, 0.38f, 0.70f);
+            var fillCol = activeColor ?? SoulstoneTheme.Gold;
+            var emptyCol = inactiveColor ?? SoulstoneTheme.Field;
+            var borderCol = borderColor ?? SoulstoneTheme.Border;
 
             bool clicked = false;
             if (segments <= 20)
@@ -740,7 +740,7 @@ namespace Soulstone.Utils
         public static bool DrawFilterChip(string label, bool isSelected, int? count = null, FontAwesomeIcon? icon = null, Vector4? activeColor = null)
         {
             var scale = ImGuiHelpers.GlobalScale;
-            var accent = activeColor ?? ImGuiColors.ParsedGold;
+            var accent = activeColor ?? SoulstoneTheme.Gold;
             var displayLabel = count.HasValue ? $"{label} ({count.Value})" : label;
 
             var padding = new Vector2(10.0f, 4.0f) * scale;
@@ -761,13 +761,13 @@ namespace Soulstone.Utils
 
             var bgCol = isSelected
                 ? new Vector4(accent.X, accent.Y, accent.Z, 0.35f)
-                : (isHovered ? new Vector4(0.25f, 0.25f, 0.28f, 0.8f) : new Vector4(0.14f, 0.14f, 0.16f, 0.8f));
+                : (isHovered ? SoulstoneTheme.Border : SoulstoneTheme.Field);
 
             var borderCol = isSelected
                 ? accent
-                : (isHovered ? new Vector4(0.5f, 0.5f, 0.55f, 0.8f) : new Vector4(0.28f, 0.28f, 0.32f, 0.6f));
+                : (isHovered ? new Vector4(0.5f, 0.5f, 0.55f, 0.8f) : SoulstoneTheme.Border);
 
-            var textCol = isSelected ? new Vector4(1f, 1f, 1f, 1f) : (isHovered ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey);
+            var textCol = isSelected ? new Vector4(1f, 1f, 1f, 1f) : (isHovered ? ImGuiColors.DalamudWhite : SoulstoneTheme.Muted);
 
             var drawList = ImGui.GetWindowDrawList();
             drawList.AddRectFilled(pos, pos + size, ImGui.ColorConvertFloat4ToU32(bgCol), size.Y * 0.5f);
@@ -813,7 +813,7 @@ namespace Soulstone.Utils
                 this.screenPos = ImGui.GetCursorScreenPos();
 
                 var scale = ImGuiHelpers.GlobalScale;
-                var bg = bgColor ?? new Vector4(0.12f, 0.12f, 0.14f, 0.90f);
+                var bg = bgColor ?? SoulstoneTheme.Field;
 
                 ImGui.PushStyleColor(ImGuiCol.ChildBg, bg);
                 ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, rounding * scale);
@@ -829,7 +829,7 @@ namespace Soulstone.Utils
                 ImGui.PopStyleColor();
 
                 var scale = ImGuiHelpers.GlobalScale;
-                var border = borderColor ?? new Vector4(0.28f, 0.28f, 0.32f, 0.6f);
+                var border = borderColor ?? SoulstoneTheme.Border;
                 var drawList = ImGui.GetWindowDrawList();
                 var isHovered = ImGui.IsMouseHoveringRect(screenPos, screenPos + size);
                 if (isHovered)
@@ -1141,19 +1141,19 @@ namespace Soulstone.Utils
             float width = -1)
         {
             var scale = ImGuiHelpers.GlobalScale;
-            var accent = accentColor ?? ImGuiColors.ParsedGold;
+            var accent = accentColor ?? SoulstoneTheme.Gold;
 
             if (width > 0)
             {
                 ImGui.SetNextItemWidth(width * scale);
             }
 
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, new Vector4(0.11f, 0.12f, 0.16f, 0.95f));
+            ImGui.PushStyleColor(ImGuiCol.FrameBg, SoulstoneTheme.Field);
             ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, new Vector4(0.18f, 0.22f, 0.30f, 0.95f));
             ImGui.PushStyleColor(ImGuiCol.FrameBgActive, new Vector4(0.22f, 0.28f, 0.38f, 0.95f));
             ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(accent.X, accent.Y, accent.Z, 0.55f));
             ImGui.PushStyleColor(ImGuiCol.BorderShadow, new Vector4(0, 0, 0, 0));
-            ImGui.PushStyleColor(ImGuiCol.PopupBg, new Vector4(0.09f, 0.10f, 0.13f, 0.98f));
+            ImGui.PushStyleColor(ImGuiCol.PopupBg, SoulstoneTheme.Field);
             ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(accent.X * 0.35f, accent.Y * 0.35f, accent.Z * 0.35f, 0.85f));
             ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(accent.X * 0.55f, accent.Y * 0.55f, accent.Z * 0.55f, 0.90f));
             ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(accent.X * 0.75f, accent.Y * 0.75f, accent.Z * 0.75f, 0.95f));
@@ -1193,10 +1193,10 @@ namespace Soulstone.Utils
             Vector2 size = default)
         {
             var scale = ImGuiHelpers.GlobalScale;
-            var accent = accentColor ?? ImGuiColors.ParsedGold;
+            var accent = accentColor ?? SoulstoneTheme.Gold;
 
             using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4.0f * scale))
-            using (ImRaii.PushColor(ImGuiCol.Text, isSelected ? ImGuiColors.DalamudWhite : (Vector4)ImGuiColors.DalamudGrey))
+            using (ImRaii.PushColor(ImGuiCol.Text, isSelected ? ImGuiColors.DalamudWhite : (Vector4)SoulstoneTheme.Muted))
             {
                 string displayLabel = isSelected ? $"✓  {label}" : $"   {label}";
                 if (icon.HasValue)
@@ -1479,7 +1479,7 @@ namespace Soulstone.Utils
         public static void DrawOrnamentalDivider(string? centerText = null, FontAwesomeIcon? centerIcon = null, Vector4? accentColor = null)
         {
             var scale = ImGuiHelpers.GlobalScale;
-            var accent = accentColor ?? ImGuiColors.ParsedGold;
+            var accent = accentColor ?? SoulstoneTheme.Gold;
             var pos = ImGui.GetCursorScreenPos();
             var availWidth = ImGui.GetContentRegionAvail().X;
             var height = 20.0f * scale;
@@ -1521,7 +1521,7 @@ namespace Soulstone.Utils
             // Center emblem diamond / text
             if (centerIcon.HasValue || !string.IsNullOrEmpty(centerText))
             {
-                var emblemBg = ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.12f, 0.15f, 0.95f));
+                var emblemBg = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
                 var emblemBorder = ImGui.ColorConvertFloat4ToU32(accent);
                 var emblemMin = new Vector2(centerX - emblemWidth * 0.5f, centerY - 10.0f * scale);
                 var emblemMax = new Vector2(centerX + emblemWidth * 0.5f, centerY + 10.0f * scale);
@@ -1575,14 +1575,14 @@ namespace Soulstone.Utils
             string? progressLabel = null)
         {
             var scale = ImGuiHelpers.GlobalScale;
-            var accent = accentColor ?? ImGuiColors.ParsedGold;
+            var accent = accentColor ?? SoulstoneTheme.Gold;
             var pos = ImGui.GetCursorScreenPos();
             var availWidth = ImGui.GetContentRegionAvail().X;
             var height = 72.0f * scale;
             var drawList = ImGui.GetWindowDrawList();
 
             // Background card with ornate dark gradient
-            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.11f, 0.12f, 0.15f, 0.98f));
+            var bgCol = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
             var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(accent.X, accent.Y, accent.Z, 0.65f));
             var highlightCol = ImGui.ColorConvertFloat4ToU32(new Vector4(1f, 1f, 1f, 0.15f));
 
@@ -1606,7 +1606,7 @@ namespace Soulstone.Utils
             // Emblem box on the left
             var emblemSize = 46.0f * scale;
             var emblemPos = pos + new Vector2(16.0f * scale, (height - emblemSize) * 0.5f);
-            var emblemBg = ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.18f, 0.22f, 0.95f));
+            var emblemBg = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
             var emblemBorder = ImGui.ColorConvertFloat4ToU32(accent);
 
             drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), emblemBg, 8.0f * scale);
@@ -1635,7 +1635,7 @@ namespace Soulstone.Utils
 
                 if (!string.IsNullOrEmpty(subtitle))
                 {
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, subtitle);
+                    ImGui.TextColored(SoulstoneTheme.Muted, subtitle);
                 }
             }
             ImGui.EndGroup();
@@ -1679,7 +1679,7 @@ namespace Soulstone.Utils
                 var barPos = pos + new Vector2(contentLeft, height - 10.0f * scale);
                 float barWidth = Math.Max(20.0f * scale, availWidth - contentLeft - 16.0f * scale);
 
-                drawList.AddRectFilled(barPos, barPos + new Vector2(barWidth, barHeight), ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.18f, 0.22f, 0.9f)), 2.0f * scale);
+                drawList.AddRectFilled(barPos, barPos + new Vector2(barWidth, barHeight), ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field), 2.0f * scale);
                 if (fraction > 0)
                 {
                     drawList.AddRectFilled(barPos, barPos + new Vector2(barWidth * fraction, barHeight), ImGui.ColorConvertFloat4ToU32(accent), 2.0f * scale);
@@ -1717,7 +1717,7 @@ namespace Soulstone.Utils
             var availWidth = ImGui.GetContentRegionAvail().X;
             var h = height * scale;
             var drawList = ImGui.GetWindowDrawList();
-            var accent = accentColor ?? ImGuiColors.ParsedGold;
+            var accent = accentColor ?? SoulstoneTheme.Gold;
 
             var isHovered = ImGui.IsMouseHoveringRect(pos, pos + new Vector2(availWidth, h));
             if (isHovered && onClick != null && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
@@ -1726,15 +1726,12 @@ namespace Soulstone.Utils
             }
 
             // Card background & borders
-            var bgCol = isHovered
-                ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.16f, 0.17f, 0.21f, 0.96f))
-                : (isHighlighted 
-                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.13f, 0.14f, 0.17f, 0.95f))
-                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.09f, 0.10f, 0.12f, 0.90f)));
+            var bgCol = ImGui.ColorConvertFloat4ToU32(isHovered ? SoulstoneTheme.Hover
+                : isHighlighted ? SoulstoneTheme.Selection : SoulstoneTheme.Panel);
 
             var borderCol = isHighlighted
                 ? (isHovered ? ImGui.ColorConvertFloat4ToU32(new Vector4(accent.X, accent.Y, accent.Z, 1f)) : ImGui.ColorConvertFloat4ToU32(new Vector4(accent.X, accent.Y, accent.Z, 0.85f)))
-                : (isHovered ? ImGui.ColorConvertFloat4ToU32(new Vector4(accent.X, accent.Y, accent.Z, 0.75f)) : ImGui.ColorConvertFloat4ToU32(new Vector4(0.24f, 0.25f, 0.29f, 0.65f)));
+                : (isHovered ? ImGui.ColorConvertFloat4ToU32(new Vector4(accent.X, accent.Y, accent.Z, 0.75f)) : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Border));
 
             drawList.AddRectFilled(pos, pos + new Vector2(availWidth, h), bgCol, 6.0f * scale);
             drawList.AddRect(pos, pos + new Vector2(availWidth, h), borderCol, 6.0f * scale, ImDrawFlags.None, isHighlighted || isHovered ? 1.5f : 1.0f);
@@ -1754,8 +1751,8 @@ namespace Soulstone.Utils
                 var iconBoxSize = 44.0f * scale;
                 var iconBoxPos = pos + new Vector2(12.0f * scale, (h - iconBoxSize) * 0.5f);
                 var iconBg = isHighlighted
-                    ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.20f, 0.24f, 0.95f))
-                    : ImGui.ColorConvertFloat4ToU32(new Vector4(0.14f, 0.15f, 0.18f, 0.95f));
+                    ? ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Border)
+                    : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
                 var iconBorder = ImGui.ColorConvertFloat4ToU32(accent);
 
                 drawList.AddRectFilled(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), iconBg, 6.0f * scale);
@@ -1788,7 +1785,7 @@ namespace Soulstone.Utils
                 if (!string.IsNullOrEmpty(secondaryBadge))
                 {
                     ImGui.SameLine(0, 4.0f * scale);
-                    var sbColor = secondaryBadgeColor ?? ImGuiColors.ParsedGold;
+                    var sbColor = secondaryBadgeColor ?? SoulstoneTheme.Gold;
                     PillBadge(secondaryBadge, new Vector4(sbColor.X * 0.25f, sbColor.Y * 0.25f, sbColor.Z * 0.25f, 0.85f), sbColor);
                 }
             }
@@ -1802,11 +1799,11 @@ namespace Soulstone.Utils
                 {
                     if (!string.IsNullOrEmpty(subtitle))
                     {
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, subtitle);
+                        ImGui.TextColored(SoulstoneTheme.Muted, subtitle);
                     }
                     else if (!string.IsNullOrEmpty(description))
                     {
-                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                        ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Muted);
                         ImGui.PushTextWrapPos(pos.X + availWidth - 100.0f * scale);
                         ImGui.TextUnformatted(description);
                         ImGui.PopTextWrapPos();

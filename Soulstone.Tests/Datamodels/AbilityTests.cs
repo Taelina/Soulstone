@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using FluentAssertions;
 using Xunit;
 using Soulstone.Datamodels;
@@ -93,7 +93,7 @@ namespace Soulstone.Tests.Datamodels
             deserialized.AbilityModifier.Should().Be(8);
             deserialized.TempBonus.Should().Be(-3);
             deserialized.LinkedSkill.Should().NotBeNull();
-            deserialized.LinkedSkill.Id.Should().Be(2);
+            deserialized.LinkedSkill!.Id.Should().Be(2);
             deserialized.LinkedSkill.SkillName.Should().Be("Evocation");
             deserialized.LinkedSkill.LinkedAttribute.Should().Be("Intelligence");
             deserialized.LinkedSkill.SkillModifier.Should().Be(3);

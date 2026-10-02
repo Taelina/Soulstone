@@ -84,17 +84,17 @@ namespace Soulstone.Windows
             string diceNotation = currentSystem != null ? $"1d{DiceRoll.GetSystemSides(currentSystem)}" : "1d20";
             var diceIcon = currentSystem?.diceType == DiceType.d20 ? FontAwesomeIcon.DiceD20 : FontAwesomeIcon.Dice;
 
-            using (var card = ImRaii.Child("##InitiativeQuickCard", new Vector2(0, 42.0f * ImGuiHelpers.GlobalScale), true))
+            using (var card = SoulstoneTheme.BeginPanel("##InitiativeQuickCard", LocalizationManager.Instance.GetLocalizedString("InitiativeTab"), FontAwesomeIcon.Stopwatch, height: 110 * ImGuiHelpers.GlobalScale, bodyHasHeader: true))
             {
                 if (card.Success)
                 {
                     ImGui.AlignTextToFramePadding();
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Stopwatch.ToIconString());
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Stopwatch.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
-                    ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("InitiativeTab"));
+                    ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("InitiativeTab"));
                     ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
                     string badgeText = $"{diceNotation} | {statSource} ({(mod >= 0 ? $"+{mod}" : $"{mod}")})";
@@ -122,15 +122,17 @@ namespace Soulstone.Windows
 
         private void DrawQuickDiceBar()
         {
-            ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("QuickDiceHeader"));
-            ImGui.Spacing();
+            using var panel = SoulstoneTheme.BeginPanel("##QuickDicePanel", LocalizationManager.Instance.GetLocalizedString("QuickDiceHeader"), FontAwesomeIcon.DiceD20);
+            if (!panel.Success) return;
 
             var diceList = new[] { "1d4", "1d6", "1d8", "1d10", "1d12", "1d20", "1d100" };
             var btnWidth = 52.0f * ImGuiHelpers.GlobalScale;
 
             for (int i = 0; i < diceList.Length; i++)
             {
-                if (i > 0) ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                if (i > 0 && ImGui.GetItemRectMax().X + btnWidth + 4 * ImGuiHelpers.GlobalScale
+                    <= ImGui.GetWindowPos().X + ImGui.GetWindowContentRegionMax().X)
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                 var dice = diceList[i];
                 if (UiUtils.IconTextButton($"Quick_{dice}", FontAwesomeIcon.DiceD20, dice, size: new Vector2(btnWidth, 24.0f * ImGuiHelpers.GlobalScale)))
                 {
@@ -145,11 +147,12 @@ namespace Soulstone.Windows
                 }
             }
 
-            ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
             var modBtns = new[] { "+1", "+2", "+5", "-1" };
             foreach (var mod in modBtns)
             {
-                ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                if (ImGui.GetItemRectMax().X + 36 * ImGuiHelpers.GlobalScale
+                    <= ImGui.GetWindowPos().X + ImGui.GetWindowContentRegionMax().X)
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                 if (UiUtils.SmallButton(mod, size: new Vector2(32.0f * ImGuiHelpers.GlobalScale, 24.0f * ImGuiHelpers.GlobalScale)))
                 {
                     if (string.IsNullOrWhiteSpace(rollInputText))
@@ -162,12 +165,12 @@ namespace Soulstone.Windows
 
         private void DrawRollControlCard(DiceSystem? currentSystem)
         {
-            using (var card = ImRaii.Child("##RollControlCard", new Vector2(0, 108.0f * ImGuiHelpers.GlobalScale), true))
+            using (var card = SoulstoneTheme.BeginPanel("##RollControlCard", LocalizationManager.Instance.GetLocalizedString("DiceRollTab"), FontAwesomeIcon.DiceD20, height: 190 * ImGuiHelpers.GlobalScale))
             {
                 if (card.Success)
                 {
                     ImGui.AlignTextToFramePadding();
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("RollInputLabel"));
+                    ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("RollInputLabel"));
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
                     var rollLabel = LocalizationManager.Instance.GetLocalizedString("ThrowButton");
@@ -251,19 +254,19 @@ namespace Soulstone.Windows
             var entries = DiceHistoryManager.Instance.GetHistory();
             var localPlayer = PartySyncManager.Instance.GetLocalPlayerName();
 
-            using (var card = ImRaii.Child("##RollHistoryCard", new Vector2(0, availHeight), true))
+            using (var card = SoulstoneTheme.BeginPanel("##RollHistoryCard", LocalizationManager.Instance.GetLocalizedString("RollHistoryHeader"), FontAwesomeIcon.History, height: availHeight, bodyHasHeader: true))
             {
                 if (card.Success)
                 {
                     // Header Row
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.History.ToIconString());
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.History.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
-                    ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("RollHistoryHeader"));
+                    ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("RollHistoryHeader"));
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    UiUtils.Badge(entries.Count.ToString(), new Vector4(0.2f, 0.2f, 0.2f, 0.5f), ImGuiColors.DalamudGrey);
+                    UiUtils.Badge(entries.Count.ToString(), new Vector4(0.2f, 0.2f, 0.2f, 0.5f), SoulstoneTheme.Muted);
 
                     // Clear button on the right
                     var clearHistLabel = LocalizationManager.Instance.GetLocalizedString("ClearHistoryButton");
@@ -347,7 +350,7 @@ namespace Soulstone.Windows
                                 if (!string.IsNullOrWhiteSpace(entry.RollName))
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.PillBadge(entry.RollName, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20);
+                                    UiUtils.PillBadge(entry.RollName, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), SoulstoneTheme.Gold, FontAwesomeIcon.DiceD20);
                                 }
 
                                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
@@ -383,7 +386,7 @@ namespace Soulstone.Windows
         {
             bool isSelected = historyFilter == index;
             var bgCol = isSelected ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f);
-            var textCol = isSelected ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey;
+            var textCol = isSelected ? ImGuiColors.DalamudWhite : SoulstoneTheme.Muted;
 
             using (ImRaii.PushColor(ImGuiCol.Button, bgCol))
             using (ImRaii.PushColor(ImGuiCol.Text, textCol))

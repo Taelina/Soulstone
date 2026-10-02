@@ -1,4 +1,8 @@
-﻿# Soulstone - Technical & Code Documentation
+# Soulstone - Technical & Code Documentation
+
+Reference for **1.4.0**. See [Windows deployment](DEPLOYMENT.md) for installation
+and automatic API startup, and [publication contracts](PUBLICATION_API.md) for
+ownership, limits, and migration.
 
 Comprehensive architectural and codebase documentation for **Soulstone**, a Dalamud companion plugin for **Final Fantasy XIV** designed for roleplay character management, tabletop stats, cyberware augmentations, inventory, initiative tracking, and custom dice rolling systems.
 
@@ -65,7 +69,7 @@ Soulstone follows a modular, reactive desktop-in-game architecture designed spec
 
 ### Key Design Principles:
 - **Immediate-Mode UI Safety**: All UI rendering is wrapped using RAII wrappers (`ImRaii.Group`, `ImRaii.Child`, `ImRaii.PushColor`, `ImRaii.PushId`) to guarantee clean stack unwinding and avoid ImGui stack corruption.
-- **Dynamic Math Evaluation**: Stat and resource formulas use an in-house recursive-descent mathematical parser (`StatFormulaEvaluator`) that safely evaluates variable bindings (e.g. `@STR * 2 + 10`) without runtime reflection or external script injection risks.
+- **Dynamic Math Evaluation**: `StatFormulaEvaluator` uses a recursive-descent parser with direct stat bindings and a reflection fallback for public character properties/fields. Formulas are not executed as external scripts.
 - **Robust Schema Migration**: JSON serialization for datamodels includes backward-compatibility fallbacks, ensuring sheets created in previous plugin versions load seamlessly.
 - **Thread-safe Managers**: State managers adhere to single-instance patterns with atomic operations and UI thread affinity.
 
@@ -234,6 +238,11 @@ Defines character feats, traits, perks, flaws, and boons.
 - Used across all UI windows, modals, tooltips, and echoed chat logs.
 
 ### 4.6 `PartySyncManager` & Relay Transport
+
+- `FrameworkDispatcher` moves game API access, snapshots, configuration changes, and incoming state application onto the Dalamud framework thread. Network I/O remains asynchronous.
+- A semaphore serializes session operations; lifecycle versions reject outdated callbacks. Disposal detaches handlers and asynchronously releases the old relay client.
+- Automatic active-player publication is debounced for one second and canceled during teardown. NPC/backup sheets are not published under the player's identity.
+- Full initiative snapshots require the host signature. Local participant flags/file paths are excluded and ignored in legacy snapshots. Envelope version 1 and integer event identifiers remain unchanged.
 - Connects separate Soulstone instances through the standalone `Soulstone.SyncServer` WebSocket relay over HTTP/WS or HTTPS/WSS.
 - Robust leader/DM resolution: checks host configuration status to ensure non-host and non-leader members are never misidentified as the DM.
 - Synchronization payloads are never sent through FFXIV chat. The relay forwards opaque encrypted envelopes and does not persist session data.
@@ -243,7 +252,7 @@ Defines character feats, traits, perks, flaws, and boons.
 - The group UI supports session creation, short out-of-game invite links, reconnection, roll requests, delegated rolls, and DM-only stat inspection. A link combines the relay URL and a random 16-character validation code; legacy `SS1` invites remain accepted.
 
 ### 4.7 `CharacterApiClient` & `CharacterSheetRegistry`
-- Provides asynchronous REST API endpoints hosted on `Soulstone.SyncServer` for character profile cloud storage and remote inspection.
+- Provides asynchronous REST API endpoints hosted on `Soulstone.SyncServer` for public character profile storage and remote inspection. Uploads redact hidden/private fields; writes require publication ownership credentials. See [publication API and migration](PUBLICATION_API.md).
 - Endpoints:
   - `PUT /api/characters/{characterName}`: Uploads and registers a character sheet JSON payload in memory.
   - `PUT /api/characters/{characterName}/{worldName}`: Uploads and registers a character sheet JSON payload scoped to a character world.
@@ -255,6 +264,12 @@ Defines character feats, traits, perks, flaws, and boons.
 - Supports both `http://` and `https://` server URLs transparently for local network, VPN, and internet-hosted relays.
 
 ### 4.8 `Soulstone.SyncServer`
+
+- `PublicCharacterProfile` produces the redacted plugin upload without mutating the full local sheet. Private stats, inventory, hidden fields, buffs, class/level, formulas, and local portrait paths are excluded. The server does not apply visibility rules itself.
+- Profile PUT/DELETE require owner credentials; GET is public. World-qualified lookups are exact. `DiceSystemApiClient` uses owned `POST /api/dice-systems` and public GET download/version routes. Credentials live in local configuration, scoped to server URL/publication.
+- `PublicationEndpoints` maps routes; `PublicationSecurity` validates credentials and hashes ownership. Each payload is capped at 2 MiB; each registry at 1,024 entries/64 MiB. Profiles expire after seven days and rulesets after 30 days.
+- Session creation is limited to 10/minute and publication writes/deletes to 60/minute per connection IP. Forwarded headers are not processed; proxy users can share limits.
+- Restarting clears rooms, invites, publications, and ownership hashes. `/health` reports responsiveness only.
 - Independent ASP.NET Core 8 project with no database and no application NuGet dependencies.
 - Creates cryptographically random host/member credentials, holds rooms in memory for at most 12 hours, and removes empty rooms after 5 minutes.
 - Stores short-invite payloads only in memory as opaque AES-256-GCM ciphertext. The validation code and decrypted member credentials, room key, and host public key are never sent to or persisted by the relay.
@@ -271,8 +286,8 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 
 | Window | Responsibility |
 | :--- | :--- |
-| `MainWindow` | Tab coordinator providing top bar status, navigation tabs, and system indicators. |
-| `CharacterWindow` | Identity, appearance, background lore, customizable quick looks, privacy toggles, and relationship manager. |
+| `MainWindow` | Branded hub with Character, Tools, and Settings sidebar groups; navigation lives in `MainWindow.Navigation.cs`. |
+| `CharacterWindow` | Sheet viewing and editing, with partial files `CharacterWindow.Sheet.cs` and `CharacterWindow.Details.cs`. |
 | `CharStatsWindow` | Dynamic resource bars, attribute cards, skill tree, dynamic skill attribute linking modal, and ability cards with click-to-roll buttons. |
 | `FeatsWindow` | Character feats, perks, traits, and flaws manager with search, category filtering, and modifier configuration. |
 | `InventoryWindow` | Searchable item list, rarity badges, category filtering, weight/value summary, and item detail/editor modals. |
@@ -284,6 +299,7 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 | `DiceWindow` | Freeform dice expression calculator, initiative quick-card with ruleset notation/source, advantage toggles, roll history audit log, and chat output broadcast. |
 | `DiceSystemWindow` | Rule engine editor for system type, dynamic skill linking, formula initiative, thresholds, dice types, and dynamic resource definitions. |
 | `ConfigWindow` | Settings window for language selection, chat channels, detailed roll output, and UI options. |
+| `RollPresentationWindow` | Optional cinematic reveal and requested-roll controls; calculations and synchronization are independent of animation. |
 | `ImGuiFileWindow` | Standalone modal file picker with drive navigation, bookmarks, and extension filtering. |
 
 ---
@@ -334,6 +350,15 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 
 ## 7. Testing Architecture & Coverage
 
+The 1.4.0 additions include `PublicationSecurityTests` (ownership, API limits,
+expiry, exact world lookups), `RelayLifetimeTests` (expiry/shutdown),
+`DiceSystemRegistryTests` (owned rulesets), `RollRevealTests` (presentation timing),
+and `CleanupRegressionTests` (privacy projection and cleanup).
+
+Supporting utilities include `FrameworkDispatcher`, `PublicCharacterProfile`,
+`RollReveal`, `SoulstoneBrand`, `SoulstoneTheme`, and `StoragePath`. The reveal
+utility controls timing, skipping, and result hold; it never generates a new roll.
+
 The `Soulstone.Tests` and `Soulstone.SyncServer.Tests` projects provide automated unit testing using **xUnit** and **FluentAssertions**.
 
 ### Test Suite Structure:
@@ -353,8 +378,8 @@ The `Soulstone.Tests` and `Soulstone.SyncServer.Tests` projects provide automate
   - `LocalizationManagerTests`: English and French key parity, missing key fallbacks.
   - `PartySyncManagerTests`: Invite validation, authenticated encryption, DM signatures, stat privacy, and synchronized state updates.
 - **`Soulstone.SyncServer.Tests`**:
-  - `RelayProtocolTests`: Relay protocol validation, authentication, room limits, rate limits, group routing, and host-only routing.
-  - `CharacterSheetRegistryTests`: Character upload, retrieval, listing, and validation endpoints.
+  - `RelayServerTests` and `RelayIntegrationTests`: Protocol validation, authentication, limits, group routing, and host-only routing.
+  - `CharacterSheetRegistryTests`: Ownership, retrieval, deletion, and registry behavior.
 - **`Utils/`**:
   - `CharacterApiClientTests`: REST communication and payload handling.
   - `DiceRollTests`: Standard, Dice Pool, and Percentile roll arithmetic and string formatting.

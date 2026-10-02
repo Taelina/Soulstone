@@ -12,6 +12,7 @@ using Soulstone.Managers;
 using Soulstone.Sync;
 using System;
 using System.Threading.Tasks;
+using System.Threading;
 using Soulstone.Utils;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 
@@ -36,7 +37,11 @@ public sealed class Plugin : IDalamudPlugin
     private const string CommandName = "/soulstone";
 
     public static string dataLocation = string.Empty;
-    private Boolean pluginInitialized = false;
+    private bool pluginInitialized;
+    private bool disposed;
+    private CancellationTokenSource? inspectionCancellation;
+
+    internal bool IsDisposed => disposed;
 
     public Configuration Configuration { get; init; }
 
@@ -45,6 +50,7 @@ public sealed class Plugin : IDalamudPlugin
     public InitiativeTrackerWindow InitiativeTrackerWindow { get; init; }
     public GroupWindow GroupWindow { get; init; }
     internal CharacterInspectWindow CharacterInspectWindow { get; init; }
+    internal RollPresentationWindow RollPresentationWindow { get; init; }
 
     public ImGuiFileBrowserWindow fileBrowserWindow;
 
@@ -62,6 +68,7 @@ public sealed class Plugin : IDalamudPlugin
         InitiativeTrackerWindow = new InitiativeTrackerWindow(this);
         GroupWindow = new GroupWindow(this);
         CharacterInspectWindow = new CharacterInspectWindow(this);
+        RollPresentationWindow = new RollPresentationWindow(Configuration);
         fileBrowserWindow = new ImGuiFileBrowserWindow();
         fileBrowserWindow.SetConfiguration(Configuration);
         dataLocation = PluginInterface.GetPluginLocDirectory();
@@ -71,8 +78,8 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(InitiativeTrackerWindow);
-        WindowSystem.AddWindow(GroupWindow);
         WindowSystem.AddWindow(CharacterInspectWindow);
+        WindowSystem.AddWindow(RollPresentationWindow);
         WindowSystem.AddWindow(fileBrowserWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -81,7 +88,7 @@ public sealed class Plugin : IDalamudPlugin
         });
 
         // Tell the UI system that we want our windows to be drawn throught he window system
-        PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
+        PluginInterface.UiBuilder.Draw += DrawUi;
         PluginInterface.UiBuilder.Draw += DeleteConfirmation.Draw;
 
         // This adds a button to the plugin installer entry of this plugin which allows
@@ -103,6 +110,9 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        disposed = true;
+        inspectionCancellation?.Cancel();
+        inspectionCancellation?.Dispose();
         try
         {
             if (ContextMenu != null)
@@ -115,7 +125,7 @@ public sealed class Plugin : IDalamudPlugin
             ClientState.Logout -= OnLogout;
 
             // Unregister all actions to not leak anything during disposal of plugin
-            PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
+            PluginInterface.UiBuilder.Draw -= DrawUi;
             PluginInterface.UiBuilder.Draw -= DeleteConfirmation.Draw;
             PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
             PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
@@ -126,7 +136,9 @@ public sealed class Plugin : IDalamudPlugin
             MainWindow.Dispose();
             InitiativeTrackerWindow.Dispose();
             GroupWindow.Dispose();
+            SoulstoneTheme.ClearCache();
             CharacterInspectWindow.Dispose();
+            RollPresentationWindow.Dispose();
             PartySyncManager.Instance.Dispose();
 
             CommandManager.RemoveHandler(CommandName);
@@ -135,6 +147,16 @@ public sealed class Plugin : IDalamudPlugin
         {
             Log?.Error(ex, "Failed to dispose plugin resources cleanly");
         }
+    }
+
+    private void DrawUi()
+    {
+        using var theme = SoulstoneTheme.Push();
+        if (ClientState.IsLoggedIn)
+            RollPresentationWindow.ProcessPending();
+        else
+            RollPresentationWindow.Reset();
+        WindowSystem.Draw();
     }
 
     private void OnContextMenuOpened(Dalamud.Game.Gui.ContextMenu.IMenuOpenedArgs args)
@@ -165,38 +187,30 @@ public sealed class Plugin : IDalamudPlugin
 
     public void InspectCharacter(string characterName, string? worldName)
     {
-        try
-        {
-            InitManagers();
-            CharacterInspectWindow.OpenLoading(characterName, worldName);
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var serverUrl = RelayCrypto.NormalizeServerUrl(Configuration?.SyncServerUrl);
-                    var sheet = await CharacterApiClient.FetchCharacterSheetAsync(serverUrl, characterName, worldName).ConfigureAwait(false);
-                    if (sheet != null)
-                    {
-                        CharacterInspectWindow.OpenFor(characterName, worldName, sheet);
-                    }
-                    else
-                    {
-                        CharacterInspectWindow.SetError(characterName, worldName, LocalizationManager.Instance.GetLocalizedString("CharSheetNotFoundServer"));
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log?.Error(ex, $"Failed to fetch character sheet for '{characterName}'");
-                    CharacterInspectWindow.SetError(characterName, worldName, LocalizationManager.Instance.GetLocalizedString("CharSheetNotFoundServer"));
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            Log?.Error(ex, $"Error inspecting character '{characterName}'");
-        }
+        if (disposed) return;
+        InitManagers();
+        inspectionCancellation?.Cancel();
+        inspectionCancellation?.Dispose();
+        inspectionCancellation = new CancellationTokenSource();
+        CharacterInspectWindow.OpenLoading(characterName, worldName);
+        _ = FetchInspectedCharacterAsync(Configuration.SyncServerUrl, characterName, worldName, inspectionCancellation.Token);
     }
 
+    private async Task FetchInspectedCharacterAsync(string serverUrl, string characterName, string? worldName, CancellationToken ct)
+    {
+        try
+        {
+            var sheet = await CharacterApiClient.FetchCharacterSheetAsync(serverUrl, characterName, worldName, ct).ConfigureAwait(false);
+            await FrameworkDispatcher.RunAsync(() =>
+            {
+                if (disposed || ct.IsCancellationRequested) return;
+                if (sheet != null) CharacterInspectWindow.OpenFor(characterName, worldName, sheet);
+                else CharacterInspectWindow.SetError(characterName, worldName, LocalizationManager.Instance.GetLocalizedString("CharSheetNotFoundServer"));
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        catch (Exception ex) { Log?.Error(ex, "Failed to inspect public character profile"); }
+    }
     private void OnFrameworkUpdate(IFramework framework)
     {
         try
@@ -217,7 +231,6 @@ public sealed class Plugin : IDalamudPlugin
         try
         {
             InitManagers();
-            CharacterManager.Instance.Init();
             PartySyncManager.Instance.RefreshPartyList();
         }
         catch (Exception ex)
@@ -231,6 +244,9 @@ public sealed class Plugin : IDalamudPlugin
         try
         {
             pluginInitialized = false;
+            inspectionCancellation?.Cancel();
+            _ = PartySyncManager.Instance.DisconnectAsync();
+            RollPresentationWindow.Reset();
             CharacterManager.Instance.Reset();
         }
         catch (Exception ex)
@@ -246,7 +262,7 @@ public sealed class Plugin : IDalamudPlugin
             dataLocation = PluginInterface.GetPluginLocDirectory();
             InitManagers();
 
-            string trimmedArgs = (args ?? string.Empty).Trim().ToLower();
+            string trimmedArgs = (args ?? string.Empty).Trim().ToLowerInvariant();
             if (trimmedArgs == "init" || trimmedArgs == "initiative")
             {
                 ToggleInitiativeTrackerUi();
@@ -283,7 +299,7 @@ public sealed class Plugin : IDalamudPlugin
     public void ToggleGroupUi()
     {
         InitManagers();
-        GroupWindow.Toggle();
+        MainWindow.OpenGroup();
     }
 
     public void ToggleMainUi()
@@ -299,8 +315,8 @@ public sealed class Plugin : IDalamudPlugin
         try
         {
             Log?.Information("Initializing managers on main thread...");
-            CharacterManager.Instance.Init();
             DiceSystemManager.Instance.Init(Configuration);
+            CharacterManager.Instance.Init();
             PartySyncManager.Instance.Init(Configuration);
             LocalizationManager.Instance.InitLoc(this);
             fileBrowserWindow?.SetCurrentDirectory(dataLocation);

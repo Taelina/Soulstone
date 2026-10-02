@@ -125,7 +125,7 @@ namespace Soulstone.Windows
 
             if (currentCharacter == null)
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedStatsMessage"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedStatsMessage"));
                 return;
             }
 
@@ -142,15 +142,15 @@ namespace Soulstone.Windows
             if (currentCharacter == null) return;
             var buffs = currentCharacter.ActiveBuffs;
 
-            using (var buffBar = ImRaii.Child("##ActiveBuffsBanner", new Vector2(0, 32.0f * ImGuiHelpers.GlobalScale), true))
+            using (var buffBar = ImRaii.Child("##ActiveBuffsBanner", new Vector2(0, 52.0f * ImGuiHelpers.GlobalScale), true))
             {
                 if (buffBar.Success)
                 {
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Magic.ToIconString());
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Magic.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("BuffsHeader")}:");
+                    ImGui.TextColored(SoulstoneTheme.Gold, $"{LocalizationManager.Instance.GetLocalizedString("BuffsHeader")}:");
 
                     string? buffToRemove = null;
                     if (buffs != null && buffs.Count > 0)
@@ -178,7 +178,7 @@ namespace Soulstone.Windows
                                 string mods = buff.GetFormattedModifiers();
                                 if (!string.IsNullOrWhiteSpace(mods))
                                 {
-                                    ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("StatModifiersLabel")} {mods}");
+                                    ImGui.TextColored(SoulstoneTheme.Gold, $"{LocalizationManager.Instance.GetLocalizedString("StatModifiersLabel")} {mods}");
                                 }
                                 ImGui.Separator();
                                 ImGui.TextDisabled("Right click to manage");
@@ -244,25 +244,25 @@ namespace Soulstone.Windows
         {
             if (currentCharacter == null) return;
 
-            using (var banner = ImRaii.Child("##VitalsBanner", new Vector2(0, 36.0f * ImGuiHelpers.GlobalScale), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
+            using (var banner = ImRaii.Child("##VitalsBanner", new Vector2(0, 58.0f * ImGuiHelpers.GlobalScale), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
             {
                 if (banner.Success)
                 {
                     // Class, Level, XP, System Dice, Linked System
                     if (currentDiceSystem == null || currentDiceSystem.systemHasClasses)
                     {
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("ClassLabel"));
+                        ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("ClassLabel"));
                         ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                         UiUtils.ManageInputField(ref currentCharacter.characterClass, "ClassInput", editingStats, 80.0f);
                         ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
                     }
 
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("LevelLabel"));
+                    ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("LevelLabel"));
                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                     UiUtils.ManageInputField(ref currentCharacter.characterLevel, "LevelInput", editingStats, 40.0f);
 
                     ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("XPLabel"));
+                    ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("XPLabel"));
                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                     UiUtils.ManageInputField(ref currentCharacter.characterExperiencePoints, "XpInput", editingStats, 50.0f);
 
@@ -275,7 +275,7 @@ namespace Soulstone.Windows
                     if (editingStats)
                     {
                         ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"));
+                        ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"));
                         ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                         UiUtils.ManageInputField(ref currentCharacter.linkedDiceSystem, "LinkedDiceSystemInput", editingStats, 100.0f);
                     }
@@ -337,7 +337,7 @@ namespace Soulstone.Windows
                     else
                         ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
 
-                    var editColor = editingStats ? ImGuiColors.DalamudOrange : ImGuiColors.DalamudGrey;
+                    var editColor = editingStats ? ImGuiColors.DalamudOrange : SoulstoneTheme.Muted;
                     if (UiUtils.IconButton("EditStatCheck", FontAwesomeIcon.PencilAlt, editLabel, customColor: editColor))
                     {
                         editingStats = !editingStats;
@@ -360,7 +360,7 @@ namespace Soulstone.Windows
             if (string.IsNullOrEmpty(title) || title == "ResourcesSectionTitle")
                 title = LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader");
 
-            using (var child = ImRaii.Child("##ResourcesColChild", new Vector2(0, height), true))
+            using (var child = SoulstoneTheme.BeginPanel("##ResourcesColChild", title, FontAwesomeIcon.Heartbeat, height: height, bodyHasHeader: true))
             {
                 if (child.Success)
                 {
@@ -434,7 +434,7 @@ namespace Soulstone.Windows
 
             float rowHeight = (editingStats ? 48.0f : 42.0f) * scale;
 
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.11f, 0.12f, 0.15f, 0.90f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
             using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(resCol.X, resCol.Y, resCol.Z, 0.45f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 6.0f) * scale))
@@ -473,7 +473,7 @@ namespace Soulstone.Windows
                             }
 
                             ImGui.SameLine(0, 6.0f * scale);
-                            var rollableIconCol = res.IsRollable ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudGrey;
+                            var rollableIconCol = res.IsRollable ? ImGuiColors.ParsedGreen : SoulstoneTheme.Muted;
                             var rollableTooltip = res.IsRollable
                                 ? LocalizationManager.Instance.GetLocalizedString("ResourceRollableEnabledTooltip")
                                 : LocalizationManager.Instance.GetLocalizedString("ResourceRollableDisabledTooltip");
@@ -486,7 +486,7 @@ namespace Soulstone.Windows
                             ImGui.PopStyleColor();
 
                             ImGui.SameLine(0, 6.0f * scale);
-                            var groupIconCol = res.ShowInGroup ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudGrey;
+                            var groupIconCol = res.ShowInGroup ? ImGuiColors.ParsedGreen : SoulstoneTheme.Muted;
                             var groupTooltip = res.ShowInGroup
                                 ? LocalizationManager.Instance.GetLocalizedString("ResourceShowInGroupTooltip")
                                 : LocalizationManager.Instance.GetLocalizedString("ResourceHideFromGroupTooltip");
@@ -517,7 +517,7 @@ namespace Soulstone.Windows
                             }
 
                             ImGui.SameLine(0, 6.0f * scale);
-                            var groupIconCol = res.ShowInGroup ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudGrey;
+                            var groupIconCol = res.ShowInGroup ? ImGuiColors.ParsedGreen : SoulstoneTheme.Muted;
                             var groupTooltip = res.ShowInGroup
                                 ? LocalizationManager.Instance.GetLocalizedString("ResourceShowInGroupTooltip")
                                 : LocalizationManager.Instance.GetLocalizedString("ResourceHideFromGroupTooltip");
@@ -581,7 +581,7 @@ namespace Soulstone.Windows
                         if (res.ResourceType == ResourceType.FlatNumber)
                         {
                             string valText = $"{effectiveMax}{(gearBonus != 0 ? $" ({FormatModifier(gearBonus)})" : "")}";
-                            UiUtils.PillBadge(valText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
+                            UiUtils.PillBadge(valText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), SoulstoneTheme.Gold);
 
                             if (res.IsRollable)
                             {
@@ -688,7 +688,8 @@ namespace Soulstone.Windows
 
             var availHeight = Math.Max(240.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y - 4.0f);
 
-            using (var table = ImRaii.Table("##StatsColumnsGrid", 3, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.BordersInnerV))
+            var layoutColumns = ImGui.GetContentRegionAvail().X >= 900 * ImGuiHelpers.GlobalScale ? 3 : 1;
+            using (var table = ImRaii.Table("##StatsColumnsGrid", layoutColumns, ImGuiTableFlags.SizingStretchSame | ImGuiTableFlags.BordersInnerV))
             {
                 if (table.Success)
                 {
@@ -718,7 +719,7 @@ namespace Soulstone.Windows
         {
             if (currentCharacter == null) return;
 
-            using (var child = ImRaii.Child("##AttributesColChild", new Vector2(0, height), true))
+            using (var child = SoulstoneTheme.BeginPanel("##AttributesColChild", LocalizationManager.Instance.GetLocalizedString("AttributeLabel"), FontAwesomeIcon.ShieldAlt, height: height, bodyHasHeader: true))
             {
                 if (child.Success)
                 {
@@ -726,10 +727,10 @@ namespace Soulstone.Windows
                     var effectiveAttributes = currentCharacter.GetEffectiveAttributes(currentDiceSystem);
 
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.ShieldAlt.ToIconString());
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.ShieldAlt.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
+                    ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
 
                     ImGui.Separator();
                     ImGui.Spacing();
@@ -738,7 +739,7 @@ namespace Soulstone.Windows
                     {
                         ImGui.Spacing();
                         ImGui.PushFont(UiBuilder.IconFont);
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, FontAwesomeIcon.InfoCircle.ToIconString());
+                        ImGui.TextColored(SoulstoneTheme.Muted, FontAwesomeIcon.InfoCircle.ToIconString());
                         ImGui.PopFont();
                         ImGui.SameLine();
                         ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAttributesDefined"));
@@ -760,8 +761,8 @@ namespace Soulstone.Windows
                             var drawList = ImGui.GetWindowDrawList();
                             bool isHovered = ImGui.IsMouseHoveringRect(pos, pos + cardSize);
                             var bgCol = isHovered
-                                ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.22f, 0.28f, 0.70f))
-                                : ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.14f, 0.18f, 0.55f));
+                                ? ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Border)
+                                : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
                             var borderCol = isHovered
                                 ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.85f, 0.75f, 0.35f, 0.60f))
                                 : ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.28f, 0.35f, 0.40f));
@@ -781,7 +782,7 @@ namespace Soulstone.Windows
                             {
                                 if (hasFavoriteAttributes)
                                 {
-                                    var favIconCol = attribute.Value.IsFavorite ? ImGuiColors.ParsedGold : ImGuiColors.DalamudGrey;
+                                    var favIconCol = attribute.Value.IsFavorite ? SoulstoneTheme.Gold : SoulstoneTheme.Muted;
                                     if (UiUtils.IconButton($"Fav_{attribute.Key}", FontAwesomeIcon.Star, LocalizationManager.Instance.GetLocalizedString("FavoriteAttributeTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale, customColor: favIconCol))
                                     {
                                         attribute.Value.IsFavorite = !attribute.Value.IsFavorite;
@@ -829,7 +830,7 @@ namespace Soulstone.Windows
                                 if (hasFavoriteAttributes && attribute.Value.IsFavorite)
                                 {
                                     ImGui.PushFont(UiBuilder.IconFont);
-                                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Star.ToIconString());
+                                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Star.ToIconString());
                                     ImGui.PopFont();
                                     if (ImGui.IsItemHovered())
                                     {
@@ -891,7 +892,7 @@ namespace Soulstone.Windows
                                     ImGui.SetCursorScreenPos(new Vector2(rightStartX, pos.Y + (cardHeight - 20.0f * ImGuiHelpers.GlobalScale) * 0.5f));
                                 }
 
-                                UiUtils.Badge(baseText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
+                                UiUtils.Badge(baseText, new Vector4(0.24f, 0.20f, 0.12f, 0.85f), SoulstoneTheme.Gold);
                                 if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("StatValueTooltip")}: {baseVal}");
 
                                 if (tempVal != 0)
@@ -977,10 +978,10 @@ namespace Soulstone.Windows
                                         new Vector2(360.0f * ImGuiHelpers.GlobalScale, 0),
                                         new Vector2(520.0f * ImGuiHelpers.GlobalScale, float.MaxValue));
                                     ImGui.BeginTooltip();
-                                    ImGui.TextColored(ImGuiColors.ParsedGold, attribute.Key);
+                                    ImGui.TextColored(SoulstoneTheme.Gold, attribute.Key);
                                     if (!string.IsNullOrWhiteSpace(attribute.Value.Description))
                                     {
-                                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                                        ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Muted);
                                         ImGui.TextWrapped(attribute.Value.Description);
                                         ImGui.PopStyleColor();
                                     }
@@ -1013,7 +1014,7 @@ namespace Soulstone.Windows
         {
             if (currentCharacter == null) return;
 
-            using (var child = ImRaii.Child("##SkillsColChild", new Vector2(0, height), true))
+            using (var child = SoulstoneTheme.BeginPanel("##SkillsColChild", LocalizationManager.Instance.GetLocalizedString("SkillLabel"), FontAwesomeIcon.BookOpen, height: height, bodyHasHeader: true))
             {
                 if (child.Success)
                 {
@@ -1033,7 +1034,7 @@ namespace Soulstone.Windows
                     {
                         ImGui.Spacing();
                         ImGui.PushFont(UiBuilder.IconFont);
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, FontAwesomeIcon.InfoCircle.ToIconString());
+                        ImGui.TextColored(SoulstoneTheme.Muted, FontAwesomeIcon.InfoCircle.ToIconString());
                         ImGui.PopFont();
                         ImGui.SameLine();
                         ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoSkillsDefined"));
@@ -1057,7 +1058,7 @@ namespace Soulstone.Windows
                             bool isHovered = ImGui.IsMouseHoveringRect(pos, pos + cardSize);
                             var bgCol = isHovered
                                 ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.24f, 0.20f, 0.70f))
-                                : ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.16f, 0.14f, 0.55f));
+                                : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
                             var borderCol = isHovered
                                 ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.35f, 0.75f, 0.45f, 0.60f))
                                 : ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.35f, 0.28f, 0.40f));
@@ -1098,7 +1099,7 @@ namespace Soulstone.Windows
                                 bool hasFavoriteSkills = currentDiceSystem == null || currentDiceSystem.systemHasFavoriteAttributes;
                                 if (hasFavoriteSkills)
                                 {
-                                    var favIconCol = skill.Value.IsFavorite ? ImGuiColors.ParsedGold : ImGuiColors.DalamudGrey;
+                                    var favIconCol = skill.Value.IsFavorite ? SoulstoneTheme.Gold : SoulstoneTheme.Muted;
                                     if (UiUtils.IconButton($"FavSkill_{skill.Key}", FontAwesomeIcon.Star, LocalizationManager.Instance.GetLocalizedString("FavoriteSkillTooltip"), new Vector2(22, 22) * ImGuiHelpers.GlobalScale, customColor: favIconCol))
                                     {
                                         skill.Value.IsFavorite = !skill.Value.IsFavorite;
@@ -1111,7 +1112,7 @@ namespace Soulstone.Windows
                                 if (currentDiceSystem?.dynamicSkillAttributeLinking != true && !string.IsNullOrEmpty(skill.Value.linkedAttribute))
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.Badge(skill.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
+                                    UiUtils.Badge(skill.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), SoulstoneTheme.Gold);
                                 }
 
                                 int inputCount = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? 2 : 1;
@@ -1138,7 +1139,7 @@ namespace Soulstone.Windows
                                 if (currentDiceSystem?.dynamicSkillAttributeLinking != true && !string.IsNullOrEmpty(skill.Value.linkedAttribute))
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.Badge(skill.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
+                                    UiUtils.Badge(skill.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), SoulstoneTheme.Gold);
                                 }
 
                                 float rightItemsWidth = 30.0f * ImGuiHelpers.GlobalScale;
@@ -1180,7 +1181,7 @@ namespace Soulstone.Windows
                                     ImGui.SetCursorScreenPos(new Vector2(rightStartX, pos.Y + (cardHeight - 20.0f * ImGuiHelpers.GlobalScale) * 0.5f));
                                 }
 
-                                UiUtils.Badge(baseModText, new Vector4(0.18f, 0.22f, 0.20f, 0.85f), ImGuiColors.DalamudGrey);
+                                UiUtils.Badge(baseModText, SoulstoneTheme.Field, SoulstoneTheme.Muted);
                                 if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("SkillBaseStatTooltip")} ({baseModText})");
 
                                 if (skillTempBonus != 0)
@@ -1254,7 +1255,7 @@ namespace Soulstone.Windows
                                     ImGui.TextColored(ImGuiColors.ParsedGreen, skill.Value.skillName);
                                     if (!string.IsNullOrWhiteSpace(skill.Value.skillDescription))
                                     {
-                                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                                        ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Muted);
                                         ImGui.TextWrapped(skill.Value.skillDescription);
                                         ImGui.PopStyleColor();
                                     }
@@ -1337,7 +1338,7 @@ namespace Soulstone.Windows
                     {
                         ImGui.Spacing();
                         ImGui.PushFont(UiBuilder.IconFont);
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, FontAwesomeIcon.InfoCircle.ToIconString());
+                        ImGui.TextColored(SoulstoneTheme.Muted, FontAwesomeIcon.InfoCircle.ToIconString());
                         ImGui.PopFont();
                         ImGui.SameLine();
                         ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAbilitiesDefined"));
@@ -1364,7 +1365,7 @@ namespace Soulstone.Windows
                             bool isHovered = ImGui.IsMouseHoveringRect(pos, pos + cardSize);
                             var bgCol = isHovered
                                 ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.16f, 0.22f, 0.30f, 0.70f))
-                                : ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.15f, 0.20f, 0.55f));
+                                : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
                             var borderCol = isHovered
                                 ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.35f, 0.60f, 0.85f, 0.60f))
                                 : ImGui.ColorConvertFloat4ToU32(new Vector4(0.22f, 0.32f, 0.45f, 0.40f));
@@ -1454,7 +1455,7 @@ namespace Soulstone.Windows
                                 if (!string.IsNullOrEmpty(ability.Value.linkedAttribute))
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.Badge(ability.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
+                                    UiUtils.Badge(ability.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), SoulstoneTheme.Gold);
                                 }
                                 if (hasLinkedSkill && ability.Value.linkedSkill != null)
                                 {
@@ -1484,7 +1485,7 @@ namespace Soulstone.Windows
                                 if (!string.IsNullOrEmpty(ability.Value.linkedAttribute))
                                 {
                                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.Badge(ability.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
+                                    UiUtils.Badge(ability.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), SoulstoneTheme.Gold);
                                 }
                                 if (hasLinkedSkill && ability.Value.linkedSkill != null)
                                 {
@@ -1531,7 +1532,7 @@ namespace Soulstone.Windows
                                     ImGui.SetCursorScreenPos(new Vector2(rightStartX, pos.Y + (cardHeight - 20.0f * ImGuiHelpers.GlobalScale) * 0.5f));
                                 }
 
-                                UiUtils.Badge(baseModText, new Vector4(0.15f, 0.20f, 0.28f, 0.85f), ImGuiColors.DalamudGrey);
+                                UiUtils.Badge(baseModText, new Vector4(0.15f, 0.20f, 0.28f, 0.85f), SoulstoneTheme.Muted);
                                 if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}: {baseModText}");
 
                                 if (abilityTempBonus != 0)
@@ -1595,7 +1596,7 @@ namespace Soulstone.Windows
                                     ImGui.TextColored(ImGuiColors.TankBlue, ability.Value.abilityName);
                                     if (!string.IsNullOrWhiteSpace(ability.Value.abilityDescription))
                                     {
-                                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                                        ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Muted);
                                         ImGui.TextWrapped(ability.Value.abilityDescription);
                                         ImGui.PopStyleColor();
                                     }
@@ -1739,10 +1740,10 @@ namespace Soulstone.Windows
             if (ImGui.BeginPopupModal("NewAttributeModal", ref showAttributesPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.ShieldAlt.ToIconString());
+                ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.ShieldAlt.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine(0, 6.0f * scale);
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
+                ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
                 ImGui.Separator();
                 ImGui.Spacing();
 
@@ -1908,10 +1909,10 @@ namespace Soulstone.Windows
                 };
                 var headerCol = statRollType switch
                 {
-                    StatRollType.SavingThrow => ImGuiColors.ParsedGold,
+                    StatRollType.SavingThrow => SoulstoneTheme.Gold,
                     StatRollType.Skill => ImGuiColors.ParsedGreen,
                     StatRollType.Ability => ImGuiColors.TankBlue,
-                    _ => ImGuiColors.ParsedGold
+                    _ => SoulstoneTheme.Gold
                 };
 
                 ImGui.TextColored(headerCol, headerIcon.ToIconString());
@@ -1938,7 +1939,7 @@ namespace Soulstone.Windows
                 {
                     if (!string.IsNullOrWhiteSpace(statRollAttribute?.Description))
                     {
-                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                        ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Muted);
                         ImGui.TextWrapped(statRollAttribute.Description);
                         ImGui.PopStyleColor();
                         ImGui.Spacing();
@@ -1969,7 +1970,7 @@ namespace Soulstone.Windows
                     if (featBonus != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(featBonus)}");
                     if (rollBonusOrPenalty != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltySummary")}: {FormatModifier(rollBonusOrPenalty)}");
 
-                    ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("TotalModifierLabel")}: {FormatModifier(finalTotal)} {(rawSuccesses > 0 ? $"(+★{rawSuccesses})" : "")}");
+                    ImGui.TextColored(SoulstoneTheme.Gold, $"{LocalizationManager.Instance.GetLocalizedString("TotalModifierLabel")}: {FormatModifier(finalTotal)} {(rawSuccesses > 0 ? $"(+★{rawSuccesses})" : "")}");
 
                     rollLabel = statRollType == StatRollType.SavingThrow
                         ? string.Format(LocalizationManager.Instance.GetLocalizedString("SavingThrowRollFormat"), statRollName)
@@ -1979,7 +1980,7 @@ namespace Soulstone.Windows
                 {
                     if (!string.IsNullOrWhiteSpace(statRollSkill?.skillDescription))
                     {
-                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                        ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Muted);
                         ImGui.TextWrapped(statRollSkill.skillDescription);
                         ImGui.PopStyleColor();
                         ImGui.Spacing();
@@ -2060,7 +2061,7 @@ namespace Soulstone.Windows
                 {
                     if (!string.IsNullOrWhiteSpace(statRollAbility?.abilityDescription))
                     {
-                        ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
+                        ImGui.PushStyleColor(ImGuiCol.Text, SoulstoneTheme.Muted);
                         ImGui.TextWrapped(statRollAbility.abilityDescription);
                         ImGui.PopStyleColor();
                         ImGui.Spacing();
@@ -2262,10 +2263,10 @@ namespace Soulstone.Windows
             if (ImGui.BeginPopupModal("NewBuffModal###CharNewBuffModal", ref showBuffPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Magic.ToIconString());
+                ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Magic.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine(0, 6.0f * scale);
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("BuffModalTitle"));
+                ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("BuffModalTitle"));
                 ImGui.Separator();
                 ImGui.Spacing();
 

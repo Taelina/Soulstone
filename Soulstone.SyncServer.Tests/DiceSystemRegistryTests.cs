@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using Soulstone.SyncServer;
 using System.Net;
@@ -9,6 +9,7 @@ namespace Soulstone.SyncServer.Tests;
 
 public class DiceSystemRegistryTests : IClassFixture<WebApplicationFactory<Program>>
 {
+    private const string Token = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     private readonly WebApplicationFactory<Program> factory;
 
     public DiceSystemRegistryTests(WebApplicationFactory<Program> factory)
@@ -22,7 +23,7 @@ public class DiceSystemRegistryTests : IClassFixture<WebApplicationFactory<Progr
         var registry = new DiceSystemRegistry(TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
         var request = new PublishDiceSystemRequest("Player Name", "Moogle", "My System", "{\"systemName\":\"My System\"}");
 
-        Assert.True(registry.TryPublish(request, out var published));
+        Assert.True(registry.TryPublish(request, out var published, Token));
         Assert.Matches("^[A-Z0-9]{10}$", published.Code);
         Assert.Equal("Player Name", published.PlayerName);
         Assert.Equal("Moogle", published.WorldName);
@@ -35,28 +36,29 @@ public class DiceSystemRegistryTests : IClassFixture<WebApplicationFactory<Progr
     {
         var registry = new DiceSystemRegistry(TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
 
-        Assert.False(registry.TryPublish(new PublishDiceSystemRequest("", "Moogle", "System", "{}"), out _));
-        Assert.False(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "", "{}"), out _));
-        Assert.False(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "System", new string('x', DiceSystemRegistry.MaxPayloadLength + 1)), out _));
+        Assert.False(registry.TryPublish(new PublishDiceSystemRequest("", "Moogle", "System", "{}"), out _, Token));
+        Assert.False(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "", "{}"), out _, Token));
+        Assert.False(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "System", new string('x', DiceSystemRegistry.MaxPayloadLength + 1)), out _, Token));
     }
 
     [Fact]
     public void Registry_RepublishesOwnedSystemUnderTheSameCode()
     {
         var registry = new DiceSystemRegistry(TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
-        Assert.True(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "System", "{\"version\":1}"), out var first));
+        Assert.True(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "System", "{\"version\":1}"), out var first, Token));
 
-        Assert.True(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "System", "{\"version\":2}", first.Code), out var updated));
+        Assert.True(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "System", "{\"version\":2}", first.Code), out var updated, Token));
         Assert.Equal(first.Code, updated.Code);
         Assert.True(registry.TryGet(first.Code, out var downloaded));
         Assert.Equal("{\"version\":2}", downloaded.Payload);
-        Assert.False(registry.TryPublish(new PublishDiceSystemRequest("Other Player", "Moogle", "System", "{}", first.Code), out _));
+        Assert.False(registry.TryPublish(new PublishDiceSystemRequest("Other Player", "Moogle", "System", "{}", first.Code), out _, new string('B', 64)));
     }
 
     [Fact]
     public async Task HttpEndpoints_PublishDownloadAndCheckVersion()
     {
         using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", Token);
         var request = new PublishDiceSystemRequest("Player Name", "Moogle", "My System", "{\"systemName\":\"My System\"}");
 
         var publishResponse = await client.PostAsJsonAsync("/api/dice-systems", request);

@@ -1,4 +1,5 @@
 using Soulstone.Managers;
+using FluentAssertions;
 using System;
 using Xunit;
 
@@ -7,6 +8,37 @@ namespace Soulstone.Tests.Managers
     [Collection("NonParallelCollection")]
     public class DiceHistoryManagerTests
     {
+        [Fact]
+        public void EntryAdded_PublishesTheStoredResultOnce_AndClearDoesNotPublishARoll()
+        {
+            var manager = DiceHistoryManager.Instance;
+            manager.Clear();
+            var entry = new DiceHistoryEntry { Total = 17, IsLocal = true, IsPrivate = true };
+            int notifications = 0;
+            DiceHistoryEntry? received = null;
+            void OnEntry(DiceHistoryEntry added)
+            {
+                notifications++;
+                received = added;
+                manager.GetHistory()[0].Should().BeSameAs(added);
+            }
+
+            manager.OnEntryAdded += OnEntry;
+            try
+            {
+                manager.AddEntry(entry);
+                manager.Clear();
+
+                notifications.Should().Be(1);
+                received.Should().BeSameAs(entry);
+            }
+            finally
+            {
+                manager.OnEntryAdded -= OnEntry;
+                manager.Clear();
+            }
+        }
+
         [Fact]
         public void AddEntry_And_Clear_WorksCorrectly()
         {

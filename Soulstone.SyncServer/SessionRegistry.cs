@@ -324,28 +324,29 @@ public sealed class RelayClient : IDisposable
     public async Task<bool> SendAsync(ReadOnlyMemory<byte> message, CancellationToken cancellationToken)
     {
         var currentSocket = socket;
-        if (currentSocket?.State != WebSocketState.Open)
+        if (Volatile.Read(ref disposed) != 0 || currentSocket?.State != WebSocketState.Open)
             return false;
-
-        await sendLock.WaitAsync(cancellationToken);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        bool acquired = false;
         try
         {
-            if (currentSocket.State != WebSocketState.Open)
+            await sendLock.WaitAsync(timeout.Token);
+            acquired = true;
+            if (Volatile.Read(ref disposed) != 0 || currentSocket.State != WebSocketState.Open)
                 return false;
-
-            await currentSocket.SendAsync(message, WebSocketMessageType.Text, true, cancellationToken);
+            await currentSocket.SendAsync(message, WebSocketMessageType.Text, true, timeout.Token);
             return true;
         }
-        catch (WebSocketException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
+            currentSocket.Abort();
             return false;
         }
-        finally
-        {
-            sendLock.Release();
-        }
+        catch (WebSocketException) { return false; }
+        catch (ObjectDisposedException) { return false; }
+        finally { if (acquired) sendLock.Release(); }
     }
-
     public async Task CloseForExpirationAsync(CancellationToken cancellationToken)
     {
         var currentSocket = socket;
@@ -353,10 +354,16 @@ public sealed class RelayClient : IDisposable
         {
             try
             {
-                await currentSocket.CloseAsync(
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(TimeSpan.FromSeconds(2));
+                await currentSocket.CloseOutputAsync(
                     WebSocketCloseStatus.PolicyViolation,
                     "Session expired.",
-                    cancellationToken);
+                    timeout.Token);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                currentSocket.Abort();
             }
             catch (WebSocketException)
             {
@@ -371,11 +378,11 @@ public sealed class RelayClient : IDisposable
             return;
 
         room.Remove(this);
-        sendLock.Dispose();
+        // Queued senders must still be able to release this managed semaphore.
     }
 }
 
-public sealed class SessionCleanupService(SessionRegistry sessions, CharacterSheetRegistry sheets, TimeProvider timeProvider) : BackgroundService
+public sealed class SessionCleanupService(SessionRegistry sessions, CharacterSheetRegistry sheets, DiceSystemRegistry systems, TimeProvider timeProvider) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -384,6 +391,7 @@ public sealed class SessionCleanupService(SessionRegistry sessions, CharacterShe
         {
             await sessions.RemoveExpiredAsync(stoppingToken);
             sheets.CleanupExpired();
+            systems.CleanupExpired();
         }
     }
 }

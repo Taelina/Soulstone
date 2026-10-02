@@ -20,12 +20,12 @@ public class ConfigWindow : Window, IDisposable
 
     public ConfigWindow(Plugin plugin) : base("Soulstone Settings###SoulstoneConfig")
     {
-        Size = new Vector2(360, 240);
+        Size = new Vector2(520, 600);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(320, 200),
-            MaximumSize = new Vector2(600, 450)
+            MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
 
         configuration = plugin.Configuration;
@@ -59,7 +59,8 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawRollSettings()
     {
-        if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("ConfigRollDisplayHeader"), defaultOpen: true, icon: FontAwesomeIcon.DiceD20, accentColor: ImGuiColors.ParsedGold))
+        using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawRollSettings", LocalizationManager.Instance.GetLocalizedString("ConfigRollDisplayHeader"), FontAwesomeIcon.DiceD20);
+        if (sectionPanel.Success)
         {
             bool detailedRollsVal = configuration.detailedRolls;
             if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigDetailedRollsCheck")}##DetailedRolls", ref detailedRollsVal))
@@ -74,12 +75,20 @@ public class ConfigWindow : Window, IDisposable
                 configuration.showEpicBonus = showEpicBonusVal;
                 configuration.Save();
             }
+
+            bool showRollPresentation = configuration.ShowRollPresentation;
+            if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigRollPresentationCheck")}##RollPresentation", ref showRollPresentation))
+            {
+                configuration.ShowRollPresentation = showRollPresentation;
+                configuration.Save();
+            }
         }
     }
 
     private void DrawGroupSettings()
     {
-        if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("ConfigGroupManagementHeader"), defaultOpen: true, icon: FontAwesomeIcon.Users, accentColor: ImGuiColors.ParsedGreen))
+        using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawGroupSettings", LocalizationManager.Instance.GetLocalizedString("ConfigGroupManagementHeader"), FontAwesomeIcon.Users);
+        if (sectionPanel.Success)
         {
             bool showGroupRes = configuration.ShowGroupResources;
             if (ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("ConfigShowGroupResourcesCheck")}##ShowGroupRes", ref showGroupRes))
@@ -92,10 +101,11 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawLocalizationSettings()
     {
-        if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("ConfigLocalizationHeader"), defaultOpen: true, icon: FontAwesomeIcon.Language, accentColor: ImGuiColors.ParsedBlue))
+        using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawLocalizationSettings", LocalizationManager.Instance.GetLocalizedString("ConfigLocalizationHeader"), FontAwesomeIcon.Language);
+        if (sectionPanel.Success)
         {
             ImGui.AlignTextToFramePadding();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("ConfigLanguageCombo"));
+            ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("ConfigLanguageCombo"));
             ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
             if (UiUtils.StyledCombo("##LanguageCombo", ref selectedLanguageIndex, Enum.GetNames<Language>(), icon: FontAwesomeIcon.Language, width: 150.0f))
             {

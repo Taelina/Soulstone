@@ -1,3 +1,4 @@
+using Soulstone.Utils;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Scene;
 using System;
 using System.Collections.Generic;
@@ -502,15 +503,10 @@ namespace Soulstone.Datamodels
 
         public static DiceSystem? LoadDiceSystem(string systemName, bool isFullPath = false)
         {
-            string sanitized = systemName.Replace(" ", "_").ToLower();
-            string path = isFullPath ? systemName : $"{Plugin.dataLocation}/diceSystem/{sanitized}.json";
-            if (!isFullPath && !File.Exists(path) && File.Exists($"{Plugin.dataLocation}/diceSystem/{systemName}.json"))
-            {
-                path = $"{Plugin.dataLocation}/diceSystem/{systemName}.json";
-            }
-
+            string path = systemName;
             try
             {
+                path = isFullPath ? Path.GetFullPath(systemName) : StoragePath.ForJson(Path.Combine(Plugin.dataLocation, "diceSystem"), systemName);
                 if (File.Exists(path))
                 {
                     Plugin.Log?.Information($"Loading existing dice system from {path}");
@@ -540,8 +536,7 @@ namespace Soulstone.Datamodels
                 {
                     Directory.CreateDirectory($"{Plugin.dataLocation}/diceSystem");
                 }
-                string systemName = (system.SystemName ?? "dice_system").Replace(" ", "_").ToLower();
-                var path = $"{Plugin.dataLocation}/diceSystem/{systemName}.json";
+                var path = StoragePath.ForJson(Path.Combine(Plugin.dataLocation, "diceSystem"), system.SystemName ?? "dice_system");
                 Plugin.Log?.Information($"Saving dice system '{system.SystemName}' to {path}");
                 File.WriteAllText(path, JsonSerializer.Serialize(system, new JsonSerializerOptions { WriteIndented = true }));
             }

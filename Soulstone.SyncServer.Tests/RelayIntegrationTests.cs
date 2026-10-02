@@ -83,7 +83,7 @@ public class RelayIntegrationTests : IClassFixture<WebApplicationFactory<Program
     {
         var client = factory.Server.CreateWebSocketClient();
         client.ConfigureRequest = request => request.Headers["Authorization"] = "Bearer wrong-token";
-        
+
         await Assert.ThrowsAnyAsync<Exception>(() =>
             client.ConnectAsync(new Uri("ws://localhost/api/sessions/unknown-session/connect"), CancellationToken.None));
     }

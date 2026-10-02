@@ -1,4 +1,4 @@
-﻿using Dalamud.Game.Text;
+using Dalamud.Game.Text;
 using Soulstone.Managers;
 using Soulstone.Utils;
 using System;

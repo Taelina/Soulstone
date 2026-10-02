@@ -73,7 +73,7 @@ namespace Soulstone.Windows
 
             if (currentCharacter == null)
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedInventoryMessage"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedInventoryMessage"));
                 return;
             }
 
@@ -84,12 +84,13 @@ namespace Soulstone.Windows
             DrawFilterBar(currentCharacter);
             ImGui.Spacing();
 
-            using (var table = ImRaii.Table("##InventoryColumns", 2, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable))
+            var layoutColumns = ImGui.GetContentRegionAvail().X >= 760 * ImGuiHelpers.GlobalScale ? 2 : 1;
+            using (var table = ImRaii.Table("##InventoryColumns", layoutColumns, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable))
             {
                 if (table.Success)
                 {
                     ImGui.TableSetupColumn("ItemList", ImGuiTableColumnFlags.WidthStretch, 0.48f);
-                    ImGui.TableSetupColumn("ItemDetail", ImGuiTableColumnFlags.WidthStretch, 0.52f);
+                    if (layoutColumns == 2) ImGui.TableSetupColumn("ItemDetail", ImGuiTableColumnFlags.WidthStretch, 0.52f);
 
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
@@ -143,7 +144,7 @@ namespace Soulstone.Windows
             var capacity = sheet.GetEffectiveInventoryCapacity(diceSystem);
             var used = sheet.CharacterInventory.Count;
 
-            var rightText = capacity > 0 
+            var rightText = capacity > 0
                 ? string.Format(LocalizationManager.Instance.GetLocalizedString("InventorySlotsUsed"), used, capacity)
                 : $"{LocalizationManager.Instance.GetLocalizedString("InventoryCapacityLabel")} {used} ({LocalizationManager.Instance.GetLocalizedString("InventoryUnlimited")})";
 
@@ -185,7 +186,7 @@ namespace Soulstone.Windows
 
             // Type filter
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryFilterType"));
+            ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryFilterType"));
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
 
             var allTypes = GetAllAvailableTypes(sheet);
@@ -203,7 +204,7 @@ namespace Soulstone.Windows
 
             // Sort combo
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
-            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventorySortBy"));
+            ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventorySortBy"));
             ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
             var localizedSortOptions = sortOptions.Select(GetLocalizedSortOption).ToArray();
             UiUtils.StyledCombo("##SortCombo", ref selectedSortIndex, localizedSortOptions, icon: FontAwesomeIcon.SortAmountDown, width: 110.0f);
@@ -282,7 +283,7 @@ namespace Soulstone.Windows
             if (!string.IsNullOrWhiteSpace(searchQuery))
             {
                 var q = searchQuery.Trim().ToLowerInvariant();
-                items = items.Where(i => 
+                items = items.Where(i =>
                     (i.Name != null && i.Name.ToLowerInvariant().Contains(q)) ||
                     (i.Description != null && i.Description.ToLowerInvariant().Contains(q)) ||
                     (i.Effect != null && i.Effect.ToLowerInvariant().Contains(q)) ||
@@ -308,14 +309,14 @@ namespace Soulstone.Windows
 
         private void DrawItemList(CharacterSheet sheet)
         {
-            using var listChild = ImRaii.Child("##ItemListScroll", new Vector2(0, 0), true);
+            using var listChild = SoulstoneTheme.BeginPanel("##ItemListScroll", LocalizationManager.Instance.GetLocalizedString("InventoryTab"), FontAwesomeIcon.ShoppingBag, height: Math.Max(300 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y));
             if (!listChild.Success) return;
 
             var items = GetFilteredItems(sheet).ToList();
             if (items.Count == 0)
             {
                 ImGui.Spacing();
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryNoItems"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryNoItems"));
                 return;
             }
 
@@ -340,10 +341,10 @@ namespace Soulstone.Windows
                     ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.32f, 0.48f, 0.85f))
                     : (isHovered
                         ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.18f, 0.20f, 0.26f, 0.80f))
-                        : ImGui.ColorConvertFloat4ToU32(new Vector4(0.12f, 0.13f, 0.16f, 0.75f)));
+                        : ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field));
 
                 var borderCol = isSelected
-                    ? ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold)
+                    ? ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Gold)
                     : (isHovered
                         ? ImGui.ColorConvertFloat4ToU32(new Vector4(0.60f, 0.60f, 0.65f, 0.70f))
                         : ImGui.ColorConvertFloat4ToU32(new Vector4(0.25f, 0.27f, 0.33f, 0.45f)));
@@ -383,10 +384,10 @@ namespace Soulstone.Windows
                     ImGui.TextColored(nameCol, itemName);
 
                     ImGui.SameLine();
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, $"x{item.Quantity}");
+                    ImGui.TextColored(SoulstoneTheme.Muted, $"x{item.Quantity}");
 
                     // Row 2: Type badge & effect snippet
-                    UiUtils.Badge(GetLocalizedItemType(item.ItemType), new Vector4(0.2f, 0.25f, 0.35f, 0.5f), ImGuiColors.DalamudGrey2);
+                    UiUtils.Badge(GetLocalizedItemType(item.ItemType), new Vector4(0.2f, 0.25f, 0.35f, 0.5f), SoulstoneTheme.Muted);
 
                     if (sheet.IsItemEquipped(item.Id))
                     {
@@ -445,14 +446,14 @@ namespace Soulstone.Windows
 
         private void DrawItemDetail(CharacterSheet sheet)
         {
-            using var detailChild = ImRaii.Child("##ItemDetailScroll", new Vector2(0, 0), true);
+            using var detailChild = SoulstoneTheme.BeginPanel("##ItemDetailScroll", LocalizationManager.Instance.GetLocalizedString("InventoryItemDetails"), FontAwesomeIcon.Scroll, height: Math.Max(300 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y));
             if (!detailChild.Success) return;
 
             var item = sheet.CharacterInventory?.FirstOrDefault(i => i.Id == selectedItemId);
             if (item == null)
             {
                 ImGui.Spacing();
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventorySelectItemPrompt"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventorySelectItemPrompt"));
                 return;
             }
 
@@ -468,7 +469,7 @@ namespace Soulstone.Windows
                 ImGui.TextColored(rarityCol, !string.IsNullOrWhiteSpace(item.Name) ? item.Name : LocalizationManager.Instance.GetLocalizedString("InventoryUnnamedItem"));
                 ImGui.Spacing();
 
-                UiUtils.Badge(GetLocalizedRarity(item.Rarity), new Vector4(0.2f, 0.2f, 0.2f, 0.6f), rarityCol);
+                UiUtils.Badge(GetLocalizedRarity(item.Rarity), SoulstoneTheme.Field, rarityCol);
                 ImGui.SameLine();
                 UiUtils.Badge(GetLocalizedItemType(item.ItemType), new Vector4(0.2f, 0.3f, 0.45f, 0.5f), ImGuiColors.ParsedBlue);
                 ImGui.SameLine();
@@ -477,7 +478,7 @@ namespace Soulstone.Windows
                 if (item.Weight > 0.0f)
                 {
                     ImGui.SameLine();
-                    UiUtils.Badge(string.Format(LocalizationManager.Instance.GetLocalizedString("InventoryItemWeightFormat"), item.Weight), new Vector4(0.3f, 0.3f, 0.3f, 0.5f), ImGuiColors.DalamudGrey2);
+                    UiUtils.Badge(string.Format(LocalizationManager.Instance.GetLocalizedString("InventoryItemWeightFormat"), item.Weight), new Vector4(0.3f, 0.3f, 0.3f, 0.5f), SoulstoneTheme.Muted);
                 }
 
                 if (item.IsUsable)
@@ -528,14 +529,14 @@ namespace Soulstone.Windows
             // Use Formula Section
             if (item.IsUsable && !string.IsNullOrWhiteSpace(item.UseFormula))
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemFormula"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemFormula"));
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                 UiUtils.Badge(item.UseFormula, new Vector4(0.2f, 0.4f, 0.6f, 0.4f), ImGuiColors.ParsedBlue);
                 ImGui.Spacing();
             }
 
             // Description Section
-            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemDescription"));
+            ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemDescription"));
             using (var descCard = ImRaii.Child($"##DescCard_{item.Id}", new Vector2(0, 70.0f * ImGuiHelpers.GlobalScale), true))
             {
                 if (descCard.Success)
@@ -546,7 +547,7 @@ namespace Soulstone.Windows
                     }
                     else
                     {
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, "—");
+                        ImGui.TextColored(SoulstoneTheme.Muted, "—");
                     }
                 }
             }
@@ -581,7 +582,7 @@ namespace Soulstone.Windows
             // Custom Properties Section
             if (item.CustomProperties != null && item.CustomProperties.Count > 0)
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemCustomProps"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemCustomProps"));
                 using (var propTable = ImRaii.Table($"##CustomPropsTable_{item.Id}", 2, ImGuiTableFlags.BordersInner | ImGuiTableFlags.RowBg))
                 {
                     if (propTable.Success)
@@ -594,7 +595,7 @@ namespace Soulstone.Windows
                         {
                             ImGui.TableNextRow();
                             ImGui.TableNextColumn();
-                            ImGui.TextColored(ImGuiColors.DalamudGrey2, kvp.Key);
+                            ImGui.TextColored(SoulstoneTheme.Muted, kvp.Key);
                             ImGui.TableNextColumn();
                             ImGui.TextUnformatted(kvp.Value);
                         }
@@ -727,7 +728,7 @@ namespace Soulstone.Windows
             if (ImGui.Begin(title, ref showCreateEditModal, ImGuiWindowFlags.NoCollapse))
             {
                 // Item Name
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemName"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemName"));
                 UiUtils.StyledInputText("EditItemName", ref editingItem.name, 100, width: -1.0f);
 
                 // Type & Rarity
@@ -737,7 +738,7 @@ namespace Soulstone.Windows
                     {
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemType"));
+                        ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemType"));
                         var allTypes = GetAllAvailableTypes(sheet);
                         var typeIdx = Math.Max(0, allTypes.IndexOf(editingItem.itemType));
                         var localizedAllTypes = allTypes.Select(GetLocalizedItemType).ToArray();
@@ -747,7 +748,7 @@ namespace Soulstone.Windows
                         }
 
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemRarity"));
+                        ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemRarity"));
                         var rarityIdx = Math.Max(0, Array.IndexOf(rarities, editingItem.rarity));
                         var localizedRarities = rarities.Select(GetLocalizedRarity).ToArray();
                         if (UiUtils.StyledCombo("##EditItemRarityCombo", ref rarityIdx, localizedRarities, icon: FontAwesomeIcon.Gem))
@@ -764,15 +765,15 @@ namespace Soulstone.Windows
                     {
                         ImGui.TableNextRow();
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemQuantity"));
+                        ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemQuantity"));
                         UiUtils.StyledInputInt("EditItemQty", ref editingItem.quantity, step: 1, width: -1.0f, min: 1);
 
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemMaxStack"));
+                        ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemMaxStack"));
                         UiUtils.StyledInputInt("EditItemMaxStack", ref editingItem.maxStack, step: 1, width: -1.0f, min: 1);
 
                         ImGui.TableNextColumn();
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemWeight"));
+                        ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemWeight"));
                         UiUtils.StyledInputFloat("EditItemWeight", ref editingItem.weight, step: 0.1f, format: "%.1f", width: -1.0f, min: 0.0f);
                     }
                 }
@@ -780,7 +781,7 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
 
                 // Image Section
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemImage"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemImage"));
                 float imgInputW = Math.Max(120.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 170.0f * ImGuiHelpers.GlobalScale);
                 UiUtils.StyledInputText("EditItemImageUrl", ref editingItem.imageUrl, 500, width: imgInputW / ImGuiHelpers.GlobalScale);
 
@@ -826,14 +827,14 @@ namespace Soulstone.Windows
                         UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InventoryItemIsConsumableTooltip"));
                     }
 
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemFormula"));
+                    ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemFormula"));
                     UiUtils.StyledInputText("EditItemFormula", ref editingItem.useFormula, 100, width: -1.0f, hint: LocalizationManager.Instance.GetLocalizedString("InventoryItemFormulaHint"));
                 }
 
                 ImGui.Spacing();
 
                 // Description
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemDescription"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemDescription"));
                 UiUtils.StyledInputMultiline("EditItemDesc", ref editingItem.description, 2000, new Vector2(-1.0f, 65.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Spacing();
@@ -862,7 +863,7 @@ namespace Soulstone.Windows
                     // Cyberware / Augmentation toggle
                     ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("ItemIsAugmentationCheckbox"), ref gearEdit.isAugmentation);
 
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
+                    ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
 
                     var slotList = gearEdit.isAugmentation
                         ? (diceSystem?.GetEffectiveAugmentationSlots() ?? GearItem.StandardAugmentationSlots.ToList())
@@ -886,8 +887,8 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
 
                 // Custom Properties Editor
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryItemCustomProps"));
-                
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemCustomProps"));
+
                 // Add Property row
                 UiUtils.StyledInputText("NewPropKey", ref newPropKey, 50, width: 120.0f, hint: LocalizationManager.Instance.GetLocalizedString("InventoryPropKey"));
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
@@ -994,7 +995,7 @@ namespace Soulstone.Windows
 
             if (ImGui.Begin($"{LocalizationManager.Instance.GetLocalizedString("InventoryManageTypesTitle")}###ManageTypesModal", ref showManageTypesModal, ImGuiWindowFlags.NoCollapse))
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryNewTypeName"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryNewTypeName"));
                 float typeInputW = Math.Max(120.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 110.0f * ImGuiHelpers.GlobalScale);
                 UiUtils.StyledInputText("NewCustomTypeInput", ref newCustomTypeName, 50, width: typeInputW / ImGuiHelpers.GlobalScale);
 
@@ -1016,18 +1017,18 @@ namespace Soulstone.Windows
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("InventoryStandardTypesHeader"));
+                ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("InventoryStandardTypesHeader"));
                 foreach (var std in standardItemTypes)
                 {
                     ImGui.BulletText(GetLocalizedItemType(std));
                 }
 
                 ImGui.Spacing();
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("InventoryCustomTypesHeader"));
+                ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("InventoryCustomTypesHeader"));
                 string? typeToRemove = null;
                 if (sheet.customItemTypes == null || sheet.customItemTypes.Count == 0)
                 {
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryNoCustomTypesMessage"));
+                    ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryNoCustomTypesMessage"));
                 }
                 else
                 {
@@ -1104,7 +1105,7 @@ namespace Soulstone.Windows
 
             if (ImGui.Begin($"{LocalizationManager.Instance.GetLocalizedString("InventoryImportTitle")}###ImportItemsModal", ref showImportModal, ImGuiWindowFlags.NoCollapse))
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryImportSelectJsonPrompt"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryImportSelectJsonPrompt"));
                 if (UiUtils.IconTextButton("ImportChooseFileBtn", FontAwesomeIcon.FolderOpen, LocalizationManager.Instance.GetLocalizedString("InventoryImportFileBtn"), size: new Vector2(160.0f * ImGuiHelpers.GlobalScale, 26.0f * ImGuiHelpers.GlobalScale)))
                 {
                     plugin.OpenFilePicker(LocalizationManager.Instance.GetLocalizedString("InventoryImportPickerTitle"), ".json", (filePath) =>
@@ -1145,7 +1146,7 @@ namespace Soulstone.Windows
                 ImGui.Separator();
                 ImGui.Spacing();
 
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InventoryImportRawText"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryImportRawText"));
                 UiUtils.StyledInputMultiline("ImportRawJsonInput", ref importRawText, 100000, new Vector2(-1.0f, 150.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Spacing();
@@ -1204,7 +1205,7 @@ namespace Soulstone.Windows
                 "Rare" => ImGuiColors.ParsedBlue,
                 "Epic" => ImGuiColors.DalamudViolet,
                 "Legendary" => ImGuiColors.DalamudOrange,
-                "Artifact" => ImGuiColors.ParsedGold,
+                "Artifact" => SoulstoneTheme.Gold,
                 _ => ImGuiColors.DalamudWhite
             };
         }

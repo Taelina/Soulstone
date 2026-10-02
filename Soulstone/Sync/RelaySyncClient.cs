@@ -19,6 +19,7 @@ namespace Soulstone.Sync
         private ClientWebSocket? socket;
         private CancellationTokenSource? connectionCancellation;
         private Task? receiveTask;
+        private int disposed;
 
         public bool IsConnected => socket?.State == WebSocketState.Open;
         public string Status { get; private set; } = "Disconnected";
@@ -67,12 +68,14 @@ namespace Soulstone.Sync
 
         public async Task ConnectAsync(string serverUrl, string sessionId, string token, CancellationToken cancellationToken = default)
         {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
             if (string.IsNullOrWhiteSpace(sessionId) || string.IsNullOrWhiteSpace(token))
                 throw new ArgumentException("A relay session and access token are required.");
 
             await connectionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
                 await DisconnectCoreAsync().ConfigureAwait(false);
                 Uri baseUri = ValidateServerUrl(serverUrl);
                 var builder = new UriBuilder(baseUri)
@@ -93,8 +96,8 @@ namespace Soulstone.Sync
             }
             catch
             {
-                SetStatus("Connection failed");
                 await DisconnectCoreAsync().ConfigureAwait(false);
+                SetStatus("Connection failed");
                 throw;
             }
             finally
@@ -105,6 +108,7 @@ namespace Soulstone.Sync
 
         public async Task SendAsync(RelayEnvelope envelope, CancellationToken cancellationToken = default)
         {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
             ClientWebSocket activeSocket = socket ?? throw new InvalidOperationException("Soulstone is not connected to a relay.");
             if (activeSocket.State != WebSocketState.Open) throw new InvalidOperationException("Soulstone is not connected to a relay.");
 
@@ -114,7 +118,11 @@ namespace Soulstone.Sync
             await sendLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await activeSocket.SendAsync(data, WebSocketMessageType.Text, true, cancellationToken).ConfigureAwait(false);
+                if (!ReferenceEquals(activeSocket, socket) || activeSocket.State != WebSocketState.Open)
+                    throw new InvalidOperationException("The relay connection changed before the message was sent.");
+                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeout.CancelAfter(TimeSpan.FromSeconds(5));
+                await activeSocket.SendAsync(data, WebSocketMessageType.Text, true, timeout.Token).ConfigureAwait(false);
             }
             finally
             {
@@ -148,6 +156,8 @@ namespace Soulstone.Sync
                     {
                         result = await activeSocket.ReceiveAsync(buffer, cancellationToken).ConfigureAwait(false);
                         if (result.MessageType == WebSocketMessageType.Close) return;
+                        if (result.MessageType != WebSocketMessageType.Text)
+                            throw new InvalidDataException("The relay sent a non-text message.");
                         message.Write(buffer, 0, result.Count);
                         if (message.Length > 64 * 1024) throw new InvalidDataException("The relay sent an oversized message.");
                     }
@@ -166,29 +176,36 @@ namespace Soulstone.Sync
             }
             finally
             {
-                if (!cancellationToken.IsCancellationRequested) SetStatus("Disconnected");
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    activeSocket.Abort();
+                    SetStatus("Disconnected");
+                }
             }
         }
 
         private async Task DisconnectCoreAsync()
         {
-            connectionCancellation?.Cancel();
-            if (socket is { State: WebSocketState.Open or WebSocketState.CloseReceived })
-            {
-                try
-                {
-                    await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client disconnect", CancellationToken.None).ConfigureAwait(false);
-                }
-                catch { }
-            }
-            socket?.Dispose();
+            var activeSocket = socket;
+            var cancellation = connectionCancellation;
+            var receiver = receiveTask;
             socket = null;
-            connectionCancellation?.Dispose();
             connectionCancellation = null;
             receiveTask = null;
+            cancellation?.Cancel();
+            // Abort interrupts both receive and send without waiting on a peer's close handshake.
+            activeSocket?.Abort();
+            if (receiver != null)
+                await receiver.ConfigureAwait(false);
+            await sendLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                activeSocket?.Dispose();
+                cancellation?.Dispose();
+            }
+            finally { sendLock.Release(); }
             SetStatus("Disconnected");
         }
-
         private static Uri ValidateServerUrl(string serverUrl)
         {
             string normalized = RelayCrypto.NormalizeServerUrl(serverUrl);
@@ -207,9 +224,9 @@ namespace Soulstone.Sync
 
         public async ValueTask DisposeAsync()
         {
+            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
             await DisconnectAsync().ConfigureAwait(false);
-            connectionLock.Dispose();
-            sendLock.Dispose();
+            // The managed semaphores remain valid until queued callers have unwound.
         }
     }
 }

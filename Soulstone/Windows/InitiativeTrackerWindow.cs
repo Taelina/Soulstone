@@ -96,13 +96,16 @@ namespace Soulstone.Windows
 
         private void DrawControlsHeader()
         {
+            using var panel = SoulstoneTheme.BeginPanel("##InitiativeControls", LocalizationManager.Instance.GetLocalizedString("InitiativeTrackerTitle"),
+                FontAwesomeIcon.Stopwatch, bodyHasHeader: true);
+            if (!panel.Success) return;
             // Title and Round/Turn stats
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Stopwatch.ToIconString());
+            ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Stopwatch.ToIconString());
             ImGui.PopFont();
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
-            ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("InitiativeTrackerTitle"));
+            ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("InitiativeTrackerTitle"));
             ImGui.SameLine(0, 12.0f * ImGuiHelpers.GlobalScale);
 
             string roundText = string.Format(LocalizationManager.Instance.GetLocalizedString("InitiativeRound"), manager.CurrentRound);
@@ -122,7 +125,7 @@ namespace Soulstone.Windows
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
             if (PartySyncManager.Instance.IsLocalPlayerPartyLeader())
             {
-                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("InitiativeDMBadge"), new Vector4(0.35f, 0.28f, 0.12f, 0.85f), ImGuiColors.ParsedGold);
+                UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("InitiativeDMBadge"), new Vector4(0.35f, 0.28f, 0.12f, 0.85f), SoulstoneTheme.Gold);
             }
             else
             {
@@ -204,7 +207,7 @@ namespace Soulstone.Windows
         {
             bool isSelected = participantFilterIndex == index;
             var bgCol = isSelected ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f);
-            var textCol = isSelected ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey;
+            var textCol = isSelected ? ImGuiColors.DalamudWhite : SoulstoneTheme.Muted;
 
             using (ImRaii.PushColor(ImGuiCol.Button, bgCol))
             using (ImRaii.PushColor(ImGuiCol.Text, textCol))
@@ -219,11 +222,13 @@ namespace Soulstone.Windows
 
         private void DrawAddParticipantBar()
         {
+            using var panel = SoulstoneTheme.BeginPanel("##AddInitiativeParticipant", LocalizationManager.Instance.GetLocalizedString("InitiativeAddParticipant"), FontAwesomeIcon.UserPlus);
+            if (!panel.Success) return;
             RefreshPremadeSheetFiles();
             var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
 
             ImGui.AlignTextToFramePadding();
-            ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InitiativeAddParticipant"));
+            ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InitiativeAddParticipant"));
             ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
             // Name
@@ -374,26 +379,26 @@ namespace Soulstone.Windows
 
             if (ImGui.BeginPopupModal("AddBuffModal###SoulstoneAddBuffModal", ref showAddBuffModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
-                ImGui.TextColored(ImGuiColors.ParsedGold, targetParticipant != null 
-                    ? $"{LocalizationManager.Instance.GetLocalizedString("BuffModalTitle")}: {targetParticipant.Name}" 
+                ImGui.TextColored(SoulstoneTheme.Gold, targetParticipant != null
+                    ? $"{LocalizationManager.Instance.GetLocalizedString("BuffModalTitle")}: {targetParticipant.Name}"
                     : LocalizationManager.Instance.GetLocalizedString("BuffModalTitle"));
                 ImGui.Separator();
                 ImGui.Spacing();
 
                 // Name
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("BuffNameLabel"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("BuffNameLabel"));
                 UiUtils.StyledInputText("NewBuffName", ref newBuffName, 60, width: -1.0f, hint: "e.g. Haste, Bless, Poison, Weakness");
 
                 // Duration (turns)
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("BuffDurationLabel"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("BuffDurationLabel"));
                 UiUtils.StyledInputInt("NewBuffDuration", ref newBuffDuration, step: 1, width: 100.0f, min: 1);
 
                 // Target Stat
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("BuffTargetStatLabel"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("BuffTargetStatLabel"));
                 UiUtils.StyledInputText("NewBuffTargetStat", ref newBuffTargetStat, 60, width: -1.0f, hint: LocalizationManager.Instance.GetLocalizedString("BuffStatNameHint"));
 
                 // Value / Modifier
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("BuffValueLabel"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("BuffValueLabel"));
                 if (UiUtils.StyledInputInt("NewBuffValue", ref newBuffValue, step: 1, width: 100.0f))
                 {
                     if (newBuffValue < 0) newBuffIsDebuff = true;
@@ -403,7 +408,7 @@ namespace Soulstone.Windows
                 ImGui.Checkbox(LocalizationManager.Instance.GetLocalizedString("BuffIsDebuffLabel"), ref newBuffIsDebuff);
 
                 // Description
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("DiceSysResourceDescription"));
                 UiUtils.StyledInputText("NewBuffDesc", ref newBuffDescription, 120, width: -1.0f);
 
                 ImGui.Spacing();
@@ -439,11 +444,14 @@ namespace Soulstone.Windows
 
         private void DrawParticipantsList()
         {
+            using var panel = SoulstoneTheme.BeginPanel("##InitiativeRoster", LocalizationManager.Instance.GetLocalizedString("InitiativeTrackerTitle"), FontAwesomeIcon.Users,
+                height: Math.Max(260 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y));
+            if (!panel.Success) return;
             if (manager.Participants.Count == 0)
             {
                 ImGui.Spacing();
                 ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(ImGuiColors.DalamudGrey, FontAwesomeIcon.InfoCircle.ToIconString());
+                ImGui.TextColored(SoulstoneTheme.Muted, FontAwesomeIcon.InfoCircle.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
                 ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("InitiativeNoParticipants"));
@@ -544,8 +552,8 @@ namespace Soulstone.Windows
 
                     ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
                     string nameVal = p.Name;
-                    float nameInputWidth = (p.CharacterSheet != null || p.IsCurrentCharacter) 
-                        ? Math.Max(50.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 26.0f * ImGuiHelpers.GlobalScale) 
+                    float nameInputWidth = (p.CharacterSheet != null || p.IsCurrentCharacter)
+                        ? Math.Max(50.0f * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().X - 26.0f * ImGuiHelpers.GlobalScale)
                         : -1;
                     if (UiUtils.StyledInputText($"Name_{p.Id}", ref nameVal, 50, width: nameInputWidth > 0 ? nameInputWidth / ImGuiHelpers.GlobalScale : -1.0f))
                     {
@@ -614,7 +622,7 @@ namespace Soulstone.Windows
                                 string mods = buff.GetFormattedModifiers();
                                 if (!string.IsNullOrWhiteSpace(mods))
                                 {
-                                    ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("StatModifiersLabel")} {mods}");
+                                    ImGui.TextColored(SoulstoneTheme.Gold, $"{LocalizationManager.Instance.GetLocalizedString("StatModifiersLabel")} {mods}");
                                 }
                                 ImGui.Separator();
                                 ImGui.TextDisabled("Right click to manage");
@@ -744,7 +752,7 @@ namespace Soulstone.Windows
             if (ImGui.BeginPopupModal("AttachSheetModal###SoulstoneAttachSheetModal", ref showAttachSheetModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 string modalTitle = string.Format(LocalizationManager.Instance.GetLocalizedString("InitiativeAttachSheetModalTitle"), targetParticipant.Name);
-                ImGui.TextColored(ImGuiColors.ParsedGold, modalTitle);
+                ImGui.TextColored(SoulstoneTheme.Gold, modalTitle);
                 ImGui.Separator();
                 ImGui.Spacing();
 
@@ -760,7 +768,7 @@ namespace Soulstone.Windows
 
                 if (attachModalSheetIndex >= options.Count) attachModalSheetIndex = 0;
 
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("InitiativeSheetSelectorHint"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InitiativeSheetSelectorHint"));
                 UiUtils.StyledCombo("##AttachModalCombo", ref attachModalSheetIndex, options.ToArray(), icon: FontAwesomeIcon.FileAlt);
 
                 ImGui.Spacing();
@@ -828,13 +836,13 @@ namespace Soulstone.Windows
             {
                 // Header
                 ImGui.PushFont(UiBuilder.IconFont);
-                ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.UserShield.ToIconString());
+                ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.UserShield.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
                 string actorName = !string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? sheet.CharacterFullName : target.Name;
                 string sheetTitle = string.Format(LocalizationManager.Instance.GetLocalizedString("InitiativeNpcSheetTitle"), actorName);
-                ImGui.TextColored(ImGuiColors.ParsedGold, sheetTitle);
+                ImGui.TextColored(SoulstoneTheme.Gold, sheetTitle);
 
                 float headerBtnWidth = 240.0f * ImGuiHelpers.GlobalScale;
                 ImGui.SameLine(Math.Max(300.0f * ImGuiHelpers.GlobalScale, ImGui.GetWindowWidth() - headerBtnWidth));
@@ -960,7 +968,7 @@ namespace Soulstone.Windows
             var diceIcon = diceSys?.diceType == DiceType.d20 ? FontAwesomeIcon.DiceD20 : FontAwesomeIcon.Dice;
 
             // Attributes
-            ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
+            ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
             ImGui.Spacing();
 
             var attrs = sheet.GetEffectiveAttributes(diceSys);
@@ -1022,7 +1030,7 @@ namespace Soulstone.Windows
             ImGui.Spacing();
 
             // Skills
-            ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("SkillLabel"));
+            ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("SkillLabel"));
             ImGui.Spacing();
 
             var skills = sheet.GetEffectiveSkills(diceSys);
@@ -1176,7 +1184,7 @@ namespace Soulstone.Windows
                     string mods = b.GetFormattedModifiers();
                     if (!string.IsNullOrWhiteSpace(mods))
                     {
-                        ImGui.TextColored(ImGuiColors.ParsedGold, mods);
+                        ImGui.TextColored(SoulstoneTheme.Gold, mods);
                         ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
                     }
                     if (!string.IsNullOrWhiteSpace(b.Description))

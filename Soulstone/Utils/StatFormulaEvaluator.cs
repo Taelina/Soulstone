@@ -1,4 +1,4 @@
-﻿using Soulstone.Datamodels;
+using Soulstone.Datamodels;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

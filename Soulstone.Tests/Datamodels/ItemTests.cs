@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using FluentAssertions;
@@ -194,7 +194,7 @@ namespace Soulstone.Tests.Datamodels
         [InlineData("-2", -2, -2)]
         public void EvaluateUseFormula_WithValidFormulas_ReturnsInRange(string formula, int min, int max)
         {
-            var result = Item.EvaluateUseFormula(formula);
+            var result = Item.EvaluateUseFormula(formula!);
             result.Success.Should().BeTrue();
             result.Total.Should().BeInRange(min, max);
             result.Details.Should().NotBeNullOrEmpty();
@@ -204,9 +204,9 @@ namespace Soulstone.Tests.Datamodels
         [InlineData("")]
         [InlineData("   ")]
         [InlineData(null)]
-        public void EvaluateUseFormula_WithEmpty_ReturnsUnsuccessful(string formula)
+        public void EvaluateUseFormula_WithEmpty_ReturnsUnsuccessful(string? formula)
         {
-            var result = Item.EvaluateUseFormula(formula);
+            var result = Item.EvaluateUseFormula(formula!);
             result.Success.Should().BeFalse();
         }
 

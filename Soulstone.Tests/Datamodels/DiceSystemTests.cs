@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.Json;
 using FluentAssertions;
@@ -42,7 +42,7 @@ namespace Soulstone.Tests.Datamodels
             var system = new DiceSystem();
 
             // Assert
-            system.SystemName.Should().Be("Standard Dice System");
+            system!.SystemName.Should().Be("Standard Dice System");
             system.DicePoolSystemEnabled.Should().BeFalse();
             system.RegularDiceSystemEnabled.Should().BeTrue();
             system.DndStyleAttributes.Should().BeTrue();
@@ -93,7 +93,7 @@ namespace Soulstone.Tests.Datamodels
             };
 
             // Assert
-            system.SystemName.Should().Be("Custom Pool System");
+            system!.SystemName.Should().Be("Custom Pool System");
             system.systemName.Should().Be("Custom Pool System");
             system.DicePoolSystemEnabled.Should().BeTrue();
             system.dicePoolSystemEnabled.Should().BeTrue();
@@ -190,7 +190,7 @@ namespace Soulstone.Tests.Datamodels
 
             // Assert
             loaded.Should().NotBeNull();
-            loaded.SystemName.Should().Be("Test Custom System");
+            loaded!.SystemName.Should().Be("Test Custom System");
             loaded.DiceType.Should().Be(DiceType.d8);
             loaded.SystemType.Should().Be(SystemType.DicePoolSystem);
             loaded.SuccessThreshold.Should().Be(5);
@@ -217,7 +217,7 @@ namespace Soulstone.Tests.Datamodels
 
             var loaded = DiceSystem.LoadDiceSystem("shadowrun_system", isFullPath: false);
             loaded.Should().NotBeNull();
-            loaded.SystemName.Should().Be("Shadowrun System");
+            loaded!.SystemName.Should().Be("Shadowrun System");
             loaded.DiceType.Should().Be(DiceType.d6);
             loaded.SuccessThreshold.Should().Be(5);
         }
@@ -230,7 +230,7 @@ namespace Soulstone.Tests.Datamodels
 
             // Assert
             system.Should().NotBeNull();
-            system.SystemName.Should().Be("Standard Dice System");
+            system!.SystemName.Should().Be("Standard Dice System");
             string expectedPath = Path.Combine(tempDirectory, "diceSystem", "standard_dice_system.json");
             File.Exists(expectedPath).Should().BeTrue();
         }

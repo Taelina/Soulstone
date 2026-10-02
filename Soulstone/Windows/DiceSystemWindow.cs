@@ -166,67 +166,89 @@ namespace Soulstone.Windows
         private async Task PublishCurrentSystemAsync(DiceSystem currentSystem)
         {
             sharingRequestInProgress = true;
-            var published = await DiceSystemApiClient.Shared.PublishAsync(
-                configuration.SyncServerUrl,
-                currentSystem,
-                PartySyncManager.Instance.GetLocalPlayerName(),
-                PartySyncManager.Instance.GetLocalPlayerWorld());
-            sharingRequestInProgress = false;
-            if (published == null)
+            string serverUrl = configuration.SyncServerUrl;
+            string ownerToken = configuration.GetPublicationToken(serverUrl, $"dice:{currentSystem.publishedCode}", create: false);
+            bool publishAsNew = string.IsNullOrEmpty(ownerToken);
+            if (publishAsNew)
+                ownerToken = configuration.GetPublicationToken(serverUrl, $"dice-pending:{currentSystem.systemName}");
+            try
             {
-                sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
-                return;
+                var published = await DiceSystemApiClient.Shared.PublishAsync(serverUrl, currentSystem,
+                    PartySyncManager.Instance.GetLocalPlayerName(), PartySyncManager.Instance.GetLocalPlayerWorld(),
+                    ownerToken: ownerToken, publishAsNew: publishAsNew).ConfigureAwait(false);
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    if (plugin.IsDisposed) return;
+                    if (published == null)
+                    {
+                        sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
+                        return;
+                    }
+                    configuration.SetPublicationToken(serverUrl, $"dice:{published.Code}", ownerToken);
+                    currentSystem.publishedCode = published.Code;
+                    currentSystem.publishedAtUtc = published.UpdatedAtUtc;
+                    currentSystem.publisherPlayerName = published.PlayerName;
+                    currentSystem.publisherWorldName = published.WorldName;
+                    sharingCode = published.Code;
+                    DiceSystem.SaveDiceSystem(currentSystem);
+                    sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysPublished", published.Code);
+                }).ConfigureAwait(false);
             }
-
-            currentSystem.publishedCode = published.Code;
-            currentSystem.publishedAtUtc = published.UpdatedAtUtc;
-            currentSystem.publisherPlayerName = published.PlayerName;
-            currentSystem.publisherWorldName = published.WorldName;
-            sharingCode = published.Code;
-            DiceSystem.SaveDiceSystem(currentSystem);
-            sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysPublished", published.Code);
+            finally { await FrameworkDispatcher.RunAsync(() => sharingRequestInProgress = false).ConfigureAwait(false); }
         }
 
         private async Task DownloadSystemAsync()
         {
             sharingRequestInProgress = true;
-            var published = await DiceSystemApiClient.Shared.DownloadAsync(configuration.SyncServerUrl, sharingCode);
-            var downloaded = published == null ? null : DiceSystemApiClient.DeserializeSystem(published);
-            sharingRequestInProgress = false;
-            if (downloaded == null)
+            try
             {
-                sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
-                return;
+                var published = await DiceSystemApiClient.Shared.DownloadAsync(configuration.SyncServerUrl, sharingCode).ConfigureAwait(false);
+                var downloaded = published == null ? null : DiceSystemApiClient.DeserializeSystem(published);
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    if (plugin.IsDisposed) return;
+                    if (downloaded == null)
+                    {
+                        sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
+                        return;
+                    }
+                    DiceSystem.SaveDiceSystem(downloaded);
+                    DiceSystemManager.Instance.SwitchDiceSystem(downloaded);
+                    sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysDownloaded", downloaded.systemName);
+                }).ConfigureAwait(false);
             }
-
-            DiceSystem.SaveDiceSystem(downloaded);
-            DiceSystemManager.Instance.SwitchDiceSystem(downloaded);
-            sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysDownloaded", downloaded.systemName);
+            finally { await FrameworkDispatcher.RunAsync(() => sharingRequestInProgress = false).ConfigureAwait(false); }
         }
 
         private async Task CheckSystemUpdateAsync(DiceSystem currentSystem)
         {
             sharingRequestInProgress = true;
-            var version = await DiceSystemApiClient.Shared.GetVersionAsync(configuration.SyncServerUrl, currentSystem.publishedCode);
-            if (version == null || !currentSystem.publishedAtUtc.HasValue || version.UpdatedAtUtc <= currentSystem.publishedAtUtc.Value)
+            string serverUrl = configuration.SyncServerUrl;
+            string code = currentSystem.publishedCode;
+            try
             {
-                sharingRequestInProgress = false;
-                sharingStatus = LocalizationManager.Instance.GetLocalizedString(version == null ? "DiceSysRequestFailed" : "DiceSysAlreadyLatest");
-                return;
+                var version = await DiceSystemApiClient.Shared.GetVersionAsync(serverUrl, code).ConfigureAwait(false);
+                PublishedDiceSystem? published = null;
+                if (version != null && currentSystem.publishedAtUtc.HasValue && version.UpdatedAtUtc > currentSystem.publishedAtUtc.Value)
+                    published = await DiceSystemApiClient.Shared.DownloadAsync(serverUrl, code).ConfigureAwait(false);
+                var update = published == null ? null : DiceSystemApiClient.DeserializeSystem(published);
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    if (plugin.IsDisposed) return;
+                    if (!ReferenceEquals(currentSystem, DiceSystemManager.Instance.CurrentDiceSystem)) return;
+                    if (version == null || (published != null && update == null))
+                        sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
+                    else if (update == null)
+                        sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysAlreadyLatest");
+                    else
+                    {
+                        pendingPublishedUpdate = update;
+                        showUpdatePrompt = true;
+                    }
+                }).ConfigureAwait(false);
             }
-
-            var published = await DiceSystemApiClient.Shared.DownloadAsync(configuration.SyncServerUrl, currentSystem.publishedCode);
-            pendingPublishedUpdate = published == null ? null : DiceSystemApiClient.DeserializeSystem(published);
-            sharingRequestInProgress = false;
-            if (pendingPublishedUpdate == null)
-            {
-                sharingStatus = LocalizationManager.Instance.GetLocalizedString("DiceSysRequestFailed");
-                return;
-            }
-
-            showUpdatePrompt = true;
+            finally { await FrameworkDispatcher.RunAsync(() => sharingRequestInProgress = false).ConfigureAwait(false); }
         }
-
         private void DrawTopBar(DiceSystem currentSystem)
         {
             var scale = ImGuiHelpers.GlobalScale;
@@ -235,9 +257,9 @@ namespace Soulstone.Windows
             var bannerHeight = 56.0f * scale;
             var drawList = ImGui.GetWindowDrawList();
 
-            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.11f, 0.14f, 0.95f));
+            var bgCol = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
             var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.55f, 0.42f, 0.18f, 0.75f));
-            var accentCol = ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold);
+            var accentCol = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Gold);
 
             drawList.AddRectFilled(pos, pos + new Vector2(availWidth, bannerHeight), bgCol, 8.0f * scale);
             drawList.AddRect(pos, pos + new Vector2(availWidth, bannerHeight), borderCol, 8.0f * scale, ImDrawFlags.None, 1.2f);
@@ -252,7 +274,7 @@ namespace Soulstone.Windows
             // Framed Dice Emblem Box
             var emblemSize = 36.0f * scale;
             var emblemPos = pos + new Vector2(10.0f * scale, (bannerHeight - emblemSize) * 0.5f);
-            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.16f, 0.10f, 0.95f)), 6.0f * scale);
+            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field), 6.0f * scale);
             drawList.AddRect(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), accentCol, 6.0f * scale, ImDrawFlags.None, 1.2f);
 
             ImGui.PushFont(UiBuilder.IconFont);
@@ -381,7 +403,8 @@ namespace Soulstone.Windows
 
         private void DrawGeneralSettings(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysGeneralConfigHeader"), defaultOpen: true, icon: FontAwesomeIcon.Cogs, accentColor: ImGuiColors.ParsedGold))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawGeneralSettings", LocalizationManager.Instance.GetLocalizedString("DiceSysGeneralConfigHeader"), FontAwesomeIcon.Cogs);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysGeneralSubtitle"));
                 ImGui.Spacing();
@@ -481,7 +504,8 @@ namespace Soulstone.Windows
 
         private void DrawAttributesCard(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysAttributesHeader"), defaultOpen: true, icon: FontAwesomeIcon.ShieldAlt, accentColor: ImGuiColors.ParsedGold))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawAttributesCard", LocalizationManager.Instance.GetLocalizedString("DiceSysAttributesHeader"), FontAwesomeIcon.ShieldAlt);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysAttributesSubtitle"));
                 ImGui.Spacing();
@@ -576,7 +600,7 @@ namespace Soulstone.Windows
 
                 // Add Attribute section
                 ImGui.AlignTextToFramePadding();
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("DiceSysAddAttribute"));
+                ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("DiceSysAddAttribute"));
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
 
                 UiUtils.StyledInputText("NewSysAttrName", ref newSystemAttrName, 100, width: 140.0f, hint: LocalizationManager.Instance.GetLocalizedString("AttributeLabel"));
@@ -601,7 +625,8 @@ namespace Soulstone.Windows
 
         private void DrawSkillsCard(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysSkillsHeader"), defaultOpen: true, icon: FontAwesomeIcon.BookOpen, accentColor: ImGuiColors.ParsedBlue))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawSkillsCard", LocalizationManager.Instance.GetLocalizedString("DiceSysSkillsHeader"), FontAwesomeIcon.BookOpen);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysSkillsSubtitle"));
                 ImGui.Spacing();
@@ -752,7 +777,8 @@ namespace Soulstone.Windows
 
         private void DrawInitiativeCard(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("InitiativeConfigHeader"), defaultOpen: true, icon: FontAwesomeIcon.Stopwatch, accentColor: ImGuiColors.ParsedBlue))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawInitiativeCard", LocalizationManager.Instance.GetLocalizedString("InitiativeConfigHeader"), FontAwesomeIcon.Stopwatch);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("InitiativeConfigSubtitle"));
                 ImGui.Spacing();
@@ -885,7 +911,8 @@ namespace Soulstone.Windows
 
         private void DrawResourcesCard(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader"), defaultOpen: true, icon: FontAwesomeIcon.Heart, accentColor: ImGuiColors.ParsedGreen))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawResourcesCard", LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesHeader"), FontAwesomeIcon.Heart);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysResourcesSubtitle"));
                 ImGui.Spacing();
@@ -939,7 +966,7 @@ namespace Soulstone.Windows
                                 if (res.IsRequired)
                                 {
                                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                                    UiUtils.Badge("Core", new Vector4(0.35f, 0.28f, 0.12f, 0.7f), ImGuiColors.ParsedGold);
+                                    UiUtils.Badge("Core", new Vector4(0.35f, 0.28f, 0.12f, 0.7f), SoulstoneTheme.Gold);
                                 }
                                 if (res.ShowInGroup)
                                 {
@@ -1242,7 +1269,8 @@ namespace Soulstone.Windows
 
         private void DrawEquipmentCard(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysEquipmentHeader"), defaultOpen: true, icon: FontAwesomeIcon.ShieldAlt, accentColor: ImGuiColors.ParsedGold))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawEquipmentCard", LocalizationManager.Instance.GetLocalizedString("DiceSysEquipmentHeader"), FontAwesomeIcon.ShieldAlt);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysEquipmentSubtitle"));
                 ImGui.Spacing();
@@ -1315,7 +1343,8 @@ namespace Soulstone.Windows
 
         private void DrawAugmentationsCard(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader"), defaultOpen: true, icon: FontAwesomeIcon.Microchip, accentColor: ImGuiColors.ParsedPurple))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawAugmentationsCard", LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader"), FontAwesomeIcon.Microchip);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsSubtitle"));
                 ImGui.Spacing();
@@ -1455,9 +1484,9 @@ namespace Soulstone.Windows
             var cardSize = new Vector2(cellWidth, cardHeight);
             var drawList = ImGui.GetWindowDrawList();
 
-            var accentColor = isAugmentation ? ImGuiColors.ParsedPurple : ImGuiColors.ParsedGold;
+            var accentColor = isAugmentation ? ImGuiColors.ParsedPurple : SoulstoneTheme.Gold;
             bool isHovered = ImGui.IsMouseHoveringRect(pos, pos + cardSize);
-            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.11f, 0.12f, 0.15f, 0.95f));
+            var bgCol = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
             var borderCol = isHovered
                 ? ImGui.ColorConvertFloat4ToU32(accentColor)
                 : ImGui.ColorConvertFloat4ToU32(isAugmentation ? new Vector4(0.25f, 0.30f, 0.42f, 0.65f) : new Vector4(0.38f, 0.32f, 0.20f, 0.65f));
@@ -1561,7 +1590,8 @@ namespace Soulstone.Windows
 
         private void DrawThresholdsCard(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysThresholdsHeader"), defaultOpen: true, icon: FontAwesomeIcon.SlidersH, accentColor: ImGuiColors.ParsedOrange))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawThresholdsCard", LocalizationManager.Instance.GetLocalizedString("DiceSysThresholdsHeader"), FontAwesomeIcon.SlidersH);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysThresholdsSubtitle"));
                 ImGui.Spacing();
@@ -1602,7 +1632,8 @@ namespace Soulstone.Windows
 
         private void DrawFeaturesCard(DiceSystem currentSystem)
         {
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("DiceSysFeaturesHeader"), defaultOpen: true, icon: FontAwesomeIcon.CheckSquare, accentColor: ImGuiColors.ParsedGold))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawFeaturesCard", LocalizationManager.Instance.GetLocalizedString("DiceSysFeaturesHeader"), FontAwesomeIcon.CheckSquare);
+            if (sectionPanel.Success)
             {
                 ImGui.TextColored(new Vector4(0.85f, 0.85f, 0.9f, 0.9f), LocalizationManager.Instance.GetLocalizedString("DiceSysFeaturesSubtitle"));
                 ImGui.Spacing();

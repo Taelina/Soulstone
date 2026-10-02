@@ -73,7 +73,7 @@ namespace Soulstone.Windows
 
             if (currentCharacter == null)
             {
-                ImGui.TextColored(ImGuiColors.DalamudGrey, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedFeatMessage"));
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("NoCharLoadedFeatMessage"));
                 return;
             }
 
@@ -86,12 +86,13 @@ namespace Soulstone.Windows
             DrawFilterBar(currentCharacter);
             ImGui.Spacing();
 
-            using (var table = ImRaii.Table("##FeatsColumns", 2, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable))
+            var layoutColumns = ImGui.GetContentRegionAvail().X >= 760 * ImGuiHelpers.GlobalScale ? 2 : 1;
+            using (var table = ImRaii.Table("##FeatsColumns", layoutColumns, ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable))
             {
                 if (table.Success)
                 {
                     ImGui.TableSetupColumn("FeatList", ImGuiTableColumnFlags.WidthStretch, 0.48f);
-                    ImGui.TableSetupColumn("FeatDetail", ImGuiTableColumnFlags.WidthStretch, 0.52f);
+                    if (layoutColumns == 2) ImGui.TableSetupColumn("FeatDetail", ImGuiTableColumnFlags.WidthStretch, 0.52f);
 
                     ImGui.TableNextRow();
                     ImGui.TableNextColumn();
@@ -110,7 +111,8 @@ namespace Soulstone.Windows
         {
             var abilities = sheet.GetEffectiveAbilities(diceSystem);
 
-            if (!UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("AbilityLabel"), defaultOpen: true, icon: FontAwesomeIcon.Bolt, accentColor: ImGuiColors.TankBlue))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawAbilitiesSection", LocalizationManager.Instance.GetLocalizedString("AbilityLabel"), FontAwesomeIcon.Bolt);
+            if (!sectionPanel.Success)
                 return;
 
             if (UiUtils.IconButton("AddAbilityBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
@@ -164,7 +166,7 @@ namespace Soulstone.Windows
 
                     ImGui.TableSetColumnIndex(2);
                     if (!string.IsNullOrWhiteSpace(ability.Value.linkedAttribute))
-                        UiUtils.Badge(ability.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), ImGuiColors.ParsedGold);
+                        UiUtils.Badge(ability.Value.linkedAttribute, new Vector4(0.28f, 0.22f, 0.12f, 0.6f), SoulstoneTheme.Gold);
                     else
                         ImGui.TextDisabled("—");
 
@@ -319,9 +321,9 @@ namespace Soulstone.Windows
                 title: $"{sheet.CharacterFullName} — {LocalizationManager.Instance.GetLocalizedString("FeatTab")}",
                 subtitle: LocalizationManager.Instance.GetLocalizedString("FeatHeroSubtitle"),
                 badgeText: $"{activeCount}/{totalCount} {LocalizationManager.Instance.GetLocalizedString("FeatActiveBadge")}",
-                badgeColor: activeCount > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudGrey,
+                badgeColor: activeCount > 0 ? ImGuiColors.ParsedGreen : SoulstoneTheme.Muted,
                 icon: FontAwesomeIcon.Award,
-                accentColor: ImGuiColors.ParsedGold,
+                accentColor: SoulstoneTheme.Gold,
                 actionLabel: addLabel,
                 onAction: () =>
                 {
@@ -375,7 +377,7 @@ namespace Soulstone.Windows
                 var cat = categories[i];
                 bool isSelected = string.Equals(selectedCategoryFilter, cat, StringComparison.OrdinalIgnoreCase);
                 var bgCol = isSelected ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f);
-                var textCol = isSelected ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey;
+                var textCol = isSelected ? ImGuiColors.DalamudWhite : SoulstoneTheme.Muted;
 
                 using (ImRaii.PushColor(ImGuiCol.Button, bgCol))
                 using (ImRaii.PushColor(ImGuiCol.Text, textCol))
@@ -436,7 +438,7 @@ namespace Soulstone.Windows
                 _ => filtered.OrderBy(f => f.Name).ToList()
             };
 
-            using var listChild = ImRaii.Child("##FeatListContainer", new Vector2(0, availHeight), true);
+            using var listChild = SoulstoneTheme.BeginPanel("##FeatListContainer", LocalizationManager.Instance.GetLocalizedString("FeatTab"), FontAwesomeIcon.TheaterMasks, height: availHeight);
             if (!listChild.Success) return;
 
             if (filtered.Count == 0)
@@ -475,9 +477,9 @@ namespace Soulstone.Windows
 
                 var bgCol = isSelected
                     ? new Vector4(0.18f, 0.28f, 0.42f, 0.85f)
-                    : (feat.IsActive ? new Vector4(0.12f, 0.14f, 0.18f, 0.65f) : new Vector4(0.10f, 0.10f, 0.12f, 0.45f));
+                    : (feat.IsActive ? SoulstoneTheme.Field : new Vector4(0.10f, 0.10f, 0.12f, 0.45f));
                 var borderCol = isSelected
-                    ? ImGuiColors.ParsedGold
+                    ? SoulstoneTheme.Gold
                     : (feat.IsActive ? new Vector4(0.25f, 0.32f, 0.45f, 0.5f) : new Vector4(0.2f, 0.2f, 0.2f, 0.3f));
 
                 drawList.AddRectFilled(pos, pos + new Vector2(availWidth, cardHeight), ImGui.ColorConvertFloat4ToU32(bgCol), 6.0f * scale);
@@ -497,7 +499,7 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 6.0f * scale);
 
                 // Feat Name & Category
-                var nameCol = feat.IsActive ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey;
+                var nameCol = feat.IsActive ? ImGuiColors.DalamudWhite : SoulstoneTheme.Muted;
                 ImGui.TextColored(nameCol, feat.Name);
 
                 if (!string.IsNullOrWhiteSpace(feat.Category))
@@ -532,7 +534,7 @@ namespace Soulstone.Windows
                     {
                         if (shown >= 3)
                         {
-                            UiUtils.Badge($"+{feat.StatModifiers.Count - shown}...", new Vector4(0.2f, 0.2f, 0.2f, 0.6f), ImGuiColors.DalamudGrey);
+                            UiUtils.Badge($"+{feat.StatModifiers.Count - shown}...", SoulstoneTheme.Field, SoulstoneTheme.Muted);
                             break;
                         }
                         var mCol = mod.Value >= 0 ? ImGuiColors.ParsedBlue : ImGuiColors.DalamudRed;
@@ -567,7 +569,7 @@ namespace Soulstone.Windows
 
             var feat = sheet.CharacterFeats?.FirstOrDefault(f => string.Equals(f.Id, selectedFeatId, StringComparison.OrdinalIgnoreCase));
 
-            using var detailChild = ImRaii.Child("##FeatDetailContainer", new Vector2(0, availHeight), true);
+            using var detailChild = SoulstoneTheme.BeginPanel("##FeatDetailContainer", LocalizationManager.Instance.GetLocalizedString("FeatDescriptionHeader"), FontAwesomeIcon.Scroll, height: availHeight);
             if (!detailChild.Success) return;
 
             if (feat == null)
@@ -584,11 +586,11 @@ namespace Soulstone.Windows
                 {
                     ImGui.AlignTextToFramePadding();
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Award.ToIconString());
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Award.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * scale);
 
-                    ImGui.TextColored(ImGuiColors.ParsedGold, feat.Name);
+                    ImGui.TextColored(SoulstoneTheme.Gold, feat.Name);
                     ImGui.SameLine(0, 8.0f * scale);
 
                     var catCol = GetCategoryColor(feat.Category);
@@ -601,7 +603,7 @@ namespace Soulstone.Windows
                     }
                     else
                     {
-                        UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("FeatInactiveBadge"), new Vector4(0.25f, 0.25f, 0.25f, 0.85f), ImGuiColors.DalamudGrey, FontAwesomeIcon.Times);
+                        UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("FeatInactiveBadge"), SoulstoneTheme.Border, SoulstoneTheme.Muted, FontAwesomeIcon.Times);
                     }
 
                     // Action buttons: Edit, Duplicate, Delete
@@ -666,7 +668,7 @@ namespace Soulstone.Windows
             {
                 if (descCard.Success)
                 {
-                    ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("FeatDescriptionHeader"));
+                    ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("FeatDescriptionHeader"));
                     ImGui.Separator();
                     ImGui.Spacing();
 
@@ -690,11 +692,11 @@ namespace Soulstone.Windows
                 {
                     ImGui.AlignTextToFramePadding();
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20.ToIconString());
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.DiceD20.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * scale);
 
-                    ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("FeatRollFormulaHeader"));
+                    ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("FeatRollFormulaHeader"));
 
                     if (!string.IsNullOrWhiteSpace(feat.RollFormula))
                     {
@@ -763,11 +765,11 @@ namespace Soulstone.Windows
                 if (statCard.Success)
                 {
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.ChartLine.ToIconString());
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.ChartLine.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * scale);
 
-                    ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("FeatStatModifiersHeader"));
+                    ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("FeatStatModifiersHeader"));
                     ImGui.Separator();
                     ImGui.Spacing();
 
@@ -792,7 +794,7 @@ namespace Soulstone.Windows
                             else if (sheet.CharacterResources != null && sheet.CharacterResources.ContainsKey(mod.Key))
                                 statCategory = LocalizationManager.Instance.GetLocalizedString("StatCategoryResource");
 
-                            UiUtils.Badge(statCategory, new Vector4(0.2f, 0.2f, 0.2f, 0.6f), ImGuiColors.DalamudGrey);
+                            UiUtils.Badge(statCategory, SoulstoneTheme.Field, SoulstoneTheme.Muted);
                             ImGui.Spacing();
                         }
                     }
@@ -825,7 +827,7 @@ namespace Soulstone.Windows
                     ? LocalizationManager.Instance.GetLocalizedString("FeatModalEditTitle")
                     : LocalizationManager.Instance.GetLocalizedString("FeatModalCreateTitle");
 
-                ImGui.TextColored(ImGuiColors.ParsedGold, modalTitle);
+                ImGui.TextColored(SoulstoneTheme.Gold, modalTitle);
                 ImGui.Separator();
                 ImGui.Spacing();
 
@@ -1003,7 +1005,7 @@ namespace Soulstone.Windows
                 "magic" => ImGuiColors.ParsedPurple,
                 "passive" => ImGuiColors.ParsedGreen,
                 "active" => ImGuiColors.ParsedBlue,
-                "origin" or "racial" => ImGuiColors.ParsedGold,
+                "origin" or "racial" => SoulstoneTheme.Gold,
                 "class" => ImGuiColors.TankBlue,
                 _ => ImGuiColors.DalamudWhite
             };

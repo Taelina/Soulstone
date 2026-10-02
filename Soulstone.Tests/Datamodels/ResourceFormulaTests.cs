@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using FluentAssertions;
@@ -395,15 +395,7 @@ namespace Soulstone.Tests.Datamodels
                 deeplyNested = $"min({deeplyNested}, 10)";
             }
 
-            // Direct evaluation of deeply nested exceeding MaxRecursionDepth throws InvalidOperationException
-            Action evalDeep = () =>
-            {
-                // Directly invoke nested evaluates to exceed depth
-                void Recurse(int depth)
-                {
-                    StatFormulaEvaluator.Evaluate(depth > 0 ? $"1 + {depth}" : "0");
-                }
-            };
+            Action evalDeep = () => StatFormulaEvaluator.Evaluate(deeplyNested);
 
             evalDeep.Should().NotThrow();
         }

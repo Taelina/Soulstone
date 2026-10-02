@@ -75,7 +75,7 @@ namespace Soulstone.Windows
             if (IsLoading)
             {
                 ImGui.Spacing();
-                ImGui.TextColored(ImGuiColors.ParsedGold, LocalizationManager.Instance.GetLocalizedString("CharSheetFetching"));
+                ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("CharSheetFetching"));
                 ImGui.Spacing();
                 ImGui.TextUnformatted($"{InspectedCharacterName} ({(string.IsNullOrEmpty(InspectedWorldName) ? "?" : InspectedWorldName)})");
                 return;
@@ -136,8 +136,8 @@ namespace Soulstone.Windows
             var barHeight = 36.0f * scale;
             var drawList = ImGui.GetWindowDrawList();
 
-            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.12f, 0.15f, 0.95f));
-            var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.24f, 0.28f, 0.35f, 0.75f));
+            var bgCol = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
+            var borderCol = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Border);
             drawList.AddRectFilled(pos, pos + new Vector2(availWidth, barHeight), bgCol, 6.0f * scale);
             drawList.AddRect(pos, pos + new Vector2(availWidth, barHeight), borderCol, 6.0f * scale, ImDrawFlags.None, 1.2f);
 
@@ -148,7 +148,7 @@ namespace Soulstone.Windows
                 UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("BadgeViewing"), new Vector4(0.18f, 0.32f, 0.50f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.Eye);
                 ImGui.SameLine(0, 8.0f * scale);
                 string worldSuffix = !string.IsNullOrEmpty(InspectedWorldName) ? $" ({InspectedWorldName})" : "";
-                ImGui.TextColored(ImGuiColors.ParsedGold, $"{InspectedCharacterName}{worldSuffix}");
+                ImGui.TextColored(SoulstoneTheme.Gold, $"{InspectedCharacterName}{worldSuffix}");
 
                 var refreshWidth = 24.0f * scale;
                 var rightX = ImGui.GetWindowContentRegionMax().X - refreshWidth;
@@ -173,14 +173,14 @@ namespace Soulstone.Windows
             if (InspectedCharacter == null) return;
 
             var scale = ImGuiHelpers.GlobalScale;
-            var portraitWidth = 135.0f * scale;
-            var portraitHeight = 165.0f * scale;
+            var portraitWidth = 180.0f * scale;
+            var portraitHeight = 220.0f * scale;
 
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.11f, 0.14f, 0.95f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
             using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.80f, 0.65f, 0.25f, 0.85f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 8.0f * scale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(14.0f, 12.0f) * scale))
-            using (var card = ImRaii.Child("##HeroCardInspect", new Vector2(0, 190.0f * scale), true, ImGuiWindowFlags.NoScrollbar))
+            using (var card = ImRaii.Child("##HeroCardInspect", new Vector2(0, 250.0f * scale), true, ImGuiWindowFlags.NoScrollbar))
             {
                 if (!card.Success) return;
 
@@ -191,7 +191,7 @@ namespace Soulstone.Windows
                 drawList.AddRectFilled(
                     cardPos + new Vector2(2.5f * scale, 6.0f * scale),
                     cardPos + new Vector2(6.0f * scale, cardSize.Y - 6.0f * scale),
-                    ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold),
+                    ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Gold),
                     2.0f * scale);
 
                 ImGui.BeginGroup();
@@ -199,7 +199,7 @@ namespace Soulstone.Windows
                     var placeholder = !string.IsNullOrWhiteSpace(InspectedCharacter.characterFullName)
                         ? (InspectedCharacter.characterFullName.Length > 2 ? InspectedCharacter.characterFullName[..2].ToUpper() : InspectedCharacter.characterFullName.ToUpper())
                         : "RP";
-                    ImageHelper.DrawThumbnailOrPlaceholder(InspectedCharacter.characterPictureUrl, new Vector2(portraitWidth, portraitHeight), placeholder, ImGuiColors.ParsedGold, 6.0f);
+                    ImageHelper.DrawThumbnailOrPlaceholder(InspectedCharacter.characterPictureUrl, new Vector2(portraitWidth, portraitHeight), placeholder, SoulstoneTheme.Gold, 6.0f);
                 }
                 ImGui.EndGroup();
 
@@ -208,12 +208,12 @@ namespace Soulstone.Windows
                 ImGui.BeginGroup();
                 {
                     var displayName = !string.IsNullOrWhiteSpace(InspectedCharacter.characterFullName) ? InspectedCharacter.characterFullName : LocalizationManager.Instance.GetLocalizedString("UnnamedCharacter");
-                    ImGui.TextColored(ImGuiColors.ParsedGold, displayName);
+                    ImGui.TextColored(SoulstoneTheme.Gold, displayName);
 
                     if (!InspectedCharacter.IsFieldHidden("CharacterNickName") && !string.IsNullOrWhiteSpace(InspectedCharacter.characterNickName))
                     {
                         ImGui.SameLine(0, 8.0f * scale);
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, $"\"{InspectedCharacter.characterNickName}\"");
+                        ImGui.TextColored(SoulstoneTheme.Muted, $"\"{InspectedCharacter.characterNickName}\"");
                     }
 
                     ImGui.Spacing();
@@ -245,7 +245,7 @@ namespace Soulstone.Windows
                     }
                     if (!InspectedCharacter.IsFieldHidden("CharacterAge") && !string.IsNullOrWhiteSpace(InspectedCharacter.characterAge))
                     {
-                        UiUtils.PillBadge(string.Format(LocalizationManager.Instance.GetLocalizedString("AgeYearsFormat"), InspectedCharacter.characterAge), new Vector4(0.28f, 0.28f, 0.35f, 0.85f), ImGuiColors.DalamudWhite, FontAwesomeIcon.HourglassHalf);
+                        UiUtils.PillBadge(string.Format(LocalizationManager.Instance.GetLocalizedString("AgeYearsFormat"), InspectedCharacter.characterAge), SoulstoneTheme.Border, ImGuiColors.DalamudWhite, FontAwesomeIcon.HourglassHalf);
                     }
 
                     ImGui.NewLine();
@@ -253,19 +253,19 @@ namespace Soulstone.Windows
 
                     if (!InspectedCharacter.IsFieldHidden("CharacterOccupation") && !string.IsNullOrWhiteSpace(InspectedCharacter.characterOccupation))
                     {
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, $"{LocalizationManager.Instance.GetLocalizedString("CharWorkField")} ");
+                        ImGui.TextColored(SoulstoneTheme.Muted, $"{LocalizationManager.Instance.GetLocalizedString("CharWorkField")} ");
                         ImGui.SameLine(0, 4.0f * scale);
                         ImGui.TextUnformatted(InspectedCharacter.characterOccupation);
                     }
                     if (!InspectedCharacter.IsFieldHidden("CharacterAffiliation") && !string.IsNullOrWhiteSpace(InspectedCharacter.characterAffiliation))
                     {
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, $"{LocalizationManager.Instance.GetLocalizedString("CharAffiliationField")} ");
+                        ImGui.TextColored(SoulstoneTheme.Muted, $"{LocalizationManager.Instance.GetLocalizedString("CharAffiliationField")} ");
                         ImGui.SameLine(0, 4.0f * scale);
                         ImGui.TextUnformatted(InspectedCharacter.characterAffiliation);
                     }
                     if (!InspectedCharacter.IsFieldHidden("CharacterHomeland") && !string.IsNullOrWhiteSpace(InspectedCharacter.characterHomeland))
                     {
-                        ImGui.TextColored(ImGuiColors.DalamudGrey, $"{LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField")} ");
+                        ImGui.TextColored(SoulstoneTheme.Muted, $"{LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField")} ");
                         ImGui.SameLine(0, 4.0f * scale);
                         ImGui.TextUnformatted(InspectedCharacter.characterHomeland);
                     }
@@ -288,7 +288,8 @@ namespace Soulstone.Windows
             var visibleResources = resources.Where(r => !InspectedCharacter.IsFieldHidden($"Resource_{r.Name}") && !InspectedCharacter.IsFieldHidden(r.Name)).ToList();
             if (visibleResources.Count == 0) return;
 
-            if (UiUtils.StyledCollapsingHeader(title.Replace(":", "").Trim(), defaultOpen: true, icon: FontAwesomeIcon.Heartbeat, accentColor: ImGuiColors.ParsedGreen))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawResourcesCollapsibleSection", title.Replace(":", "").Trim(), FontAwesomeIcon.Heartbeat);
+            if (sectionPanel.Success)
             {
                 var scale = ImGuiHelpers.GlobalScale;
                 foreach (var res in visibleResources)
@@ -298,7 +299,7 @@ namespace Soulstone.Windows
                     int effectiveMax = InspectedCharacter.GetEffectiveResourceMax(res.Name, currentDiceSys);
                     int gearBonus = InspectedCharacter.GetGearStatBonus(res.Name) + InspectedCharacter.GetGearStatBonus($"Max {res.Name}") + InspectedCharacter.GetGearStatBonus($"Max{res.Name}");
 
-                    using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.11f, 0.12f, 0.15f, 0.90f)))
+                    using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
                     using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(resCol.X, resCol.Y, resCol.Z, 0.45f)))
                     using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
                     using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 6.0f) * scale))
@@ -360,10 +361,10 @@ namespace Soulstone.Windows
             var items = new List<(string Label, string? Value, FontAwesomeIcon Icon, Vector4 Color)>();
 
             if (!InspectedCharacter.IsFieldHidden("CharacterFullName"))
-                items.Add((LocalizationManager.Instance.GetLocalizedString("CharFullnameField"), InspectedCharacter.characterFullName, FontAwesomeIcon.IdCard, ImGuiColors.ParsedGold));
+                items.Add((LocalizationManager.Instance.GetLocalizedString("CharFullnameField"), InspectedCharacter.characterFullName, FontAwesomeIcon.IdCard, SoulstoneTheme.Gold));
 
             if (!InspectedCharacter.IsFieldHidden("CharacterNickName"))
-                items.Add((LocalizationManager.Instance.GetLocalizedString("CharNicknameField"), InspectedCharacter.characterNickName, FontAwesomeIcon.QuoteRight, ImGuiColors.ParsedGold));
+                items.Add((LocalizationManager.Instance.GetLocalizedString("CharNicknameField"), InspectedCharacter.characterNickName, FontAwesomeIcon.QuoteRight, SoulstoneTheme.Gold));
 
             if (!InspectedCharacter.IsFieldHidden("CharacterRace"))
                 items.Add((LocalizationManager.Instance.GetLocalizedString("CharSpecieField"), InspectedCharacter.characterRace, FontAwesomeIcon.Dna, ImGuiColors.DalamudViolet));
@@ -387,11 +388,12 @@ namespace Soulstone.Windows
                 items.Add((LocalizationManager.Instance.GetLocalizedString("CharPronounsField"), InspectedCharacter.characterPronouns, FontAwesomeIcon.CommentDots, ImGuiColors.ParsedGreen));
 
             if (!InspectedCharacter.IsFieldHidden("CharacterLinkedSystem") && !string.IsNullOrWhiteSpace(InspectedCharacter.linkedDiceSystem))
-                items.Add((LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"), InspectedCharacter.linkedDiceSystem, FontAwesomeIcon.DiceD20, ImGuiColors.ParsedGold));
+                items.Add((LocalizationManager.Instance.GetLocalizedString("DiceSysLinkedLabel"), InspectedCharacter.linkedDiceSystem, FontAwesomeIcon.DiceD20, SoulstoneTheme.Gold));
 
             if (items.Count == 0) return;
 
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("CharFullnameField").Replace(":", "").Trim(), defaultOpen: true, icon: FontAwesomeIcon.IdCard, accentColor: ImGuiColors.ParsedGold))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawIdentitySection", LocalizationManager.Instance.GetLocalizedString("CharFullnameField").Replace(":", "").Trim(), FontAwesomeIcon.IdCard);
+            if (sectionPanel.Success)
             {
                 using var table = ImRaii.Table("##IdentityInspectGrid", 2, ImGuiTableFlags.SizingStretchSame);
                 if (table.Success)
@@ -427,7 +429,8 @@ namespace Soulstone.Windows
 
             if (items.Count == 0 && !showNotes) return;
 
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo").Replace(":", "").Trim(), defaultOpen: false, icon: FontAwesomeIcon.UserFriends, accentColor: ImGuiColors.ParsedBlue))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawOocSection", LocalizationManager.Instance.GetLocalizedString("PlayerOOCInfo").Replace(":", "").Trim(), FontAwesomeIcon.UserFriends);
+            if (sectionPanel.Success)
             {
                 if (items.Count > 0)
                 {
@@ -484,7 +487,8 @@ namespace Soulstone.Windows
 
             if (items.Count == 0 && !showDistinctive) return;
 
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("PhysicalAppearanceTab").Replace(":", "").Trim(), defaultOpen: false, icon: FontAwesomeIcon.User, accentColor: ImGuiColors.DalamudViolet))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawAppearanceSection", LocalizationManager.Instance.GetLocalizedString("PhysicalAppearanceTab").Replace(":", "").Trim(), FontAwesomeIcon.User);
+            if (sectionPanel.Success)
             {
                 if (items.Count > 0)
                 {
@@ -531,12 +535,13 @@ namespace Soulstone.Windows
 
             if (validItems.Count == 0) return;
 
-            if (UiUtils.StyledCollapsingHeader(LocalizationManager.Instance.GetLocalizedString("QuickLookSectionTitle").Replace(":", "").Trim(), defaultOpen: true, icon: FontAwesomeIcon.Eye, accentColor: ImGuiColors.ParsedGreen))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawQuickLookSection", LocalizationManager.Instance.GetLocalizedString("QuickLookSectionTitle").Replace(":", "").Trim(), FontAwesomeIcon.Eye);
+            if (sectionPanel.Success)
             {
                 var scale = ImGuiHelpers.GlobalScale;
                 foreach (var item in validItems)
                 {
-                    using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.12f, 0.14f, 0.85f)))
+                    using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
                     using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.20f, 0.45f, 0.30f, 0.6f)))
                     using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
                     using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 6.0f) * scale))
@@ -561,16 +566,16 @@ namespace Soulstone.Windows
             var items = new List<(string Label, string? Value, FontAwesomeIcon Icon, Vector4 Color)>();
 
             if (!InspectedCharacter.IsFieldHidden("CharacterHomeland"))
-                items.Add((LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField"), InspectedCharacter.characterHomeland, FontAwesomeIcon.MapMarkerAlt, ImGuiColors.ParsedGold));
+                items.Add((LocalizationManager.Instance.GetLocalizedString("CharBirthplaceField"), InspectedCharacter.characterHomeland, FontAwesomeIcon.MapMarkerAlt, SoulstoneTheme.Gold));
 
             if (!InspectedCharacter.IsFieldHidden("CharacterOrigin"))
-                items.Add((LocalizationManager.Instance.GetLocalizedString("CharOriginField"), InspectedCharacter.characterOrigin, FontAwesomeIcon.GlobeAmericas, ImGuiColors.ParsedGold));
+                items.Add((LocalizationManager.Instance.GetLocalizedString("CharOriginField"), InspectedCharacter.characterOrigin, FontAwesomeIcon.GlobeAmericas, SoulstoneTheme.Gold));
 
             if (!InspectedCharacter.IsFieldHidden("CharacterAffiliation"))
-                items.Add((LocalizationManager.Instance.GetLocalizedString("CharAffiliationField"), InspectedCharacter.characterAffiliation, FontAwesomeIcon.Building, ImGuiColors.ParsedGold));
+                items.Add((LocalizationManager.Instance.GetLocalizedString("CharAffiliationField"), InspectedCharacter.characterAffiliation, FontAwesomeIcon.Building, SoulstoneTheme.Gold));
 
             if (!InspectedCharacter.IsFieldHidden("CharacterOccupation"))
-                items.Add((LocalizationManager.Instance.GetLocalizedString("CharWorkField"), InspectedCharacter.characterOccupation, FontAwesomeIcon.Briefcase, ImGuiColors.ParsedGold));
+                items.Add((LocalizationManager.Instance.GetLocalizedString("CharWorkField"), InspectedCharacter.characterOccupation, FontAwesomeIcon.Briefcase, SoulstoneTheme.Gold));
 
             bool showRep = !InspectedCharacter.IsFieldHidden("CharacterReputation") && !string.IsNullOrWhiteSpace(InspectedCharacter.characterReputation);
             bool showBg = !InspectedCharacter.IsFieldHidden("CharacterBackground") && !string.IsNullOrWhiteSpace(InspectedCharacter.characterBackground);
@@ -580,7 +585,8 @@ namespace Soulstone.Windows
 
             if (items.Count == 0 && !showRep && !showBg && !showFamily && !showFriends && !showEnemies) return;
 
-            if (UiUtils.StyledCollapsingHeader($"{LocalizationManager.Instance.GetLocalizedString("CharBackgroundField").Replace(":", "").Trim()} & {LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab").Replace(":", "").Trim()}", defaultOpen: false, icon: FontAwesomeIcon.BookOpen, accentColor: ImGuiColors.ParsedGold))
+            using var sectionPanel = SoulstoneTheme.BeginPanel("##Panel_DrawBackgroundSection", $"{LocalizationManager.Instance.GetLocalizedString("CharBackgroundField").Replace(":", "").Trim()} & {LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab").Replace(":", "").Trim()}", FontAwesomeIcon.BookOpen);
+            if (sectionPanel.Success)
             {
                 if (items.Count > 0)
                 {
@@ -598,13 +604,13 @@ namespace Soulstone.Windows
                 if (showRep)
                 {
                     ImGui.Spacing();
-                    DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharReputationField"), InspectedCharacter.characterReputation, FontAwesomeIcon.Award, ImGuiColors.ParsedGold);
+                    DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharReputationField"), InspectedCharacter.characterReputation, FontAwesomeIcon.Award, SoulstoneTheme.Gold);
                 }
 
                 if (showBg)
                 {
                     ImGui.Spacing();
-                    DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharBackgroundField"), InspectedCharacter.characterBackground, FontAwesomeIcon.BookOpen, ImGuiColors.ParsedGold);
+                    DrawStoryBlock(LocalizationManager.Instance.GetLocalizedString("CharBackgroundField"), InspectedCharacter.characterBackground, FontAwesomeIcon.BookOpen, SoulstoneTheme.Gold);
                 }
 
                 if (showFamily || showFriends || showEnemies)
@@ -631,7 +637,7 @@ namespace Soulstone.Windows
                     if (showFamily)
                     {
                         ImGui.TableNextColumn();
-                        DrawInspectRelationCard("Family", ImGuiColors.ParsedGold,
+                        DrawInspectRelationCard("Family", SoulstoneTheme.Gold,
                             LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab"),
                             InspectedCharacter.characterFamily ?? new Dictionary<string, string>(), boxHeight);
                     }
@@ -663,7 +669,7 @@ namespace Soulstone.Windows
                 {
                     ImGui.TextColored(color, title.Replace(":", "").Trim());
                     ImGui.SameLine();
-                    UiUtils.Badge(relations.Count.ToString(), new Vector4(0.2f, 0.2f, 0.2f, 0.5f), ImGuiColors.DalamudGrey);
+                    UiUtils.Badge(relations.Count.ToString(), new Vector4(0.2f, 0.2f, 0.2f, 0.5f), SoulstoneTheme.Muted);
                     ImGui.Separator();
 
                     if (relations.Count == 0)
@@ -700,8 +706,8 @@ namespace Soulstone.Windows
             var cardWidth = width > 0 ? width : ImGui.GetContentRegionAvail().X;
             var cardHeight = 55.0f * scale;
 
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.11f, 0.12f, 0.15f, 0.90f)))
-            using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.22f, 0.25f, 0.32f, 0.65f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
+            using (ImRaii.PushColor(ImGuiCol.Border, SoulstoneTheme.Border))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 6.0f) * scale))
             using (var child = ImRaii.Child($"##InspectPropCard_{label}", new Vector2(cardWidth, cardHeight), true, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
@@ -722,10 +728,10 @@ namespace Soulstone.Windows
                     ImGui.TextColored(accentColor, icon.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * scale);
-                    ImGui.TextColored(ImGuiColors.DalamudGrey, label.Replace(":", "").Trim());
+                    ImGui.TextColored(SoulstoneTheme.Muted, label.Replace(":", "").Trim());
 
                     var displayVal = !string.IsNullOrWhiteSpace(value) ? value : "-";
-                    var valCol = !string.IsNullOrWhiteSpace(value) ? ImGuiColors.DalamudWhite : ImGuiColors.DalamudGrey2;
+                    var valCol = !string.IsNullOrWhiteSpace(value) ? ImGuiColors.DalamudWhite : SoulstoneTheme.Muted;
                     ImGui.TextColored(valCol, displayVal);
                 }
             }
@@ -736,11 +742,11 @@ namespace Soulstone.Windows
             var scale = ImGuiHelpers.GlobalScale;
             var availWidth = ImGui.GetContentRegionAvail().X;
 
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.11f, 0.14f, 0.90f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
             using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(accentColor.X, accentColor.Y, accentColor.Z, 0.45f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * scale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(12.0f, 8.0f) * scale))
-            using (var child = ImRaii.Child($"##InspectStoryBlock_{title}", new Vector2(availWidth, 0), true, ImGuiWindowFlags.AlwaysAutoResize))
+            using (var child = SoulstoneTheme.BeginPanel($"##InspectStoryBlock_{title}", title, icon, bodyHasHeader: true))
             {
                 if (child.Success)
                 {

@@ -33,6 +33,7 @@ namespace Soulstone.Managers
         public const int MaxHistory = 50;
 
         public event Action? OnHistoryChanged;
+        public event Action<DiceHistoryEntry>? OnEntryAdded;
 
         public IReadOnlyList<DiceHistoryEntry> GetHistory()
         {
@@ -52,6 +53,7 @@ namespace Soulstone.Managers
                     history.RemoveRange(MaxHistory, history.Count - MaxHistory);
                 }
             }
+            OnEntryAdded?.Invoke(entry);
             OnHistoryChanged?.Invoke();
         }
 

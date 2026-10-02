@@ -1,8 +1,9 @@
-﻿using Soulstone.Datamodels;
+using Soulstone.Datamodels;
 using Soulstone.Sync;
 using System;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -37,10 +38,10 @@ namespace Soulstone.Utils
             DiceSystem system,
             string playerName,
             string worldName,
-            CancellationToken ct = default)
+            CancellationToken ct = default, string? ownerToken = null, bool publishAsNew = false)
         {
             if (string.IsNullOrWhiteSpace(serverUrl) || system == null ||
-                string.IsNullOrWhiteSpace(system.systemName) || string.IsNullOrWhiteSpace(playerName))
+                string.IsNullOrWhiteSpace(system.systemName) || string.IsNullOrWhiteSpace(playerName) || string.IsNullOrWhiteSpace(ownerToken))
                 return null;
 
             try
@@ -52,19 +53,22 @@ namespace Soulstone.Utils
                     WorldName = worldName?.Trim() ?? string.Empty,
                     SystemName = system.systemName.Trim(),
                     Payload = payload,
-                    Code = string.IsNullOrWhiteSpace(system.publishedCode) ? null : system.publishedCode
+                    Code = publishAsNew || string.IsNullOrWhiteSpace(system.publishedCode) ? null : system.publishedCode
                 };
                 using var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
-                var response = await httpClient.PostAsync($"{RelayCrypto.NormalizeServerUrl(serverUrl)}/api/dice-systems", content, ct).ConfigureAwait(false);
+                using var message = new HttpRequestMessage(HttpMethod.Post, $"{RelayCrypto.NormalizeServerUrl(serverUrl)}/api/dice-systems") { Content = content };
+                message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+                using var response = await httpClient.SendAsync(message, ct).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                     return null;
 
                 var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return JsonSerializer.Deserialize<PublishedDiceSystem>(json, JsonOptions);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                Plugin.Log?.Error(ex, $"Failed to publish dice system to '{serverUrl}'");
+                Plugin.Log?.Error(ex, "Failed to publish dice system");
                 return null;
             }
         }
@@ -110,21 +114,22 @@ namespace Soulstone.Utils
             try
             {
                 var endpoint = $"{RelayCrypto.NormalizeServerUrl(serverUrl)}/api/dice-systems/{Uri.EscapeDataString(code)}{suffix}";
-                var response = await httpClient.GetAsync(endpoint, ct).ConfigureAwait(false);
+                using var response = await httpClient.GetAsync(endpoint, ct).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                     return default;
 
                 var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 return JsonSerializer.Deserialize<T>(json, JsonOptions);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                Plugin.Log?.Error(ex, $"Failed to fetch dice system '{code}' from '{serverUrl}'");
+                Plugin.Log?.Error(ex, "Failed to fetch dice system");
                 return default;
             }
         }
 
         private static bool IsValidCode(string code) =>
-            code.Trim().Length == 10 && code.Trim().All(char.IsLetterOrDigit);
+            !string.IsNullOrWhiteSpace(code) && code.Trim().Length == 10 && code.Trim().All(char.IsAsciiLetterOrDigit);
     }
 }

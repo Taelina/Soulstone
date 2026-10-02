@@ -2,6 +2,7 @@ using Soulstone.Datamodels;
 using Soulstone.Sync;
 using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -16,9 +17,9 @@ namespace Soulstone.Utils
             Timeout = TimeSpan.FromSeconds(10)
         };
 
-        public static async Task<bool> UploadCharacterSheetAsync(string serverUrl, CharacterSheet sheet, string? world = null, string? characterName = null, CancellationToken ct = default)
+        public static async Task<bool> UploadCharacterSheetAsync(string serverUrl, CharacterSheet sheet, string? world = null, string? characterName = null, CancellationToken ct = default, string? ownerToken = null)
         {
-            if (string.IsNullOrWhiteSpace(serverUrl) || sheet == null)
+            if (string.IsNullOrWhiteSpace(serverUrl) || sheet == null || string.IsNullOrWhiteSpace(ownerToken))
                 return false;
 
             string targetCharName = !string.IsNullOrWhiteSpace(characterName)
@@ -38,15 +39,18 @@ namespace Soulstone.Utils
                     ? $"{baseUri}/api/characters/{charNameEscaped}/{worldEscaped}"
                     : $"{baseUri}/api/characters/{charNameEscaped}";
 
-                var json = JsonSerializer.Serialize(sheet, new JsonSerializerOptions { WriteIndented = false });
+                var json = PublicCharacterProfile.FromSheet(sheet).ToJson();
                 using var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = await HttpClient.PutAsync(endpoint, content, ct).ConfigureAwait(false);
+                using var request = new HttpRequestMessage(HttpMethod.Put, endpoint) { Content = content };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+                using var response = await HttpClient.SendAsync(request, ct).ConfigureAwait(false);
                 return response.IsSuccessStatusCode;
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                Plugin.Log?.Error(ex, $"Failed to upload character sheet for '{targetCharName}' to '{serverUrl}'");
+                Plugin.Log?.Error(ex, "Failed to upload public character profile");
                 return false;
             }
         }
@@ -66,7 +70,7 @@ namespace Soulstone.Utils
                 if (!string.IsNullOrEmpty(worldEscaped))
                 {
                     var endpointWithWorld = $"{baseUri}/api/characters/{charNameEscaped}/{worldEscaped}";
-                    var response = await HttpClient.GetAsync(endpointWithWorld, ct).ConfigureAwait(false);
+                    using var response = await HttpClient.GetAsync(endpointWithWorld, ct).ConfigureAwait(false);
                     if (response.IsSuccessStatusCode)
                     {
                         var json = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
@@ -79,9 +83,12 @@ namespace Soulstone.Utils
                     }
                 }
 
+                // World-qualified requests must not fall back to another world.
+                if (!string.IsNullOrEmpty(worldEscaped)) return null;
+
                 // Fallback without world
                 var endpointNoWorld = $"{baseUri}/api/characters/{charNameEscaped}";
-                var fallbackResponse = await HttpClient.GetAsync(endpointNoWorld, ct).ConfigureAwait(false);
+                using var fallbackResponse = await HttpClient.GetAsync(endpointNoWorld, ct).ConfigureAwait(false);
                 if (fallbackResponse.IsSuccessStatusCode)
                 {
                     var json = await fallbackResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
@@ -95,14 +102,15 @@ namespace Soulstone.Utils
 
                 return null;
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                Plugin.Log?.Error(ex, $"Failed to fetch character sheet for '{characterName}' from '{serverUrl}'");
+                Plugin.Log?.Error(ex, "Failed to fetch public character profile");
                 return null;
             }
         }
 
-        public static async Task<bool> DeleteCharacterSheetAsync(string serverUrl, string characterName, string? world = null, CancellationToken ct = default)
+        public static async Task<bool> DeleteCharacterSheetAsync(string serverUrl, string characterName, string? world = null, CancellationToken ct = default, string? ownerToken = null)
         {
             if (string.IsNullOrWhiteSpace(serverUrl) || string.IsNullOrWhiteSpace(characterName))
                 return false;
@@ -117,12 +125,16 @@ namespace Soulstone.Utils
                     ? $"{baseUri}/api/characters/{charNameEscaped}/{worldEscaped}"
                     : $"{baseUri}/api/characters/{charNameEscaped}";
 
-                var response = await HttpClient.DeleteAsync(endpoint, ct).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(ownerToken)) return false;
+                using var request = new HttpRequestMessage(HttpMethod.Delete, endpoint);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+                using var response = await HttpClient.SendAsync(request, ct).ConfigureAwait(false);
                 return response.IsSuccessStatusCode;
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
-                Plugin.Log?.Error(ex, $"Failed to delete character sheet for '{characterName}' on '{serverUrl}'");
+                Plugin.Log?.Error(ex, "Failed to delete public character profile");
                 return false;
             }
         }

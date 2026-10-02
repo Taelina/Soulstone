@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 
 namespace Soulstone.Windows
 {
-    public class GroupWindow : Window, IDisposable
+    public class GroupWindow : IDisposable
     {
         private readonly Plugin plugin;
         private string serverUrl;
@@ -56,27 +56,19 @@ namespace Soulstone.Windows
         private DateTime inviteCopiedTime = DateTime.MinValue;
 
         public GroupWindow(Plugin plugin)
-            : base("Group Management###SoulstoneGroupManagement", ImGuiWindowFlags.None)
         {
             this.plugin = plugin;
             serverUrl = string.IsNullOrWhiteSpace(plugin.Configuration.SyncServerUrl)
                 ? Configuration.DefaultSyncServerUrl
                 : plugin.Configuration.SyncServerUrl;
 
-            Size = new Vector2(860, 620);
-            SizeCondition = ImGuiCond.FirstUseEver;
-            SizeConstraints = new WindowSizeConstraints
-            {
-                MinimumSize = new Vector2(580, 400),
-                MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
-            };
         }
 
         public void Dispose() { }
 
         internal static string WithStableId(string label, string id) => $"{label}##{id}";
 
-        public override void Draw()
+        public void Draw()
         {
             DrawConnectionHeader();
             ImGui.Spacing();
@@ -120,7 +112,7 @@ namespace Soulstone.Windows
             var drawList = ImGui.GetWindowDrawList();
 
             // Background card with metallic green accent
-            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.12f, 0.14f, 0.96f));
+            var bgCol = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
             var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.65f, 0.35f, 0.75f));
             var accentCol = ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGreen);
 
@@ -137,7 +129,7 @@ namespace Soulstone.Windows
             // Framed Wifi Icon Emblem
             var emblemSize = 38.0f * scale;
             var emblemPos = pos + new Vector2(12.0f * scale, (bannerHeight - emblemSize) * 0.5f);
-            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.14f, 0.22f, 0.16f, 0.95f)), 6.0f * scale);
+            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field), 6.0f * scale);
             drawList.AddRect(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), accentCol, 6.0f * scale, ImDrawFlags.None, 1.2f);
 
             ImGui.PushFont(UiBuilder.IconFont);
@@ -160,7 +152,7 @@ namespace Soulstone.Windows
                 if (sync.IsSessionHost)
                 {
                     ImGui.SameLine(0, 6.0f * scale);
-                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupBadgeLeader"), new Vector4(0.35f, 0.28f, 0.10f, 0.9f), ImGuiColors.ParsedGold, FontAwesomeIcon.Crown);
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupBadgeLeader"), new Vector4(0.35f, 0.28f, 0.10f, 0.9f), SoulstoneTheme.Gold, FontAwesomeIcon.Crown);
                 }
                 else if (!string.IsNullOrWhiteSpace(plugin.Configuration.SyncHostName))
                 {
@@ -237,7 +229,7 @@ namespace Soulstone.Windows
             if (showSessionInfo)
             {
                 ImGui.Spacing();
-                using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.09f, 0.11f, 0.8f)))
+                using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
                 using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4.0f * scale))
                 using (var infoChild = ImRaii.Child("##SessionInfoDetailsBox", new Vector2(0, 26.0f * scale), true))
                 {
@@ -256,7 +248,7 @@ namespace Soulstone.Windows
             if (!string.IsNullOrWhiteSpace(connectionMessage))
             {
                 ImGui.Spacing();
-                ImGui.TextColored(ImGuiColors.ParsedGold, connectionMessage);
+                ImGui.TextColored(SoulstoneTheme.Gold, connectionMessage);
             }
         }
 
@@ -269,7 +261,7 @@ namespace Soulstone.Windows
             var drawList = ImGui.GetWindowDrawList();
 
             // Background card with subtle amber border
-            var bgCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.10f, 0.11f, 0.13f, 0.95f));
+            var bgCol = ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field);
             var borderCol = ImGui.ColorConvertFloat4ToU32(new Vector4(0.50f, 0.35f, 0.15f, 0.70f));
             var accentCol = ImGui.ColorConvertFloat4ToU32(ImGuiColors.DalamudOrange);
 
@@ -286,7 +278,7 @@ namespace Soulstone.Windows
             // Framed Plug Icon Emblem
             var emblemSize = 36.0f * scale;
             var emblemPos = pos + new Vector2(10.0f * scale, (setupHeight - emblemSize) * 0.5f);
-            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.20f, 0.16f, 0.12f, 0.95f)), 6.0f * scale);
+            drawList.AddRectFilled(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field), 6.0f * scale);
             drawList.AddRect(emblemPos, emblemPos + new Vector2(emblemSize, emblemSize), accentCol, 6.0f * scale, ImDrawFlags.None, 1.2f);
 
             ImGui.PushFont(UiBuilder.IconFont);
@@ -363,6 +355,7 @@ namespace Soulstone.Windows
                     {
                         plugin.Configuration.SyncServerUrl = serverUrl;
                         plugin.Configuration.Save();
+                        PartySyncManager.Instance.Init(plugin.Configuration, autoConnect: false);
                     }
                     ImGui.SameLine(0, 4.0f * scale);
 
@@ -383,7 +376,7 @@ namespace Soulstone.Windows
             if (!string.IsNullOrWhiteSpace(connectionMessage))
             {
                 ImGui.Spacing();
-                ImGui.TextColored(ImGuiColors.ParsedGold, connectionMessage);
+                ImGui.TextColored(SoulstoneTheme.Gold, connectionMessage);
             }
         }
 
@@ -395,30 +388,44 @@ namespace Soulstone.Windows
                 serverUrl = RelayCrypto.NormalizeServerUrl(serverUrl);
                 plugin.Configuration.SyncServerUrl = serverUrl;
                 plugin.Configuration.Save();
-                PartySyncManager.Instance.Init(plugin.Configuration);
-                bool success = await PartySyncManager.Instance.CreateSessionAsync(serverUrl);
-                connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionCreated" : "GroupConnectionFailed");
+                PartySyncManager.Instance.Init(plugin.Configuration, autoConnect: false);
+
+                bool success = await PartySyncManager.Instance.CreateSessionAsync(serverUrl).ConfigureAwait(false);
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    if (!plugin.IsDisposed) connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionCreated" : "GroupConnectionFailed");
+                }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 Plugin.Log?.Error(ex, "Failed to handle the create session action");
-                connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupConnectionFailed");
+                await FrameworkDispatcher.RunAsync(() =>
+                {
+                    if (!plugin.IsDisposed) connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupConnectionFailed");
+                }).ConfigureAwait(false);
             }
         }
 
         private async Task JoinSessionAsync()
         {
             connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupConnecting");
-            bool success = await PartySyncManager.Instance.JoinSessionAsync(inviteCode);
-            connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionJoined" : "GroupInvalidInvite");
-            if (success) inviteCode = string.Empty;
+            bool success = await PartySyncManager.Instance.JoinSessionAsync(inviteCode).ConfigureAwait(false);
+            await FrameworkDispatcher.RunAsync(() =>
+            {
+                if (plugin.IsDisposed) return;
+                connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionJoined" : "GroupInvalidInvite");
+                if (success) inviteCode = string.Empty;
+            }).ConfigureAwait(false);
         }
 
         private async Task ReconnectAsync()
         {
             connectionMessage = LocalizationManager.Instance.GetLocalizedString("GroupConnecting");
-            bool success = await PartySyncManager.Instance.ReconnectAsync();
-            connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionJoined" : "GroupConnectionFailed");
+            bool success = await PartySyncManager.Instance.ReconnectAsync().ConfigureAwait(false);
+            await FrameworkDispatcher.RunAsync(() =>
+            {
+                if (!plugin.IsDisposed) connectionMessage = LocalizationManager.Instance.GetLocalizedString(success ? "GroupSessionJoined" : "GroupConnectionFailed");
+            }).ConfigureAwait(false);
         }
 
         #endregion
@@ -434,8 +441,8 @@ namespace Soulstone.Windows
 
             foreach (var request in requests)
             {
-                using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.18f, 0.14f, 0.08f, 0.95f)))
-                using (ImRaii.PushColor(ImGuiCol.Border, ImGuiColors.ParsedGold))
+                using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
+                using (ImRaii.PushColor(ImGuiCol.Border, SoulstoneTheme.Gold))
                 using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 8.0f * scale))
                 using (var requestPanel = ImRaii.Child($"##RollRequest_{request.RequestId}", new Vector2(0, 50.0f * scale), true))
                 {
@@ -449,30 +456,30 @@ namespace Soulstone.Windows
                     drawList.AddRectFilled(
                         panelPos + new Vector2(2.5f * scale, 5.0f * scale),
                         panelPos + new Vector2(6.0f * scale, panelSize.Y - 5.0f * scale),
-                        ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold),
+                        ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Gold),
                         2.0f * scale);
 
                     // Framed Dice Icon Box
                     var iconBoxSize = 34.0f * scale;
                     var iconBoxPos = panelPos + new Vector2(10.0f * scale, (panelSize.Y - iconBoxSize) * 0.5f);
                     drawList.AddRectFilled(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.24f, 0.18f, 0.10f, 0.95f)), 6.0f * scale);
-                    drawList.AddRect(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold), 6.0f * scale, ImDrawFlags.None, 1.2f);
+                    drawList.AddRect(iconBoxPos, iconBoxPos + new Vector2(iconBoxSize, iconBoxSize), ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Gold), 6.0f * scale, ImDrawFlags.None, 1.2f);
 
                     ImGui.PushFont(UiBuilder.IconFont);
                     var iconStr = FontAwesomeIcon.DiceD20.ToIconString();
                     var iconSize = ImGui.CalcTextSize(iconStr);
-                    drawList.AddText(iconBoxPos + new Vector2((iconBoxSize - iconSize.X) * 0.5f, (iconBoxSize - iconSize.Y) * 0.5f), ImGui.ColorConvertFloat4ToU32(ImGuiColors.ParsedGold), iconStr);
+                    drawList.AddText(iconBoxPos + new Vector2((iconBoxSize - iconSize.X) * 0.5f, (iconBoxSize - iconSize.Y) * 0.5f), ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Gold), iconStr);
                     ImGui.PopFont();
 
                     ImGui.SetCursorScreenPos(panelPos + new Vector2(iconBoxSize + 18.0f * scale, 12.0f * scale));
 
                     ImGui.BeginGroup();
                     {
-                        ImGui.TextColored(ImGuiColors.ParsedGold, $"{request.RequestedBy}:");
+                        ImGui.TextColored(SoulstoneTheme.Gold, $"{request.RequestedBy}:");
                         ImGui.SameLine(0, 6.0f * scale);
                         ImGui.TextColored(ImGuiColors.DalamudWhite, request.RollName);
                         ImGui.SameLine(0, 8.0f * scale);
-                        UiUtils.PillBadge(request.Formula, new Vector4(0.28f, 0.22f, 0.10f, 0.9f), ImGuiColors.ParsedGold, FontAwesomeIcon.Dice);
+                        UiUtils.PillBadge(request.Formula, new Vector4(0.28f, 0.22f, 0.10f, 0.9f), SoulstoneTheme.Gold, FontAwesomeIcon.Dice);
                     }
                     ImGui.EndGroup();
 
@@ -487,7 +494,10 @@ namespace Soulstone.Windows
                     {
                         if (UiUtils.IconTextButton($"RollReqNow_{request.RequestId}", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("GroupRollNow")))
                         {
-                            PartySyncManager.Instance.ExecuteRollRequest(request.RequestId);
+                            if (plugin.Configuration.ShowRollPresentation)
+                                plugin.RollPresentationWindow.OpenRequest(request);
+                            else
+                                PartySyncManager.Instance.ExecuteRollRequest(request.RequestId);
                         }
                     }
 
@@ -563,12 +573,13 @@ namespace Soulstone.Windows
                 }
 
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                using (ImRaii.PushColor(ImGuiCol.Button, plugin.Configuration.ShowGroupResources ? new Vector4(0.20f, 0.40f, 0.30f, 0.9f) : new Vector4(0.18f, 0.18f, 0.22f, 0.7f)))
+                using (ImRaii.PushColor(ImGuiCol.Button, plugin.Configuration.ShowGroupResources ? new Vector4(0.20f, 0.40f, 0.30f, 0.9f) : SoulstoneTheme.Field))
                 {
                     if (UiUtils.IconButton("ToggleGroupResourcesBtn", FontAwesomeIcon.Heart, LocalizationManager.Instance.GetLocalizedString("GroupToggleResourcesTooltip")))
                     {
                         plugin.Configuration.ShowGroupResources = !plugin.Configuration.ShowGroupResources;
                         plugin.Configuration.Save();
+                        PartySyncManager.Instance.Init(plugin.Configuration, autoConnect: false);
                     }
                 }
 
@@ -580,7 +591,7 @@ namespace Soulstone.Windows
                     ImGui.SameLine(ImGui.GetWindowWidth() - viewToggleWidth - 20.0f * ImGuiHelpers.GlobalScale);
                 }
 
-                using (ImRaii.PushColor(ImGuiCol.Button, !isGridView ? new Vector4(0.25f, 0.35f, 0.50f, 0.9f) : new Vector4(0.18f, 0.18f, 0.22f, 0.7f)))
+                using (ImRaii.PushColor(ImGuiCol.Button, !isGridView ? new Vector4(0.25f, 0.35f, 0.50f, 0.9f) : SoulstoneTheme.Field))
                 {
                     if (UiUtils.IconButton("ViewCardsToggle", FontAwesomeIcon.ThLarge, LocalizationManager.Instance.GetLocalizedString("GroupViewCards")))
                     {
@@ -588,7 +599,7 @@ namespace Soulstone.Windows
                     }
                 }
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                using (ImRaii.PushColor(ImGuiCol.Button, isGridView ? new Vector4(0.25f, 0.35f, 0.50f, 0.9f) : new Vector4(0.18f, 0.18f, 0.22f, 0.7f)))
+                using (ImRaii.PushColor(ImGuiCol.Button, isGridView ? new Vector4(0.25f, 0.35f, 0.50f, 0.9f) : SoulstoneTheme.Field))
                 {
                     if (UiUtils.IconButton("ViewGridToggle", FontAwesomeIcon.ThList, LocalizationManager.Instance.GetLocalizedString("GroupViewGrid")))
                     {
@@ -637,7 +648,7 @@ namespace Soulstone.Windows
             else
             {
                 bgCol = new Vector4(0.18f, 0.20f, 0.24f, 0.75f);
-                textCol = isWarning ? ImGuiColors.ParsedOrange : ImGuiColors.DalamudGrey;
+                textCol = isWarning ? ImGuiColors.ParsedOrange : SoulstoneTheme.Muted;
             }
 
             using (ImRaii.PushColor(ImGuiCol.Button, bgCol))
@@ -657,6 +668,9 @@ namespace Soulstone.Windows
 
         private void DrawRosterContent()
         {
+            using var rosterPanel = SoulstoneTheme.BeginPanel("##GroupRosterPanel", LocalizationManager.Instance.GetLocalizedString("GroupManagementTitle"), FontAwesomeIcon.Users,
+                height: Math.Max(300 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y));
+            if (!rosterPanel.Success) return;
             var allMembers = PartySyncManager.Instance.ConnectedPartyMembers.Values
                 .OrderByDescending(m => m.IsPartyLeader)
                 .ThenBy(m => m.CharacterName)
@@ -724,10 +738,10 @@ namespace Soulstone.Windows
             bool isLocal = string.Equals(member.CharacterName, PartySyncManager.Instance.GetLocalPlayerName(), StringComparison.OrdinalIgnoreCase);
 
             var (roleBg, roleTextCol) = GetJobBadgeColors(member.JobName);
-            var accentColor = isLeader ? ImGuiColors.ParsedGold : (isLocal ? ImGuiColors.ParsedBlue : roleTextCol);
+            var accentColor = isLeader ? SoulstoneTheme.Gold : (isLocal ? ImGuiColors.ParsedBlue : roleTextCol);
 
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.10f, 0.11f, 0.14f, 0.95f)))
-            using (ImRaii.PushColor(ImGuiCol.Border, isLeader ? new Vector4(0.85f, 0.70f, 0.25f, 0.85f) : (isLocal ? new Vector4(0.30f, 0.55f, 0.85f, 0.75f) : new Vector4(0.24f, 0.26f, 0.32f, 0.65f))))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
+            using (ImRaii.PushColor(ImGuiCol.Border, isLeader ? new Vector4(0.85f, 0.70f, 0.25f, 0.85f) : (isLocal ? new Vector4(0.30f, 0.55f, 0.85f, 0.75f) : SoulstoneTheme.Border)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 8.0f * ImGuiHelpers.GlobalScale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(12.0f, 10.0f) * ImGuiHelpers.GlobalScale))
             using (var cardChild = ImRaii.Child($"MemberCardFrame_{member.CharacterName}", new Vector2(0, 0), true, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoScrollbar))
@@ -781,14 +795,14 @@ namespace Soulstone.Windows
         {
             var (jobBg, jobCol) = GetJobBadgeColors(member.JobName);
             var roleIcon = isLeader ? FontAwesomeIcon.Crown : GetJobRoleIcon(member.JobName);
-            var iconColor = isLeader ? ImGuiColors.ParsedGold : jobCol;
+            var iconColor = isLeader ? SoulstoneTheme.Gold : jobCol;
 
             var scale = ImGuiHelpers.GlobalScale;
             var emblemSize = 34.0f * scale;
             var pos = ImGui.GetCursorScreenPos();
             var drawList = ImGui.GetWindowDrawList();
 
-            drawList.AddRectFilled(pos, pos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(new Vector4(0.16f, 0.17f, 0.22f, 0.95f)), 6.0f * scale);
+            drawList.AddRectFilled(pos, pos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(SoulstoneTheme.Field), 6.0f * scale);
             drawList.AddRect(pos, pos + new Vector2(emblemSize, emblemSize), ImGui.ColorConvertFloat4ToU32(iconColor), 6.0f * scale, ImDrawFlags.None, 1.2f);
 
             ImGui.PushFont(UiBuilder.IconFont);
@@ -820,7 +834,7 @@ namespace Soulstone.Windows
 
                 if (isLeader)
                 {
-                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupBadgeLeader"), new Vector4(0.38f, 0.30f, 0.12f, 0.9f), ImGuiColors.ParsedGold, FontAwesomeIcon.Crown);
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupBadgeLeader"), new Vector4(0.38f, 0.30f, 0.12f, 0.9f), SoulstoneTheme.Gold, FontAwesomeIcon.Crown);
                     ImGui.SameLine(0, 6.0f * scale);
                 }
 
@@ -830,7 +844,7 @@ namespace Soulstone.Windows
                 }
                 else
                 {
-                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupStatusNoSoulstone"), new Vector4(0.25f, 0.25f, 0.25f, 0.85f), ImGuiColors.DalamudGrey, FontAwesomeIcon.TimesCircle);
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("GroupStatusNoSoulstone"), SoulstoneTheme.Border, SoulstoneTheme.Muted, FontAwesomeIcon.TimesCircle);
                 }
 
                 if (!string.IsNullOrWhiteSpace(member.ActiveRulesetName))
@@ -861,7 +875,7 @@ namespace Soulstone.Windows
                 }
 
                 bool isRollExpanded = expandedRollDrawers.Contains(member.CharacterName);
-                using (ImRaii.PushColor(ImGuiCol.Button, isRollExpanded ? new Vector4(0.35f, 0.28f, 0.12f, 0.9f) : new Vector4(0.20f, 0.22f, 0.28f, 0.8f)))
+                using (ImRaii.PushColor(ImGuiCol.Button, isRollExpanded ? new Vector4(0.35f, 0.28f, 0.12f, 0.9f) : SoulstoneTheme.Border))
                 {
                     if (UiUtils.IconButton($"ToggleRoll_{member.CharacterName}", FontAwesomeIcon.DiceD20, LocalizationManager.Instance.GetLocalizedString("GroupQuickRoll")))
                     {
@@ -874,7 +888,7 @@ namespace Soulstone.Windows
                 {
                     ImGui.SameLine(0, 6.0f * scale);
                     bool isStatsExpanded = expandedStatsMembers.Contains(member.CharacterName);
-                    using (ImRaii.PushColor(ImGuiCol.Button, isStatsExpanded ? new Vector4(0.20f, 0.40f, 0.60f, 0.9f) : new Vector4(0.20f, 0.22f, 0.28f, 0.8f)))
+                    using (ImRaii.PushColor(ImGuiCol.Button, isStatsExpanded ? new Vector4(0.20f, 0.40f, 0.60f, 0.9f) : SoulstoneTheme.Border))
                     {
                         if (UiUtils.IconButton($"ToggleStats_{member.CharacterName}", FontAwesomeIcon.Scroll, LocalizationManager.Instance.GetLocalizedString("GroupPrivateStats")))
                         {
@@ -948,7 +962,7 @@ namespace Soulstone.Windows
         {
             ImGui.Spacing();
             ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Magic.ToIconString());
+            ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Magic.ToIconString());
             ImGui.PopFont();
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
@@ -974,7 +988,7 @@ namespace Soulstone.Windows
                     string mods = buff.GetFormattedModifiers();
                     if (!string.IsNullOrWhiteSpace(mods))
                     {
-                        ImGui.TextColored(ImGuiColors.ParsedGold, mods);
+                        ImGui.TextColored(SoulstoneTheme.Gold, mods);
                     }
                     ImGui.EndTooltip();
                 }
@@ -987,20 +1001,20 @@ namespace Soulstone.Windows
         private void DrawCardLastRoll(string rollSummary)
         {
             ImGui.Spacing();
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.09f, 0.12f, 0.9f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4.0f * ImGuiHelpers.GlobalScale))
             using (var rollBox = ImRaii.Child($"##LastRollBox", new Vector2(0, 28.0f * ImGuiHelpers.GlobalScale), true))
             {
                 if (rollBox.Success)
                 {
                     ImGui.PushFont(UiBuilder.IconFont);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20.ToIconString());
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.DiceD20.ToIconString());
                     ImGui.PopFont();
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
 
                     ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("GroupLastRoll"));
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                    ImGui.TextColored(ImGuiColors.ParsedGold, rollSummary);
+                    ImGui.TextColored(SoulstoneTheme.Gold, rollSummary);
                 }
             }
         }
@@ -1013,7 +1027,7 @@ namespace Soulstone.Windows
             int curStatValue = memberRollStatValues.TryGetValue(member.CharacterName, out var sVal) ? sVal : 0;
 
             ImGui.Spacing();
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.09f, 0.11f, 0.85f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
             using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.35f, 0.30f, 0.15f, 0.75f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * ImGuiHelpers.GlobalScale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 8.0f) * ImGuiHelpers.GlobalScale))
@@ -1021,9 +1035,9 @@ namespace Soulstone.Windows
             {
                 if (!drawer.Success) return;
 
-                ImGui.TextColored(ImGuiColors.ParsedGold, $"{LocalizationManager.Instance.GetLocalizedString("GroupQuickRoll")}: {member.CharacterName}");
+                ImGui.TextColored(SoulstoneTheme.Gold, $"{LocalizationManager.Instance.GetLocalizedString("GroupQuickRoll")}: {member.CharacterName}");
                 ImGui.SameLine(0, 10.0f * ImGuiHelpers.GlobalScale);
-                UiUtils.PillBadge(DiceRoll.DescribeSystemRoll(diceSystem, curStatValue), new Vector4(0.24f, 0.20f, 0.12f, 0.85f), ImGuiColors.ParsedGold, FontAwesomeIcon.DiceD20);
+                UiUtils.PillBadge(DiceRoll.DescribeSystemRoll(diceSystem, curStatValue), new Vector4(0.24f, 0.20f, 0.12f, 0.85f), SoulstoneTheme.Gold, FontAwesomeIcon.DiceD20);
                 ImGui.Spacing();
 
                 // Rolls honour the active dice system by default; unchecking allows a raw formula.
@@ -1136,7 +1150,7 @@ namespace Soulstone.Windows
             if (!expandedStatsMembers.Contains(member.CharacterName)) return;
 
             ImGui.Spacing();
-            using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.08f, 0.09f, 0.11f, 0.85f)))
+            using (ImRaii.PushColor(ImGuiCol.ChildBg, SoulstoneTheme.Field))
             using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.20f, 0.35f, 0.55f, 0.75f)))
             using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 6.0f * ImGuiHelpers.GlobalScale))
             using (ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(10.0f, 8.0f) * ImGuiHelpers.GlobalScale))
@@ -1230,7 +1244,7 @@ namespace Soulstone.Windows
                     ImGui.TableSetColumnIndex(0);
                     ImGui.PushFont(UiBuilder.IconFont);
                     var icon = member.IsPartyLeader ? FontAwesomeIcon.Crown : GetJobRoleIcon(member.JobName);
-                    var iconCol = member.IsPartyLeader ? ImGuiColors.ParsedGold : ImGuiColors.DalamudWhite;
+                    var iconCol = member.IsPartyLeader ? SoulstoneTheme.Gold : ImGuiColors.DalamudWhite;
                     ImGui.TextColored(iconCol, icon.ToIconString());
                     ImGui.PopFont();
 
@@ -1308,7 +1322,7 @@ namespace Soulstone.Windows
                     ImGui.TableSetColumnIndex(3);
                     if (!string.IsNullOrWhiteSpace(member.LastRollSummary))
                     {
-                        ImGui.TextColored(ImGuiColors.ParsedGold, member.LastRollSummary);
+                        ImGui.TextColored(SoulstoneTheme.Gold, member.LastRollSummary);
                     }
                     else
                     {
@@ -1455,7 +1469,7 @@ namespace Soulstone.Windows
         private static Vector4 GetHpBarColor(float fraction)
         {
             if (fraction <= 0.0f)
-                return new Vector4(0.35f, 0.35f, 0.35f, 0.9f); // Incapacitated
+                return SoulstoneTheme.Border; // Incapacitated
             if (fraction <= 0.25f)
                 return new Vector4(0.85f, 0.20f, 0.20f, 0.95f); // Crimson / Critical
             if (fraction <= 0.50f)
@@ -1477,7 +1491,7 @@ namespace Soulstone.Windows
 
         private static (Vector4 bg, Vector4 text) GetJobBadgeColors(string jobName)
         {
-            if (string.IsNullOrWhiteSpace(jobName)) return (new Vector4(0.2f, 0.25f, 0.35f, 0.8f), ImGuiColors.ParsedBlue);
+            if (string.IsNullOrWhiteSpace(jobName)) return (SoulstoneTheme.Border, ImGuiColors.ParsedBlue);
 
             string j = jobName.ToUpperInvariant();
             if (j is "PLD" or "WAR" or "DRK" or "GNB" or "GLA" or "MRD") // Tank
@@ -1489,7 +1503,7 @@ namespace Soulstone.Windows
                      "BLM" or "SMN" or "RDM" or "PCT" or "BLU" or "THM" or "ACN") // DPS
                 return (new Vector4(0.50f, 0.18f, 0.18f, 0.9f), ImGuiColors.DalamudRed);
 
-            return (new Vector4(0.25f, 0.25f, 0.35f, 0.85f), ImGuiColors.DalamudWhite);
+            return (SoulstoneTheme.Border, ImGuiColors.DalamudWhite);
         }
 
         #endregion

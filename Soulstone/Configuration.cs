@@ -14,6 +14,7 @@ public class Configuration : IPluginConfiguration
     public bool SomePropertyToBeSavedAndWithADefault { get; set; } = true;
 
     public bool detailedRolls = false;
+    public bool ShowRollPresentation { get; set; } = true;
     public bool showEpicBonus = false;
     public bool showGroupResources = true;
     public bool ShowGroupResources { get => showGroupResources; set => showGroupResources = value; }
@@ -49,6 +50,34 @@ public class Configuration : IPluginConfiguration
     public string SyncHostWorld { get; set; } = string.Empty;
     public string SyncInviteCode { get; set; } = string.Empty;
     public bool SyncAutoConnect { get; set; } = true;
+
+    // Ownership credentials belong to local configuration, never published sheets or rulesets.
+    public Dictionary<string, string> PublicationTokens { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    internal string GetPublicationToken(string serverUrl, string resource, bool create = true)
+    {
+        PublicationTokens ??= new(StringComparer.OrdinalIgnoreCase);
+        if (!ReferenceEquals(PublicationTokens.Comparer, StringComparer.OrdinalIgnoreCase))
+            PublicationTokens = new Dictionary<string, string>(PublicationTokens, StringComparer.OrdinalIgnoreCase);
+        string key = $"{Sync.RelayCrypto.NormalizeServerUrl(serverUrl)}|{resource}";
+        if (PublicationTokens.TryGetValue(key, out var token))
+            return token;
+        if (!create)
+            return string.Empty;
+        token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        PublicationTokens[key] = token;
+        Save();
+        return token;
+    }
+
+    internal void SetPublicationToken(string serverUrl, string resource, string token)
+    {
+        PublicationTokens ??= new(StringComparer.OrdinalIgnoreCase);
+        if (!ReferenceEquals(PublicationTokens.Comparer, StringComparer.OrdinalIgnoreCase))
+            PublicationTokens = new Dictionary<string, string>(PublicationTokens, StringComparer.OrdinalIgnoreCase);
+        PublicationTokens[$"{Sync.RelayCrypto.NormalizeServerUrl(serverUrl)}|{resource}"] = token;
+        Save();
+    }
 
     // The below exist just to make saving less cumbersome
     public void Save()

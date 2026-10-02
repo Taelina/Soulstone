@@ -11,7 +11,7 @@ using Soulstone.Utils;
 
 namespace Soulstone.Windows;
 
-public class MainWindow : Window, IDisposable
+public partial class MainWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
     private readonly CharacterWindow charwin;
@@ -27,7 +27,7 @@ public class MainWindow : Window, IDisposable
     public MainWindow(Plugin plugin)
         : base("Soulstone###SoulstoneMainWin", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
-        Size = new Vector2(750, 620);
+        Size = new Vector2(1280, 850);
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
@@ -51,120 +51,13 @@ public class MainWindow : Window, IDisposable
     public override void Draw()
     {
         DrawHeader();
-
-        using var tabs = ImRaii.TabBar("SoulstoneTabs", ImGuiTabBarFlags.FittingPolicyScroll);
-        if (tabs.Success)
-        {
-            var rpTitle = $"{LocalizationManager.Instance.GetLocalizedString("RPTab")}###RPSheet";
-            if (ImGui.BeginTabItem(rpTitle))
-            {
-                using (var child = ImRaii.Child("##RPTabContent", new Vector2(0, 0), false))
-                {
-                    if (child.Success)
-                    {
-                        charwin.DrawCharTab();
-                    }
-                }
-                ImGui.EndTabItem();
-            }
-
-            var diceTitle = $"{LocalizationManager.Instance.GetLocalizedString("DiceRollTab")}###DiceSheet";
-            if (ImGui.BeginTabItem(diceTitle))
-            {
-                using (var child = ImRaii.Child("##DiceTabContent", new Vector2(0, 0), false))
-                {
-                    if (child.Success)
-                    {
-                        dicewin.DrawDiceTab();
-                    }
-                }
-                ImGui.EndTabItem();
-            }
-
-            var statTitle = $"{LocalizationManager.Instance.GetLocalizedString("StatSheetTab")}###StatSheet";
-            if (ImGui.BeginTabItem(statTitle))
-            {
-                using (var child = ImRaii.Child("##StatTabContent", new Vector2(0, 0), false))
-                {
-                    if (child.Success)
-                    {
-                        statwin.DrawCharStats();
-                    }
-                }
-                ImGui.EndTabItem();
-            }
-
-            var featTitle = $"{LocalizationManager.Instance.GetLocalizedString("FeatTab")}###FeatSheet";
-            if (ImGui.BeginTabItem(featTitle))
-            {
-                using (var child = ImRaii.Child("##FeatTabContent", new Vector2(0, 0), false))
-                {
-                    if (child.Success)
-                    {
-                        featwin.DrawFeatsTab();
-                    }
-                }
-                ImGui.EndTabItem();
-            }
-
-            var gearTitle = $"{LocalizationManager.Instance.GetLocalizedString("GearTab")}###GearSheet";
-            if (ImGui.BeginTabItem(gearTitle))
-            {
-                using (var child = ImRaii.Child("##GearTabContent", new Vector2(0, 0), false))
-                {
-                    if (child.Success)
-                    {
-                        gearwin.DrawGearTab();
-                    }
-                }
-                ImGui.EndTabItem();
-            }
-
-            var currentDiceSys = DiceSystemManager.Instance.CurrentDiceSystem;
-            if (currentDiceSys?.systemHasAugmentations == true)
-            {
-                var augTabTitle = !string.IsNullOrWhiteSpace(currentDiceSys.AugmentationTitle)
-                    ? $"{currentDiceSys.AugmentationTitle}###AugmentationsSheet"
-                    : $"{LocalizationManager.Instance.GetLocalizedString("AugmentationTab")}###AugmentationsSheet";
-                if (ImGui.BeginTabItem(augTabTitle))
-                {
-                    using (var child = ImRaii.Child("##AugTabContent", new Vector2(0, 0), false))
-                    {
-                        if (child.Success)
-                        {
-                            augwin.DrawAugmentationsTab();
-                        }
-                    }
-                    ImGui.EndTabItem();
-                }
-            }
-
-            var invTitle = $"{LocalizationManager.Instance.GetLocalizedString("InventoryTab")}###InventorySheet";
-            if (ImGui.BeginTabItem(invTitle))
-            {
-                using (var child = ImRaii.Child("##InventoryTabContent", new Vector2(0, 0), false))
-                {
-                    if (child.Success)
-                    {
-                        invwin.DrawInventoryTab();
-                    }
-                }
-                ImGui.EndTabItem();
-            }
-
-            var sysTitle = $"{LocalizationManager.Instance.GetLocalizedString("DiceSystemTab")}###DiceSystem";
-            if (ImGui.BeginTabItem(sysTitle))
-            {
-                using (var child = ImRaii.Child("##DiceSystemTabContent", new Vector2(0, 0), false))
-                {
-                    if (child.Success)
-                    {
-                        dicesyswin.DrawDiceSystemTab();
-                    }
-                }
-                ImGui.EndTabItem();
-            }
-        }
+        var scale = ImGuiHelpers.GlobalScale;
+        var compact = ImGui.GetContentRegionAvail().X < 800 * scale;
+        var sidebarWidth = (compact ? 54 : 220) * scale;
+        DrawSidebar(sidebarWidth, compact);
+        ImGui.SameLine(0, 12 * scale);
+        using var content = ImRaii.Child($"##MainContent_{selectedSection}", Vector2.Zero, false, ImGuiWindowFlags.HorizontalScrollbar);
+        if (content.Success) DrawSelectedSection();
     }
 
     private void DrawHeader()
@@ -174,11 +67,9 @@ public class MainWindow : Window, IDisposable
         var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
 
         // Branded Header Title with CharacterSelect+ style emblem
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.TextColored(ImGuiColors.ParsedGold, FontAwesomeIcon.Gem.ToIconString());
-        ImGui.PopFont();
+        SoulstoneBrand.DrawIcon(24 * scale);
         ImGui.SameLine(0, 6.0f * scale);
-        ImGui.TextColored(ImGuiColors.ParsedGold, "Soulstone");
+        ImGui.TextColored(SoulstoneTheme.Gold, "Soulstone");
 
         if (sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName))
         {
@@ -198,9 +89,9 @@ public class MainWindow : Window, IDisposable
         var groupLabel = LocalizationManager.Instance.GetLocalizedString("GroupOpenWindow");
         var initLabel = LocalizationManager.Instance.GetLocalizedString("InitiativeOpenTracker");
         var configLabel = LocalizationManager.Instance.GetLocalizedString("ConfigButton");
-        var groupBtnWidth = ImGui.CalcTextSize(groupLabel).X + 28.0f * scale;
-        var initBtnWidth = ImGui.CalcTextSize(initLabel).X + 28.0f * scale;
-        var configBtnWidth = ImGui.CalcTextSize(configLabel).X + 20.0f * scale;
+        var groupBtnWidth = 32.0f * scale;
+        var initBtnWidth = 32.0f * scale;
+        var configBtnWidth = 32.0f * scale;
         var totalButtonsWidth = groupBtnWidth + initBtnWidth + configBtnWidth + 14.0f * scale;
 
         var rightX = ImGui.GetWindowContentRegionMax().X - totalButtonsWidth;

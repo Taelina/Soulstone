@@ -41,7 +41,7 @@ namespace Soulstone.Utils
                     rolls.Add(roll);
                     total += roll;
                 }
-                else if(advantage)
+                else if (advantage)
                 {
                     roll1 = rand.Next(1, sidesPerDie + 1);
                     roll2 = rand.Next(1, sidesPerDie + 1);
@@ -49,7 +49,7 @@ namespace Soulstone.Utils
                     rolls.Add(roll);
                     total += roll;
                 }
-                else if(disadvantage)
+                else if (disadvantage)
                 {
                     roll1 = rand.Next(1, sidesPerDie + 1);
                     roll2 = rand.Next(1, sidesPerDie + 1);
