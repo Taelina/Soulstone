@@ -1147,10 +1147,16 @@ namespace Soulstone.Managers
             var sheet = CharacterManager.Instance.CharacterSheet;
             if (sheet == null) return;
             var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
+            var stats = CreatePrivateStatsPayload(sheet, diceSys, GetLocalPlayerName(), configuration?.SyncHostName ?? GetPartyLeaderName());
+            SendPacket(SyncEventType.PrivateStats, stats);
+        }
+
+        internal static PrivateStatsPayload CreatePrivateStatsPayload(CharacterSheet sheet, DiceSystem? diceSys, string characterName, string targetName)
+        {
             var stats = new PrivateStatsPayload
             {
-                CharacterName = GetLocalPlayerName(),
-                TargetName = configuration?.SyncHostName ?? GetPartyLeaderName(),
+                CharacterName = characterName,
+                TargetName = targetName,
                 Level = sheet.CharacterLevel,
                 ClassName = sheet.CharacterClass
             };
@@ -1164,7 +1170,11 @@ namespace Soulstone.Managers
             if (skills != null)
             {
                 foreach (var skill in skills)
+                {
                     stats.Skills[skill.Key] = sheet.GetEffectiveSkillTotal(skill.Key, diceSys);
+                    if ((diceSys == null || diceSys.systemHasFavoriteAttributes) && skill.Value.IsFavorite)
+                        stats.FavoriteSkills.Add(skill.Key);
+                }
             }
             var abs = sheet.GetEffectiveAbilities(diceSys);
             if (abs != null)
@@ -1172,7 +1182,7 @@ namespace Soulstone.Managers
                 foreach (var ability in abs)
                     stats.Abilities[ability.Key] = sheet.GetEffectiveAbilityModifier(ability.Key);
             }
-            SendPacket(SyncEventType.PrivateStats, stats);
+            return stats;
         }
 
         public void BroadcastInitiativeSync(int round, int turnNumber, string? activeId, List<InitiativeParticipant> participants)

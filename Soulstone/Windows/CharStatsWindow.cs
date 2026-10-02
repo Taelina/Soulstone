@@ -1093,10 +1093,10 @@ namespace Soulstone.Windows
                             int effectiveAttrVal = attributeValue + attributeTemp + attributePerm + attrGearBonus + attrBuffBonus + attrFeatBonus;
                             int skillTempBonus = (currentDiceSystem == null || currentDiceSystem.systemHasBonusTemp) ? skill.Value.tempBonus : 0;
                             int totalModifier = skill.Value.skillModifier + skillTempBonus + skillGearBonus + skillBuffBonus + skillFeatBonus + (hasLinkedAttr ? effectiveAttrVal : 0);
+                            bool hasFavoriteSkills = currentDiceSystem == null || currentDiceSystem.systemHasFavoriteAttributes;
 
                             if (editingStats)
                             {
-                                bool hasFavoriteSkills = currentDiceSystem == null || currentDiceSystem.systemHasFavoriteAttributes;
                                 if (hasFavoriteSkills)
                                 {
                                     var favIconCol = skill.Value.IsFavorite ? SoulstoneTheme.Gold : SoulstoneTheme.Muted;
@@ -1133,6 +1133,18 @@ namespace Soulstone.Windows
                             }
                             else
                             {
+                                if (hasFavoriteSkills && skill.Value.IsFavorite)
+                                {
+                                    ImGui.PushFont(UiBuilder.IconFont);
+                                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Star.ToIconString());
+                                    ImGui.PopFont();
+                                    if (ImGui.IsItemHovered())
+                                    {
+                                        ImGuiEx.Tooltip(LocalizationManager.Instance.GetLocalizedString("FavoriteSkillTooltip"));
+                                    }
+                                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                                }
+
                                 ImGui.AlignTextToFramePadding();
                                 ImGui.TextColored(ImGuiColors.DalamudWhite, skill.Value.skillName);
 

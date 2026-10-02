@@ -106,5 +106,36 @@ namespace Soulstone.Tests.Datamodels
             clone.IsFavorite.Should().BeTrue();
             clone.TempBonus.Should().Be(2);
         }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void FavoriteToggledOnEffectiveSkill_RemainsAvailableForViewingAndAfterReload(bool useRuleset)
+        {
+            var sheet = new CharacterSheet();
+            var system = useRuleset ? new DiceSystem { SystemHasFavoriteAttributes = true } : null;
+            if (system != null)
+            {
+                system.SystemSkills["Stealth"] = new Skill("Stealth", 3, "Dexterity");
+                system.SystemSkills["Athletics"] = new Skill("Athletics", 2, "Strength");
+                sheet.ApplyRulesetTemplate(system);
+            }
+            else
+            {
+                sheet.CharacterSkills["Stealth"] = new Skill("Stealth", 3, "Dexterity");
+                sheet.CharacterSkills["Athletics"] = new Skill("Athletics", 2, "Strength");
+            }
+
+            sheet.GetEffectiveSkills(system)["Stealth"].IsFavorite = true;
+
+            var viewingSkills = sheet.GetEffectiveSkills(system);
+            viewingSkills["Stealth"].IsFavorite.Should().BeTrue();
+            viewingSkills["Athletics"].IsFavorite.Should().BeFalse();
+            system?.SystemSkills["Stealth"].IsFavorite.Should().BeFalse();
+
+            var reloaded = JsonSerializer.Deserialize<CharacterSheet>(JsonSerializer.Serialize(sheet))!;
+            reloaded.GetEffectiveSkills(system)["Stealth"].IsFavorite.Should().BeTrue();
+            reloaded.GetEffectiveSkills(system)["Athletics"].IsFavorite.Should().BeFalse();
+        }
     }
 }

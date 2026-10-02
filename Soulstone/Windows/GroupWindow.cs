@@ -1183,7 +1183,7 @@ namespace Soulstone.Windows
                 // Skills Grid with Direct Roll buttons
                 if (member.Skills.Count > 0)
                 {
-                    DrawStatChipsGrid(LocalizationManager.Instance.GetLocalizedString("SkillLabel"), member.Skills, member.CharacterName);
+                    DrawStatChipsGrid(LocalizationManager.Instance.GetLocalizedString("SkillLabel"), member.Skills, member.CharacterName, member.FavoriteSkills);
                     ImGui.Spacing();
                 }
 
@@ -1195,13 +1195,23 @@ namespace Soulstone.Windows
             }
         }
 
-        private void DrawStatChipsGrid(string categoryTitle, Dictionary<string, int> stats, string memberName)
+        private void DrawStatChipsGrid(string categoryTitle, Dictionary<string, int> stats, string memberName, HashSet<string>? favoriteSkills = null)
         {
             ImGui.TextDisabled(categoryTitle);
             ImGui.Spacing();
 
             foreach (var kv in stats.OrderBy(s => s.Key))
             {
+                if (favoriteSkills?.Contains(kv.Key) == true)
+                {
+                    ImGui.AlignTextToFramePadding();
+                    ImGui.PushFont(UiBuilder.IconFont);
+                    ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Star.ToIconString());
+                    ImGui.PopFont();
+                    if (ImGui.IsItemHovered())
+                        UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FavoriteSkillTooltip"));
+                    ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
+                }
                 string chipText = $"{kv.Key}: {kv.Value}";
                 using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.18f, 0.22f, 0.28f, 0.85f)))
                 {

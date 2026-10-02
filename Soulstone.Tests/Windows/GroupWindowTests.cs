@@ -8,6 +8,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
@@ -28,6 +29,58 @@ namespace Soulstone.Tests.Windows
                 LocalizationManager.Instance.InitLoc(plugin);
             }
         }
+        [Fact]
+        public void SkillFavorites_ReachGroupStatsThroughSerializedPrivateStats_AndClearWhenUntoggled()
+        {
+            var system = new DiceSystem { SystemHasFavoriteAttributes = true };
+            system.SystemSkills["Stealth"] = new Skill("Stealth", 3);
+            system.SystemSkills["Athletics"] = new Skill("Athletics", 2);
+            var sheet = new CharacterSheet();
+            sheet.GetEffectiveSkills(system)["Stealth"].IsFavorite = true;
+            var member = new PartyMemberSyncData();
+
+            var outgoing = PartySyncManager.CreatePrivateStatsPayload(sheet, system, "Player", "Host");
+            var incoming = JsonSerializer.Deserialize<PrivateStatsPayload>(JsonSerializer.Serialize(outgoing))!;
+            member.ApplyPrivateStats(incoming);
+
+            member.Skills["Stealth"].Should().Be(3);
+            member.FavoriteSkills.Should().ContainSingle().Which.Should().Be("Stealth");
+            member.FavoriteSkills.Contains("stealth").Should().BeTrue();
+            member.FavoriteSkills.Should().NotContain("Athletics");
+
+            sheet.GetEffectiveSkills(system)["Stealth"].IsFavorite = false;
+            member.ApplyPrivateStats(PartySyncManager.CreatePrivateStatsPayload(sheet, system, "Player", "Host"));
+            member.FavoriteSkills.Should().BeEmpty();
+        }
+
+        [Theory]
+        [InlineData("{\"Skills\":{\"Stealth\":3}}")]
+        [InlineData("{\"Skills\":{\"Stealth\":3},\"FavoriteSkills\":null}")]
+        public void LegacyPrivateStats_ClearPreviouslyReceivedFavorites(string json)
+        {
+            var member = new PartyMemberSyncData { FavoriteSkills = new(StringComparer.OrdinalIgnoreCase) { "Stealth" } };
+
+            member.ApplyPrivateStats(JsonSerializer.Deserialize<PrivateStatsPayload>(json)!);
+
+            member.Skills["Stealth"].Should().Be(3);
+            member.FavoriteSkills.Should().BeEmpty();
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void PrivateStats_RespectRulesetFavoriteAvailability(bool enabled)
+        {
+            var sheet = new CharacterSheet();
+            sheet.CharacterSkills["Stealth"] = new Skill("Stealth", 3, isFavorite: true);
+            var system = new DiceSystem { SystemHasFavoriteAttributes = enabled };
+
+            var payload = PartySyncManager.CreatePrivateStatsPayload(sheet, system, "Player", "Host");
+
+            payload.FavoriteSkills.Contains("Stealth").Should().Be(enabled);
+            payload.Skills["Stealth"].Should().Be(3);
+        }
+
         [Fact]
         public void PartyMemberSyncData_VitalsAndFraction_CalculatesCorrectly()
         {

@@ -143,6 +143,7 @@ namespace Soulstone.Datamodels
         public string ClassName { get; set; } = string.Empty;
         public Dictionary<string, int> Attributes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, int> Skills { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public List<string> FavoriteSkills { get; set; } = new();
         public Dictionary<string, int> Abilities { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 }
