@@ -28,6 +28,24 @@ Documentation targets **Soulstone 1.4.0**. For Windows API hosting, follow the
 crash recovery, direct HTTP, optional HTTPS, upgrades, and troubleshooting. Upgrade plugin and server
 together and read the [publication migration](docs/PUBLICATION_API.md).
 
+## Installation
+
+Launch Final Fantasy XIV through **XIVLauncher** with **Dalamud enabled**, then add Soulstone's custom plugin repository:
+
+1. Type `/xlsettings` in the in-game chat to open **Dalamud Settings**.
+2. Open the **Experimental** tab and find **Custom Plugin Repositories**.
+3. Paste the following URL into the empty repository field:
+
+   ```text
+   https://raw.githubusercontent.com/Taelina/Soulstone/refs/heads/master/SoulstoneRep.json
+   ```
+
+4. Click the **+** button to add the repository, make sure it is enabled, then save your settings.
+5. Type `/xlplugins` to open the **Plugin Installer**, search for **Soulstone** under **Available Plugins**, and click **Install**.
+6. Once installed, type `/soulstone` to open the plugin.
+
+If Soulstone does not appear immediately, close and reopen the Plugin Installer and check that the repository URL was saved and enabled.
+
 ## ✨ Features
 
 ### 🎭 Character RP Sheets & Profiles
