@@ -1,4 +1,4 @@
-﻿<p align="center">
+<p align="center">
   <img src="https://www.aht.li/3945121/Soulstone.png" alt="Soulstone Logo" width="200" height="200">
 </p>
 
@@ -22,6 +22,11 @@
 Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or participate in complex TTRPG systems (D&D 5e, Pathfinder, Shadowrun, Call of Cthulhu, Cyberpunk, custom homebrews), Soulstone provides everything you need to manage your character without leaving the game.
 
 ---
+
+Documentation targets **Soulstone 1.4.0**. For Windows API hosting, follow the
+[deployment guide](docs/DEPLOYMENT.md), including installation, boot startup,
+crash recovery, direct HTTP, optional HTTPS, upgrades, and troubleshooting. Upgrade plugin and server
+together and read the [publication migration](docs/PUBLICATION_API.md).
 
 ## ✨ Features
 
@@ -67,7 +72,9 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 - **Accurate Role Resolution**: Explicit DM / Party Leader detection ensures non-host members are never misidentified as DM.
 - **DM Coordination**: The DM can request rolls, roll for players, distribute rulesets, and control shared initiative state.
 - **Scoped Data Sharing**: Resource bars and roll results are shared with the session, while full character stats are encrypted specifically for the DM.
-- **Remote Character Sheet Inspection**: Publish character sheets to the sync relay registry and inspect other players' sheets and vitals without requiring an active party session.
+- **Remote Public Profiles**: Publish visible fields/resources for inspection without a party session. The plugin excludes hidden fields, private stats, inventory, and local portrait paths; updates require locally stored ownership credentials.
+- **Ruleset Sharing**: Publish dice systems under share codes, download them, and check for updates. Republishing another player's ruleset creates your own code.
+- **In-Memory Server State**: Restarting clears sessions, invites, profiles, and rulesets. Recreate sessions and republish afterward; local plugin data remains on players' machines.
 - **Self-Hosted Relay**: `Soulstone.SyncServer` runs unattended as a .NET application, single-file executable, service, or container. See [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
 
 ### 🎒 Inventory & Item Management
@@ -97,6 +104,7 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 - **Customizable System Rules**: Configure Advantage/Disadvantage, temporary & permanent bonuses, epic attributes, dynamic skill linking, formula initiative, and success thresholds.
 - **Persistent Dice Roll History**: Built-in audit trail recording roll events with timestamps, character names, expressions, detailed breakdowns, and totals.
 - **System Persistence**: Automatically persists and restores the last active dice system across plugin restarts.
+- **Optional Roll Presentation**: A cinematic panel reveals completed rolls and handles requested rolls. Skipping or disabling animation does not change calculations.
 
 ### 💬 Chat Integration & Broadcasting
 - **In-Game Chat Broadcast**: Automatically outputs formatted roll results, calculations, and ability descriptions to the in-game `/say`, `/party`, or custom chat channels.
@@ -126,6 +134,10 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 
 You can also access Soulstone windows, configuration, and tools through the **Dalamud Plugin Installer** or title bar shortcuts.
 
+The sidebar groups character pages under **Character**, dice/group tools under
+**Tools**, and preferences under **Settings**. Open **Tools > Group** to configure
+the relay URL, create a host session, or join through an invite.
+
 ---
 
 ## 🚀 Navigation & Windows
@@ -134,7 +146,7 @@ You can also access Soulstone windows, configuration, and tools through the **Da
 | :--- | :--- |
 | **RP Sheet (`CharacterWindow`)** | Character identity, appearance, biography, quick glance hooks, privacy toggles, and relationships. |
 | **Stat Sheet (`CharStatsWindow`)** | Dynamic HP/MP/resources, attributes, skills, abilities, and quick roll cards. |
-| **Feats & Traits (`FeatsWindow`)** | Character feats, perks, racial traits, flaws, and custom stat modifiers. |
+| **Abilities & Feats (`FeatsWindow`)** | Abilities, feats, perks, racial traits, flaws, and custom stat modifiers. |
 | **Inventory (`InventoryWindow`)** | Item management, categories, weight, value, search, and item inspection. |
 | **Gear (`GearWindow`)** | Equipment slots, equipped items, and passive stat bonuses. |
 | **Augmentations (`AugmentationsWindow`)** | Cyberware and magitek installations, slot allocations, and essence tracking. |
@@ -144,6 +156,7 @@ You can also access Soulstone windows, configuration, and tools through the **Da
 | **Dice Rolling (`DiceWindow`)** | Quick dice roller with expression evaluator, advantage toggles, roll history log, and chat broadcast. |
 | **Dice System (`DiceSystemWindow`)** | Tabletop RPG rule engine configuration, thresholds, and default resource setups. |
 | **Settings (`ConfigWindow`)** | Plugin preferences, localization selection, and chat formatting options. |
+| **Roll Presentation (`RollPresentationWindow`)** | Optional result animation and requested-roll controls. |
 
 ---
 
@@ -153,7 +166,7 @@ Soulstone is developed in C# targeting **.NET 10.0 (Windows)** and built on top 
 
 - **Architecture Documentation**: For detailed technical documentation on classes, design patterns, datamodels, and subsystems, see [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md).
 - **Synchronization Server & Deployment**: Step-by-step setup, Linux/Windows service configuration, router port forwarding, and TLS/HTTPS guides are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
-- **Unit Test Suite**: Fully covered by unit tests using **xUnit** and **FluentAssertions** in `Soulstone.Tests`.
+- **Tests**: Plugin tests live in `Soulstone.Tests`; API, registry, and relay tests live in `Soulstone.SyncServer.Tests`, using **xUnit** and **FluentAssertions**.
 
 To build the project locally:
 ```powershell

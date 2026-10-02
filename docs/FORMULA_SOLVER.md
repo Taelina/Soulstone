@@ -1,5 +1,11 @@
 # Soulstone Formula Solver Documentation
 
+Reference for **Soulstone 1.4.0**. Formulas execute in the plugin, not the relay.
+Health/Mana examples refer to user-defined resources, not legacy built-in fields.
+Public uploads exclude resource formulas and private stats. See
+[architecture](DOCUMENTATION.md), [publication contracts](PUBLICATION_API.md),
+and [server deployment](DEPLOYMENT.md).
+
 The **Soulstone Formula Solver** (`StatFormulaEvaluator`) is a safe, expressive mathematical evaluation engine embedded within Soulstone. It allows players and Dungeon Masters to dynamically compute character resource maximums, initiative values, flat resource statistics, abilities, roll modifiers, and tabletop thresholds directly from character sheets and rulesets.
 
 ---

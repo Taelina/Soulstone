@@ -5,6 +5,40 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-02
+
+### Added
+- **Roll Presentation**:
+  - Added an optional cinematic roll panel with animated reveals, critical-result feedback, and controls for requested rolls and skipping animations.
+- **Publication Ownership**:
+  - Added local ownership credentials for character profiles and shared dice systems, with server-side authorization, publication limits, expiry, and write rate limiting.
+
+### Changed
+- **User Interface & Character Sheets**:
+  - Added Soulstone branding, grouped navigation, and a refreshed character sheet with separate viewing and editing controls.
+  - Refined layouts across character stats, dice systems, gear, inventory, group management, and initiative tracking.
+- **Public Character Profiles**:
+  - Publish only visible profile fields and resources, excluding private stats, inventory, hidden fields, and local portrait paths.
+  - Debounce automatic publication and restrict it to the active player sheet.
+- **Localization**:
+  - Added matching English and French strings for navigation, character sheets, and roll presentation.
+- **Version Manifests & Metadata**:
+  - Bumped version to `1.4.0.0` across `Soulstone.csproj`, `Soulstone.json`, and `SoulstoneRep.json`, refreshed the repository update timestamp, and updated download links for release `V1.4.0`.
+
+### Fixed
+- **Party Synchronization & Lifecycle**:
+  - Dispatch game-facing synchronization work to the framework thread, serialize session operations, and ignore callbacks from outdated sessions.
+  - Improve relay shutdown and reconnection handling and require host signatures for full initiative snapshots.
+- **Character Inspection**:
+  - Make world-qualified profile lookups exact and exclude local-only participant state from synchronized snapshots.
+
+### Upgrade Notes
+- Updated the Windows deployment guide with Task Scheduler boot startup, Local Service permissions, restart settings, direct HTTP access, optional HTTPS, health checks, upgrades, rollback, and troubleshooting.
+- Upgrade the plugin and relay server together and restart the relay to discard legacy unauthenticated publications. Older plugins can still download public content, but their publication requests are rejected.
+- Keep a secure backup of plugin configuration to retain publication ownership credentials. Existing ruleset codes without a local credential are republished under a new code. See [publication API and migration](docs/PUBLICATION_API.md).
+
+---
+
 ## [1.3.0] - 2026-10-01
 
 ### Added
