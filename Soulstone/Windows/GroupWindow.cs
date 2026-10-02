@@ -666,10 +666,13 @@ namespace Soulstone.Windows
 
         #region 4. Roster Presentation (Cards & Tactical Grid)
 
+        // Keep the roster within the remaining space, even in short windows.
+        internal static float GetRosterPanelHeight(float availableHeight) => Math.Max(1.0f, availableHeight);
+
         private void DrawRosterContent()
         {
             using var rosterPanel = SoulstoneTheme.BeginPanel("##GroupRosterPanel", LocalizationManager.Instance.GetLocalizedString("GroupManagementTitle"), FontAwesomeIcon.Users,
-                height: Math.Max(300 * ImGuiHelpers.GlobalScale, ImGui.GetContentRegionAvail().Y));
+                height: GetRosterPanelHeight(ImGui.GetContentRegionAvail().Y));
             if (!rosterPanel.Success) return;
             var allMembers = PartySyncManager.Instance.ConnectedPartyMembers.Values
                 .OrderByDescending(m => m.IsPartyLeader)
@@ -708,9 +711,6 @@ namespace Soulstone.Windows
                 ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("GroupNoMatches"));
                 return;
             }
-
-            using var scroll = ImRaii.Child("##GroupRosterScrollView", new Vector2(0, 0), false);
-            if (!scroll.Success) return;
 
             if (isGridView)
             {
@@ -1227,7 +1227,7 @@ namespace Soulstone.Windows
         private void DrawTacticalGrid(List<PartyMemberSyncData> members)
         {
             int columns = 5;
-            if (ImGui.BeginTable("##GroupTacticalGrid", columns, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable | ImGuiTableFlags.ScrollY))
+            if (ImGui.BeginTable("##GroupTacticalGrid", columns, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
             {
                 ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("GroupRoleOther"), ImGuiTableColumnFlags.WidthFixed, 50.0f * ImGuiHelpers.GlobalScale);
                 ImGui.TableSetupColumn(LocalizationManager.Instance.GetLocalizedString("NameLabel"), ImGuiTableColumnFlags.WidthStretch, 2.0f);

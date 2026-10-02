@@ -1,13 +1,9 @@
 using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Interface;
-using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using Soulstone.Managers;
-using Soulstone.Utils;
 
 namespace Soulstone.Windows;
 
@@ -50,78 +46,13 @@ public partial class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
-        DrawHeader();
         var scale = ImGuiHelpers.GlobalScale;
         var compact = ImGui.GetContentRegionAvail().X < 800 * scale;
         var sidebarWidth = (compact ? 54 : 220) * scale;
         DrawSidebar(sidebarWidth, compact);
         ImGui.SameLine(0, 12 * scale);
-        using var content = ImRaii.Child($"##MainContent_{selectedSection}", Vector2.Zero, false, ImGuiWindowFlags.HorizontalScrollbar);
+        using var content = ImRaii.Child($"##MainContent_{selectedSection}", Vector2.Zero, false);
         if (content.Success) DrawSelectedSection();
     }
 
-    private void DrawHeader()
-    {
-        var scale = ImGuiHelpers.GlobalScale;
-        var sheet = CharacterManager.Instance.CharacterSheet;
-        var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
-
-        // Branded Header Title with CharacterSelect+ style emblem
-        SoulstoneBrand.DrawIcon(24 * scale);
-        ImGui.SameLine(0, 6.0f * scale);
-        ImGui.TextColored(SoulstoneTheme.Gold, "Soulstone");
-
-        if (sheet != null && !string.IsNullOrWhiteSpace(sheet.CharacterFullName))
-        {
-            ImGui.SameLine(0, 8.0f * scale);
-            ImGui.TextDisabled("•");
-            ImGui.SameLine(0, 8.0f * scale);
-            ImGui.TextColored(ImGuiColors.DalamudWhite, sheet.CharacterFullName);
-
-            if (diceSys != null && !string.IsNullOrWhiteSpace(diceSys.systemName))
-            {
-                ImGui.SameLine(0, 8.0f * scale);
-                UiUtils.PillBadge(diceSys.systemName, new Vector4(0.15f, 0.22f, 0.35f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.DiceD20);
-            }
-        }
-
-        // Right-aligned settings, group, and initiative buttons
-        var groupLabel = LocalizationManager.Instance.GetLocalizedString("GroupOpenWindow");
-        var initLabel = LocalizationManager.Instance.GetLocalizedString("InitiativeOpenTracker");
-        var configLabel = LocalizationManager.Instance.GetLocalizedString("ConfigButton");
-        var groupBtnWidth = 32.0f * scale;
-        var initBtnWidth = 32.0f * scale;
-        var configBtnWidth = 32.0f * scale;
-        var totalButtonsWidth = groupBtnWidth + initBtnWidth + configBtnWidth + 14.0f * scale;
-
-        var rightX = ImGui.GetWindowContentRegionMax().X - totalButtonsWidth;
-        if (ImGui.GetCursorPosX() < rightX)
-        {
-            ImGui.SameLine(rightX);
-        }
-        else
-        {
-            ImGui.SameLine();
-        }
-
-        if (UiUtils.IconButton("OpenGroupBtn", FontAwesomeIcon.Users, groupLabel))
-        {
-            plugin.ToggleGroupUi();
-        }
-
-        ImGui.SameLine(0, 6.0f * scale);
-        if (UiUtils.IconButton("OpenInitTrackerBtn", FontAwesomeIcon.Stopwatch, initLabel))
-        {
-            plugin.ToggleInitiativeTrackerUi();
-        }
-
-        ImGui.SameLine(0, 6.0f * scale);
-        if (UiUtils.IconButton("SettingsBtn", FontAwesomeIcon.Cog, configLabel))
-        {
-            plugin.ToggleConfigUi();
-        }
-
-        UiUtils.DrawOrnamentalDivider();
-        ImGui.Spacing();
-    }
 }

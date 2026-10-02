@@ -47,6 +47,28 @@ namespace Soulstone.Tests.Windows
             Assert.Equal(0.5f, manaFraction);
         }
 
+        [Theory]
+        [InlineData(120f, 1f)]
+        [InlineData(120f, 1.5f)]
+        [InlineData(120f, 2f)]
+        [InlineData(600f, 1f)]
+        public void RosterPanel_InShortAndTallWindows_FitsRemainingSpace(float availableHeight, float scale)
+        {
+            float remainingSpace = availableHeight * scale;
+
+            GroupWindow.GetRosterPanelHeight(remainingSpace).Should().Be(remainingSpace,
+                "the roster must not force an outer scrollbar by exceeding the remaining space");
+        }
+
+        [Theory]
+        [InlineData(0f)]
+        [InlineData(-50f)]
+        public void RosterPanel_WhenHeadersUseAllSpace_HasPositiveHeight(float availableHeight)
+        {
+            GroupWindow.GetRosterPanelHeight(availableHeight).Should().Be(1f,
+                "zero and negative ImGui child heights expand relative to the available space");
+        }
+
         [Fact]
         public void PartyMemberSyncData_RulesetSyncEvaluation_WorksCorrectly()
         {

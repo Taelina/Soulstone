@@ -5,6 +5,21 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-10-02
+
+### Changed
+- **Main Window**:
+  - Removed the redundant header and its Group, Initiative, and Settings shortcuts; these actions remain available in the sidebar.
+- **Version Manifests & Metadata**:
+  - Bumped plugin versions to `1.4.1.0`, refreshed the repository update timestamp, and updated download links for release `V1.4.1`.
+
+### Fixed
+- **Group Window Scrolling**:
+  - Removed horizontal scrolling from the main content pane and nested roster/table scrolling to prevent scrollbar-driven layout vibration.
+  - Fit the roster panel to the remaining window height instead of forcing a 300-pixel minimum, with regression coverage for short windows and UI scaling.
+
+---
+
 ## [1.4.0] - 2026-10-02
 
 ### Added
