@@ -645,6 +645,7 @@
   "RollEchoDefault": "[Soulstone] {0} rolled {1}: {2} ({3})",
   "RollRequestedEcho": "[Soulstone] Roll requested from {0}: {1} ({2})",
   "RolledForMemberEcho": "[Soulstone] Rolled for {0}: {1}",
+  "RollEchoAttributed": "[Soulstone] [{0}] {1}",
   "RollEchoResult": "[Soulstone] {0}: {1}",
   "RulesetSharedEcho": "[Soulstone] Party Leader shared ruleset: {0}",
   "DiceSysSwitchSaveEcho": "[Soulstone] Saved '{0}' and ruleset '{1}' before switching to '{2}'.",

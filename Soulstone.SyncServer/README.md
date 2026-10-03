@@ -1,40 +1,48 @@
-# Soulstone Sync Server — 1.4.0
+# Soulstone Sync Server — 1.5.0
 
-Standalone ASP.NET Core 8 API and WebSocket relay for Soulstone. There is no
-Dalamud dependency, database, interactive setup, or durable publication store.
-It forwards encrypted party messages and stores public profiles, shared rulesets,
-invites, and rooms in memory. Restarting clears all of them.
+Standalone ASP.NET Core 8 API and WebSocket relay for Soulstone, independent of
+Dalamud. Public profiles, shared rulesets, and ownership hashes persist in an
+embedded encrypted SQLCipher Community database. Rooms and invites remain in
+memory; party messages are forwarded without being recorded.
 
-## Deploy on Windows
+For the free Docker Compose setup, native library build, key creation, and
+backups, follow [encrypted storage setup](../docs/ENCRYPTED_STORAGE.md).
+The container builds SQLCipher Community from pinned upstream source; no paid
+packages or license are required. Configure storage before running natively.
 
-Follow the [Windows deployment guide](../docs/DEPLOYMENT.md) in order. It covers
-installation, boot startup through Task Scheduler, failure recovery, direct HTTP,
-upgrades, rollback, and troubleshooting. This console executable needs Task
-Scheduler or a service wrapper; sc.exe create alone does not make it a service.
+## Deploy on Windows with Docker Desktop
 
-From the repository root:
+Follow the [Windows deployment guide](../docs/DEPLOYMENT.md) in order. Docker
+Desktop must be running in Linux-container mode. The image includes the complete
+backend, .NET runtime, and free SQLCipher Community library; no host SDK or
+separate database service is required.
 
-~~~powershell
-dotnet test .\Soulstone.SyncServer.Tests\Soulstone.SyncServer.Tests.csproj
-dotnet publish .\Soulstone.SyncServer\Soulstone.SyncServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o .\Soulstone.SyncServer\bin\publish\win-x64
-& '.\Soulstone.SyncServer\bin\publish\win-x64\Soulstone.SyncServer.exe' --urls 'http://0.0.0.0:5077'
-~~~
+Copy the deployment bundle or repository to a stable directory, configure `.env`
+with a consistent Compose project name and bind address, then generate the key
+once and start the backend:
 
-Copy the complete output, including configuration and native supporting files.
-Self-contained output needs no installed runtime on the host. Development-only
-startup: dotnet run --project Soulstone.SyncServer.
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\Soulstone.SyncServer\Initialize-Storage.ps1
+docker compose up -d --build --wait --wait-timeout 120
+Invoke-RestMethod http://127.0.0.1:5077/health
+```
 
-The default listener is http://0.0.0.0:5077. Override with --urls or
-ASPNETCORE_URLS. The main deployment uses direct HTTP/WS on port 5077, including
-router forwarding for internet access. Optional HTTPS proxy/tunnel instructions
-remain in the guide; those use a loopback HTTP listener. appsettings.json is loaded from the
-executable directory, not the terminal's working directory.
+Keep `secrets\publications.key` and the named database volume through updates.
+The host port binds to loopback by default; change the `.env` bind setting for
+LAN/VPN access or use a host-side HTTPS proxy/tunnel for Internet access.
+Docker Desktop startup at sign-in and the container restart policy are separate;
+the deployment guide explains both, plus updates, rollback, backup, and restore.
+
+For native Windows/Linux alternatives, see
+[storage configuration](../docs/ENCRYPTED_STORAGE.md#configuration-outside-docker).
+Native publishing needs SQLCipher binaries and absolute database/key paths;
+ordinary `dotnet publish` alone is insufficient. The container handles these.
 
 ## API surface
 
 | Method and route | Purpose | Authorization |
 | --- | --- | --- |
-| GET /health | HTTP 200 with {"status":"healthy"} | Public |
+| GET /health | HTTP 200 with {"status":"healthy"}; 503 if storage is unavailable | Public |
 | POST /api/sessions | Returns sessionId, hostToken, memberToken | Public; 10/minute per observed IP |
 | PUT /api/sessions/{sessionId}/invite | Registers inviteId/payload JSON; success 204 | Host bearer token |
 | GET /api/invites/{inviteId} | Returns encrypted invite payload | Public lookup by opaque ID |
@@ -74,9 +82,11 @@ profile fields before upload; the server
 stores submitted JSON and does not independently apply plugin visibility rules.
 Do not upload a full private sheet through manual API calls.
 
-Upgrade plugin and server together for 1.4.0. Restart the relay, recreate sessions,
-and republish content. Old unauthenticated writes fail. Back up plugin
+Upgrade plugin and server together for 1.5.0. Restart the relay, recreate sessions,
+and republish once when migrating from the old in-memory server. Later restarts
+preserve publications and their ownership claims. Old unauthenticated writes fail.
+Back up plugin
 configuration securely to preserve local ownership credentials.
 
-[Linux and Docker deployment](../docs/DEPLOYMENT.md#7-linux-and-containers)
+[Windows Docker deployment](../docs/DEPLOYMENT.md)
 uses the same server contracts.

@@ -5,13 +5,10 @@ namespace Soulstone.SyncServer;
 
 public sealed record StoredCharacterSheet(string CharacterName, string WorldName, string Payload, DateTimeOffset UpdatedAtUtc);
 
-public sealed class CharacterSheetRegistry(TimeProvider timeProvider, ILogger<CharacterSheetRegistry> logger)
+public sealed class CharacterSheetRegistry(PublicationDatabase database, TimeProvider timeProvider, ILogger<CharacterSheetRegistry> logger)
 {
     public static readonly TimeSpan SheetLifetime = TimeSpan.FromDays(7);
     public const int MaxPayloadLength = PublicationSecurity.MaximumPayloadBytes;
-    private readonly object syncRoot = new();
-    private readonly Dictionary<(string Name, string World), Entry> sheets = new();
-    private long storageBytes;
 
     public bool TryStore(string characterName, string? worldName, string payload, string? ownerToken = null) =>
         Store(characterName, worldName, payload, ownerToken) == RegistryWriteResult.Success;
@@ -24,25 +21,43 @@ public sealed class CharacterSheetRegistry(TimeProvider timeProvider, ILogger<Ch
             (worldName?.Length ?? 0) > 128 || !PublicationSecurity.IsValidPayload(payload))
             return RegistryWriteResult.Invalid;
 
-        var cleanName = characterName.Trim();
-        var cleanWorld = (worldName ?? string.Empty).Trim();
-        var key = MakeKey(cleanName, cleanWorld);
+        var key = MakeKey(characterName, worldName ?? string.Empty);
         int bytes = Encoding.UTF8.GetByteCount(payload);
-        lock (syncRoot)
+        var result = database.Write((db, transaction) =>
         {
-            CleanupExpiredCore();
-            sheets.TryGetValue(key, out var existing);
-            if (existing != null && !PublicationSecurity.Matches(existing.OwnerHash, ownerToken!))
+            var now = timeProvider.GetUtcNow();
+            PublicationQueries.Cleanup(db, transaction, "CharacterProfiles", (now - SheetLifetime).UtcTicks);
+            byte[]? ownerHash = null;
+            int? previousBytes = null;
+            using (var lookup = PublicationQueries.Command(db, transaction,
+                       "SELECT OwnerHash, PayloadBytes FROM CharacterProfiles WHERE NameKey = $name AND WorldKey = $world",
+                       ("$name", key.Name), ("$world", key.World)))
+            using (var reader = lookup.ExecuteReader())
+            {
+                if (reader.Read())
+                {
+                    ownerHash = (byte[])reader[0];
+                    previousBytes = reader.GetInt32(1);
+                }
+            }
+            if (ownerHash != null && !PublicationSecurity.Matches(ownerHash, ownerToken!))
                 return RegistryWriteResult.Unauthorized;
-            if ((existing == null && sheets.Count >= PublicationSecurity.MaximumEntries) ||
-                storageBytes - (existing?.Bytes ?? 0) + bytes > PublicationSecurity.MaximumStorageBytes)
+            if (!PublicationQueries.HasCapacity(db, transaction, "CharacterProfiles", previousBytes, bytes))
                 return RegistryWriteResult.Full;
-            sheets[key] = new Entry(new StoredCharacterSheet(cleanName, cleanWorld, payload, timeProvider.GetUtcNow()),
-                existing?.OwnerHash ?? PublicationSecurity.HashToken(ownerToken!), bytes);
-            storageBytes += bytes - (existing?.Bytes ?? 0);
-        }
-        logger.LogInformation("Stored public character profile");
-        return RegistryWriteResult.Success;
+
+            using var write = PublicationQueries.Command(db, transaction, """
+                INSERT INTO CharacterProfiles (NameKey, WorldKey, Payload, OwnerHash, PayloadBytes, UpdatedTicks)
+                VALUES ($name, $world, $payload, $owner, $bytes, $updated)
+                ON CONFLICT (NameKey, WorldKey) DO UPDATE SET
+                    Payload = excluded.Payload, PayloadBytes = excluded.PayloadBytes, UpdatedTicks = excluded.UpdatedTicks
+                """, ("$name", key.Name), ("$world", key.World), ("$payload", payload),
+                ("$owner", ownerHash ?? PublicationSecurity.HashToken(ownerToken!)), ("$bytes", bytes), ("$updated", now.UtcTicks));
+            write.ExecuteNonQuery();
+            return RegistryWriteResult.Success;
+        });
+        if (result == RegistryWriteResult.Success)
+            logger.LogInformation("Stored public character profile");
+        return result;
     }
 
     public bool TryGet(string characterName, string? worldName, [NotNullWhen(true)] out string? payload)
@@ -51,22 +66,23 @@ public sealed class CharacterSheetRegistry(TimeProvider timeProvider, ILogger<Ch
         if (string.IsNullOrWhiteSpace(characterName))
             return false;
         var key = MakeKey(characterName, worldName ?? string.Empty);
-        lock (syncRoot)
+        payload = database.Read(db =>
         {
-            CleanupExpiredCore();
-            if (sheets.TryGetValue(key, out var entry))
-            {
-                payload = entry.Sheet.Payload;
-                return true;
-            }
+            long oldest = (timeProvider.GetUtcNow() - SheetLifetime).UtcTicks;
+            using var exact = PublicationQueries.Command(db, null,
+                "SELECT Payload FROM CharacterProfiles WHERE NameKey = $name AND WorldKey = $world AND UpdatedTicks >= $oldest",
+                ("$name", key.Name), ("$world", key.World), ("$oldest", oldest));
+            if (exact.ExecuteScalar() is string found)
+                return found;
             // A world-qualified lookup must never return another character's profile.
             if (!string.IsNullOrWhiteSpace(worldName))
-                return false;
-            var match = sheets.Values.Where(s => string.Equals(s.Sheet.CharacterName, characterName.Trim(), StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(s => s.Sheet.UpdatedAtUtc).FirstOrDefault();
-            payload = match?.Sheet.Payload;
-            return payload != null;
-        }
+                return null;
+            using var fallback = PublicationQueries.Command(db, null,
+                "SELECT Payload FROM CharacterProfiles WHERE NameKey = $name AND UpdatedTicks >= $oldest ORDER BY UpdatedTicks DESC LIMIT 1",
+                ("$name", key.Name), ("$oldest", oldest));
+            return fallback.ExecuteScalar() as string;
+        });
+        return payload != null;
     }
 
     public bool TryDelete(string characterName, string? worldName, string? ownerToken = null) =>
@@ -78,40 +94,28 @@ public sealed class CharacterSheetRegistry(TimeProvider timeProvider, ILogger<Ch
             return RegistryWriteResult.Unauthorized;
         if (string.IsNullOrWhiteSpace(characterName))
             return RegistryWriteResult.Invalid;
-        lock (syncRoot)
+        var key = MakeKey(characterName, worldName ?? string.Empty);
+        return database.Write((db, transaction) =>
         {
-            CleanupExpiredCore();
-            var key = MakeKey(characterName, worldName ?? string.Empty);
-            if (!sheets.TryGetValue(key, out var entry))
+            PublicationQueries.Cleanup(db, transaction, "CharacterProfiles", (timeProvider.GetUtcNow() - SheetLifetime).UtcTicks);
+            using var lookup = PublicationQueries.Command(db, transaction,
+                "SELECT OwnerHash FROM CharacterProfiles WHERE NameKey = $name AND WorldKey = $world",
+                ("$name", key.Name), ("$world", key.World));
+            if (lookup.ExecuteScalar() is not byte[] ownerHash)
                 return RegistryWriteResult.NotFound;
-            if (!PublicationSecurity.Matches(entry.OwnerHash, ownerToken!))
+            if (!PublicationSecurity.Matches(ownerHash, ownerToken!))
                 return RegistryWriteResult.Unauthorized;
-            sheets.Remove(key);
-            storageBytes -= entry.Bytes;
+            using var delete = PublicationQueries.Command(db, transaction,
+                "DELETE FROM CharacterProfiles WHERE NameKey = $name AND WorldKey = $world",
+                ("$name", key.Name), ("$world", key.World));
+            delete.ExecuteNonQuery();
             return RegistryWriteResult.Success;
-        }
+        });
     }
 
-    public int CleanupExpired()
-    {
-        lock (syncRoot)
-            return CleanupExpiredCore();
-    }
-
-    private int CleanupExpiredCore()
-    {
-        var now = timeProvider.GetUtcNow();
-        var expired = sheets.Where(pair => now - pair.Value.Sheet.UpdatedAtUtc > SheetLifetime).Select(pair => pair.Key).ToArray();
-        foreach (var key in expired)
-        {
-            storageBytes -= sheets[key].Bytes;
-            sheets.Remove(key);
-        }
-        return expired.Length;
-    }
+    public int CleanupExpired() => database.Write((db, transaction) =>
+        PublicationQueries.Cleanup(db, transaction, "CharacterProfiles", (timeProvider.GetUtcNow() - SheetLifetime).UtcTicks));
 
     private static (string Name, string World) MakeKey(string name, string world) =>
         (name.Trim().ToUpperInvariant(), world.Trim().ToUpperInvariant());
-
-    private sealed record Entry(StoredCharacterSheet Sheet, byte[] OwnerHash, int Bytes);
 }

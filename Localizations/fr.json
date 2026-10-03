@@ -645,6 +645,7 @@
   "RollEchoDefault": "[Soulstone] {0} a lancé {1} : {2} ({3})",
   "RollRequestedEcho": "[Soulstone] Jet demandé à {0} : {1} ({2})",
   "RolledForMemberEcho": "[Soulstone] Lancé pour {0} : {1}",
+  "RollEchoAttributed": "[Soulstone] [{0}] {1}",
   "RollEchoResult": "[Soulstone] {0} : {1}",
   "RulesetSharedEcho": "[Soulstone] Le chef de groupe a partagé le système de règles : {0}",
   "DiceSysSwitchSaveEcho": "[Soulstone] '{0}' et le système '{1}' sauvegardés avant de passer à '{2}'.",

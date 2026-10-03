@@ -1,7 +1,7 @@
 # Public profiles and ruleset ownership
 
-Contract for **Soulstone 1.4.0**. For Windows installation, boot startup,
-networking, updates, and diagnostics, follow [deployment](DEPLOYMENT.md).
+Contract for **Soulstone 1.5.0**. For Windows Docker Desktop/Compose installation,
+startup, networking, backups, updates, and diagnostics, follow [deployment](DEPLOYMENT.md).
 
 Deploy the plugin and relay server updates together. WebSocket envelope version 1,
 integer event identifiers, existing routes, and public download response shapes
@@ -25,10 +25,12 @@ existing publications. Back up configuration securely. Direct HTTP is supported;
 bearer credentials and REST profiles have no TLS transport encryption in that
 mode. Optional HTTPS deployment instructions remain in the deployment guide.
 
-The server remains in memory. Restarting removes publications and ownership
-claims. Restart the updated relay when upgrading so old unauthenticated cache
-entries are discarded; then publish profiles and rulesets with the updated
-plugin. Old plugin builds can still fetch public profiles/rulesets, but their
+The server persists publications and ownership hashes in an encrypted SQLCipher
+Community database. The first upgrade from the old in-memory server requires
+republishing; subsequent restarts preserve content, codes, ownership claims,
+and original expiry dates. Follow [storage setup](ENCRYPTED_STORAGE.md) before
+starting the backend. Old plugin builds can still fetch public profiles/rulesets,
+but their
 unauthenticated publication requests are rejected. Old ruleset codes without a
 locally stored ownership credential are published under a new code.
 
@@ -90,9 +92,10 @@ Success returns HTTP 200 with `code`, `playerName`, `worldName`, `systemName`,
 
 ## Deployment behavior
 
-API and relay share a process, port, and lifecycle. `/health` tests responsiveness,
-not WebSocket connectivity or ownership. Startup automation does not preserve
-memory after a reboot. Hosts recreate sessions/invites and players republish.
+API and relay share a process and port. `/health` checks responsiveness and a
+database read, returning 503 when storage is unavailable; it does not test
+WebSocket connectivity or ownership. Public publications survive restart when
+the database and original key are retained. Hosts recreate sessions/invites.
 
 Limits use the observed connection IP. No forwarded-header middleware is
 configured; players using one proxy/tunnel can share publication/session-creation

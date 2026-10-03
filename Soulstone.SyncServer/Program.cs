@@ -20,6 +20,8 @@ if (string.IsNullOrWhiteSpace(builder.Configuration["urls"]))
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<SessionRegistry>();
+builder.Services.AddSingleton(_ => new PublicationDatabase(
+    builder.Configuration.GetSection("Storage").Get<PublicationStorageOptions>() ?? new PublicationStorageOptions()));
 builder.Services.AddSingleton<CharacterSheetRegistry>();
 builder.Services.AddSingleton<DiceSystemRegistry>();
 builder.Services.AddHostedService<SessionCleanupService>();
@@ -48,6 +50,9 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+// Open and validate encrypted storage before accepting requests or starting cleanup.
+_ = app.Services.GetRequiredService<PublicationDatabase>();
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseWebSockets(new WebSocketOptions
@@ -56,7 +61,9 @@ app.UseWebSockets(new WebSocketOptions
 });
 app.UseRateLimiter();
 
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/health", (PublicationDatabase database) => database.IsHealthy()
+    ? Results.Ok(new { status = "healthy" })
+    : Results.StatusCode(StatusCodes.Status503ServiceUnavailable));
 
 app.MapPost("/api/sessions", (SessionRegistry sessions) =>
 {
@@ -98,7 +105,7 @@ app.MapPublications();
 
 app.Map("/api/sessions/{sessionId}/connect", WebSocketRelay.HandleAsync);
 
-app.Logger.LogInformation("Soulstone relay starting; payloads and credentials are never logged or persisted");
+app.Logger.LogInformation("Soulstone relay starting; public publications persist in encrypted storage; party messages and credentials are not persisted");
 app.Run();
 
 public partial class Program;

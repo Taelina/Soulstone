@@ -13,15 +13,12 @@ public sealed record PublishedDiceSystemResponse(string Code, string PlayerName,
 /// <summary>The current version of a public ruleset.</summary>
 public sealed record DiceSystemVersionResponse(string Code, string SystemName, DateTimeOffset UpdatedAtUtc);
 
-public sealed class DiceSystemRegistry(TimeProvider timeProvider, ILogger<DiceSystemRegistry> logger)
+public sealed class DiceSystemRegistry(PublicationDatabase database, TimeProvider timeProvider, ILogger<DiceSystemRegistry> logger)
 {
     public const int CodeLength = 10;
     public const int MaxPayloadLength = PublicationSecurity.MaximumPayloadBytes;
     public static readonly TimeSpan PublicationLifetime = TimeSpan.FromDays(30);
     private const string CodeCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private readonly object syncRoot = new();
-    private readonly Dictionary<string, Entry> systems = new(StringComparer.OrdinalIgnoreCase);
-    private long storageBytes;
 
     public bool TryPublish(PublishDiceSystemRequest request, [NotNullWhen(true)] out PublishedDiceSystemResponse? published, string? ownerToken = null) =>
         Publish(request, ownerToken, out published) == RegistryWriteResult.Success;
@@ -37,46 +34,77 @@ public sealed class DiceSystemRegistry(TimeProvider timeProvider, ILogger<DiceSy
             !PublicationSecurity.IsValidPayload(request.Payload))
             return RegistryWriteResult.Invalid;
         int bytes = Encoding.UTF8.GetByteCount(request.Payload);
-        lock (syncRoot)
+        PublishedDiceSystemResponse? publication = null;
+        var result = database.Write((db, transaction) =>
         {
-            CleanupExpiredCore();
+            var now = timeProvider.GetUtcNow();
+            PublicationQueries.Cleanup(db, transaction, "DiceSystems", (now - PublicationLifetime).UtcTicks);
             string code;
-            Entry? existing = null;
+            byte[]? ownerHash = null;
+            int? previousBytes = null;
             if (!string.IsNullOrWhiteSpace(request.Code))
             {
                 code = request.Code.Trim().ToUpperInvariant();
                 if (code.Length != CodeLength || !code.All(char.IsAsciiLetterOrDigit))
                     return RegistryWriteResult.Invalid;
-                if (!systems.TryGetValue(code, out existing))
+                using var lookup = PublicationQueries.Command(db, transaction,
+                    "SELECT OwnerHash, PayloadBytes FROM DiceSystems WHERE Code = $code", ("$code", code));
+                using var reader = lookup.ExecuteReader();
+                if (!reader.Read())
                     return RegistryWriteResult.NotFound;
-                if (!PublicationSecurity.Matches(existing.OwnerHash, ownerToken!))
+                ownerHash = (byte[])reader[0];
+                previousBytes = reader.GetInt32(1);
+                if (!PublicationSecurity.Matches(ownerHash, ownerToken!))
                     return RegistryWriteResult.Unauthorized;
             }
             else
             {
-                do { code = RandomNumberGenerator.GetString(CodeCharacters, CodeLength); }
-                while (systems.ContainsKey(code));
+                using var lookup = PublicationQueries.Command(db, transaction,
+                    "SELECT 1 FROM DiceSystems WHERE Code = $code");
+                var parameter = lookup.Parameters.Add("$code", Microsoft.Data.Sqlite.SqliteType.Text);
+                do
+                {
+                    code = RandomNumberGenerator.GetString(CodeCharacters, CodeLength);
+                    parameter.Value = code;
+                } while (lookup.ExecuteScalar() != null);
             }
-            if ((existing == null && systems.Count >= PublicationSecurity.MaximumEntries) ||
-                storageBytes - (existing?.Bytes ?? 0) + bytes > PublicationSecurity.MaximumStorageBytes)
+            if (!PublicationQueries.HasCapacity(db, transaction, "DiceSystems", previousBytes, bytes))
                 return RegistryWriteResult.Full;
-            published = new PublishedDiceSystemResponse(code, request.PlayerName.Trim(), request.WorldName.Trim(),
-                request.SystemName.Trim(), request.Payload, timeProvider.GetUtcNow());
-            systems[code] = new Entry(published, existing?.OwnerHash ?? PublicationSecurity.HashToken(ownerToken!), bytes);
-            storageBytes += bytes - (existing?.Bytes ?? 0);
-        }
-        logger.LogInformation("Published public dice system");
-        return RegistryWriteResult.Success;
+            var value = new PublishedDiceSystemResponse(code, request.PlayerName.Trim(), request.WorldName.Trim(),
+                request.SystemName.Trim(), request.Payload, now);
+            using var write = PublicationQueries.Command(db, transaction, """
+                INSERT INTO DiceSystems (Code, PlayerName, WorldName, SystemName, Payload, OwnerHash, PayloadBytes, UpdatedTicks)
+                VALUES ($code, $player, $world, $system, $payload, $owner, $bytes, $updated)
+                ON CONFLICT (Code) DO UPDATE SET PlayerName = excluded.PlayerName, WorldName = excluded.WorldName,
+                    SystemName = excluded.SystemName, Payload = excluded.Payload,
+                    PayloadBytes = excluded.PayloadBytes, UpdatedTicks = excluded.UpdatedTicks
+                """, ("$code", code), ("$player", value.PlayerName), ("$world", value.WorldName),
+                ("$system", value.SystemName), ("$payload", value.Payload),
+                ("$owner", ownerHash ?? PublicationSecurity.HashToken(ownerToken!)), ("$bytes", bytes), ("$updated", now.UtcTicks));
+            write.ExecuteNonQuery();
+            publication = value;
+            return RegistryWriteResult.Success;
+        });
+        // Do not expose a publication until its transaction has committed successfully.
+        published = publication;
+        if (result == RegistryWriteResult.Success)
+            logger.LogInformation("Published public dice system");
+        return result;
     }
 
     public bool TryGet(string code, [NotNullWhen(true)] out PublishedDiceSystemResponse? published)
     {
-        lock (syncRoot)
+        published = database.Read(db =>
         {
-            CleanupExpiredCore();
-            published = systems.TryGetValue(code, out var entry) ? entry.Publication : null;
-            return published != null;
-        }
+            using var lookup = PublicationQueries.Command(db, null, """
+                SELECT Code, PlayerName, WorldName, SystemName, Payload, UpdatedTicks
+                FROM DiceSystems WHERE Code = $code AND UpdatedTicks >= $oldest
+                """, ("$code", code.ToUpperInvariant()), ("$oldest", (timeProvider.GetUtcNow() - PublicationLifetime).UtcTicks));
+            using var reader = lookup.ExecuteReader();
+            return reader.Read() ? new PublishedDiceSystemResponse(reader.GetString(0), reader.GetString(1),
+                reader.GetString(2), reader.GetString(3), reader.GetString(4), new DateTimeOffset(reader.GetInt64(5), TimeSpan.Zero)) : null;
+        });
+        return published != null;
     }
 
     public bool TryGetVersion(string code, [NotNullWhen(true)] out DiceSystemVersionResponse? version)
@@ -85,23 +113,6 @@ public sealed class DiceSystemRegistry(TimeProvider timeProvider, ILogger<DiceSy
         return version != null;
     }
 
-    public int CleanupExpired()
-    {
-        lock (syncRoot)
-            return CleanupExpiredCore();
-    }
-
-    private int CleanupExpiredCore()
-    {
-        var now = timeProvider.GetUtcNow();
-        var expired = systems.Where(pair => now - pair.Value.Publication.UpdatedAtUtc > PublicationLifetime).Select(pair => pair.Key).ToArray();
-        foreach (var key in expired)
-        {
-            storageBytes -= systems[key].Bytes;
-            systems.Remove(key);
-        }
-        return expired.Length;
-    }
-
-    private sealed record Entry(PublishedDiceSystemResponse Publication, byte[] OwnerHash, int Bytes);
+    public int CleanupExpired() => database.Write((db, transaction) =>
+        PublicationQueries.Cleanup(db, transaction, "DiceSystems", (timeProvider.GetUtcNow() - PublicationLifetime).UtcTicks));
 }

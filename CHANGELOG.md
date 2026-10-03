@@ -5,6 +5,37 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-03
+
+### Added
+- **Encrypted Publication Storage**:
+  - Store public character profiles, shared rulesets, ownership hashes, and update timestamps in a persistent SQLCipher Community database.
+  - Provide a Docker Compose deployment bundle that builds the backend and native encryption library, runs relay tests, and includes Windows key initialization and deployment documentation.
+  - Add regression coverage for publication persistence, encryption, ownership, and restart behavior.
+
+### Changed
+- **Deployment & Operations**:
+  - Replace the in-memory publication registries with encrypted storage; rooms and invitations remain temporary and party messages are not recorded.
+  - Check database availability through the health endpoint and reject startup with missing or invalid storage configuration.
+  - Document Docker Desktop sign-in startup, networking, key preservation, backups, upgrades, and rollback.
+- **Release Preparation**:
+  - Align plugin, repository, and server metadata with version `1.5.0`, and point plugin downloads to release `V1.5.0`.
+  - Update the PR build for Soulstone and the .NET 10 plugin/.NET 8 server, and add a repeatable release packaging script.
+
+### Fixed
+- **Roll Echo Attribution**:
+  - Show the roller's name on all local and synchronized roll echoes, including detailed, requested, and private rolls.
+  - Show both the roller and the character when rolling on someone else's behalf.
+  - Attribute echoes from older plugins and avoid duplicate sender and private tags on updated clients, with English and French coverage.
+
+### Upgrade Notes
+- Upgrade plugin and server together. WebSocket protocol version 1 and publication request/response shapes remain unchanged.
+- Follow [Windows Docker deployment](docs/DEPLOYMENT.md). The backend now requires a SQLCipher library, database path, and encryption key; the supplied Docker setup provides the library and runtime.
+- When migrating from the old in-memory server, recreate sessions/invites and republish profiles and rulesets once. Keep plugin configuration to retain ownership credentials.
+- For subsequent upgrades, retain the existing Compose project name, database volume, and original encryption key. Back up data and the key separately; do not regenerate the key during an update.
+
+---
+
 ## [1.4.2] - 2026-10-02
 
 ### Changed

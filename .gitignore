@@ -5,3 +5,10 @@ bin/
 *.user
 *.log
 ReleaseData
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.key
+secrets/
+backups/

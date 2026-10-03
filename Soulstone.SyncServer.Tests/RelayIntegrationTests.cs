@@ -7,11 +7,11 @@ using Xunit;
 
 namespace Soulstone.SyncServer.Tests;
 
-public class RelayIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+public class RelayIntegrationTests : IClassFixture<RelayWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> factory;
+    private readonly RelayWebApplicationFactory factory;
 
-    public RelayIntegrationTests(WebApplicationFactory<Program> factory)
+    public RelayIntegrationTests(RelayWebApplicationFactory factory)
     {
         this.factory = factory;
     }

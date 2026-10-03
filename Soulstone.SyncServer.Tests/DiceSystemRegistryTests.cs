@@ -7,12 +7,12 @@ using Xunit;
 
 namespace Soulstone.SyncServer.Tests;
 
-public class DiceSystemRegistryTests : IClassFixture<WebApplicationFactory<Program>>
+public class DiceSystemRegistryTests : IClassFixture<RelayWebApplicationFactory>
 {
     private const string Token = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    private readonly WebApplicationFactory<Program> factory;
+    private readonly RelayWebApplicationFactory factory;
 
-    public DiceSystemRegistryTests(WebApplicationFactory<Program> factory)
+    public DiceSystemRegistryTests(RelayWebApplicationFactory factory)
     {
         this.factory = factory;
     }
@@ -20,7 +20,9 @@ public class DiceSystemRegistryTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public void Registry_PublishesTenCharacterCodeLinkedToPlayer()
     {
-        var registry = new DiceSystemRegistry(TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var registry = new DiceSystemRegistry(database, TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
         var request = new PublishDiceSystemRequest("Player Name", "Moogle", "My System", "{\"systemName\":\"My System\"}");
 
         Assert.True(registry.TryPublish(request, out var published, Token));
@@ -34,7 +36,9 @@ public class DiceSystemRegistryTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public void Registry_RejectsInvalidOrOversizedPublications()
     {
-        var registry = new DiceSystemRegistry(TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var registry = new DiceSystemRegistry(database, TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
 
         Assert.False(registry.TryPublish(new PublishDiceSystemRequest("", "Moogle", "System", "{}"), out _, Token));
         Assert.False(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "", "{}"), out _, Token));
@@ -44,7 +48,9 @@ public class DiceSystemRegistryTests : IClassFixture<WebApplicationFactory<Progr
     [Fact]
     public void Registry_RepublishesOwnedSystemUnderTheSameCode()
     {
-        var registry = new DiceSystemRegistry(TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var registry = new DiceSystemRegistry(database, TimeProvider.System, NullLogger<DiceSystemRegistry>.Instance);
         Assert.True(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "System", "{\"version\":1}"), out var first, Token));
 
         Assert.True(registry.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "System", "{\"version\":2}", first.Code), out var updated, Token));

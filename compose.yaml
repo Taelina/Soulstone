@@ -1,0 +1,26 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Soulstone.SyncServer/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${SOULSTONE_BIND_ADDRESS:-127.0.0.1}:5077:5077"
+    volumes:
+      - publications:/var/lib/soulstone-sync
+    secrets:
+      - publications-key
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  publications:
+
+secrets:
+  publications-key:
+    file: ./secrets/publications.key

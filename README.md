@@ -23,9 +23,10 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 
 ---
 
-Documentation targets **Soulstone 1.4.2**. For Windows API hosting, follow the
-[deployment guide](docs/DEPLOYMENT.md), including installation, boot startup,
-crash recovery, direct HTTP, optional HTTPS, upgrades, and troubleshooting. Upgrade plugin and server
+Documentation targets **Soulstone 1.5.0**. For Windows API hosting, follow the
+[deployment guide](docs/DEPLOYMENT.md), including Docker Desktop and Compose,
+encrypted storage, Windows sign-in startup, networking, backups, upgrades, and
+troubleshooting. Upgrade plugin and server
 together and read the [publication migration](docs/PUBLICATION_API.md).
 
 ## Installation
@@ -92,7 +93,7 @@ If Soulstone does not appear immediately, close and reopen the Plugin Installer 
 - **Scoped Data Sharing**: Resource bars and roll results are shared with the session, while full character stats are encrypted specifically for the DM.
 - **Remote Public Profiles**: Publish visible fields/resources for inspection without a party session. The plugin excludes hidden fields, private stats, inventory, and local portrait paths; updates require locally stored ownership credentials.
 - **Ruleset Sharing**: Publish dice systems under share codes, download them, and check for updates. Republishing another player's ruleset creates your own code.
-- **In-Memory Server State**: Restarting clears sessions, invites, profiles, and rulesets. Recreate sessions and republish afterward; local plugin data remains on players' machines.
+- **Encrypted Publication Storage**: The free SQLCipher Community database preserves public profiles, rulesets, and ownership claims across restarts. Rooms and invites remain temporary. Docker Compose builds and starts the backend with its embedded database; see [storage setup](docs/ENCRYPTED_STORAGE.md).
 - **Self-Hosted Relay**: `Soulstone.SyncServer` runs unattended as a .NET application, single-file executable, service, or container. See [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
 
 ### 🎒 Inventory & Item Management
@@ -183,7 +184,8 @@ the relay URL, create a host session, or join through an invite.
 Soulstone is developed in C# targeting **.NET 10.0 (Windows)** and built on top of **Dalamud**.
 
 - **Architecture Documentation**: For detailed technical documentation on classes, design patterns, datamodels, and subsystems, see [`docs/DOCUMENTATION.md`](docs/DOCUMENTATION.md).
-- **Synchronization Server & Deployment**: Step-by-step setup, Linux/Windows service configuration, router port forwarding, and TLS/HTTPS guides are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
+- **Synchronization Server & Deployment**: Docker Desktop setup, encrypted storage, networking, backups, and upgrades are in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`Soulstone.SyncServer/README.md`](Soulstone.SyncServer/README.md).
+- **Release Preparation**: Build validated plugin and Docker deployment bundles with [`scripts/Prepare-Release.ps1`](scripts/Prepare-Release.ps1); see [`docs/RELEASING.md`](docs/RELEASING.md) for assets and publishing steps.
 - **Tests**: Plugin tests live in `Soulstone.Tests`; API, registry, and relay tests live in `Soulstone.SyncServer.Tests`, using **xUnit** and **FluentAssertions**.
 
 To build the project locally:

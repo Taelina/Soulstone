@@ -8,12 +8,12 @@ using Xunit;
 
 namespace Soulstone.SyncServer.Tests;
 
-public class CharacterSheetRegistryTests : IClassFixture<WebApplicationFactory<Program>>
+public class CharacterSheetRegistryTests : IClassFixture<RelayWebApplicationFactory>
 {
     private const string Token = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    private readonly WebApplicationFactory<Program> factory;
+    private readonly RelayWebApplicationFactory factory;
 
-    public CharacterSheetRegistryTests(WebApplicationFactory<Program> factory)
+    public CharacterSheetRegistryTests(RelayWebApplicationFactory factory)
     {
         this.factory = factory;
     }
@@ -21,7 +21,9 @@ public class CharacterSheetRegistryTests : IClassFixture<WebApplicationFactory<P
     [Fact]
     public void Registry_StoresAndRetrievesCharacterSheets()
     {
-        var registry = new CharacterSheetRegistry(TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var registry = new CharacterSheetRegistry(database, TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
 
         Assert.True(registry.TryStore("Test Character", "Ragnarok", "{\"name\":\"Test Character\"}", Token));
         Assert.True(registry.TryGet("Test Character", "Ragnarok", out var payload));
@@ -43,7 +45,9 @@ public class CharacterSheetRegistryTests : IClassFixture<WebApplicationFactory<P
     [Fact]
     public void Registry_RejectsEmptyOrOversizedPayloads()
     {
-        var registry = new CharacterSheetRegistry(TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var registry = new CharacterSheetRegistry(database, TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
 
         Assert.False(registry.TryStore("", "Ragnarok", "{}", Token));
         Assert.False(registry.TryStore("Test", "Ragnarok", "", Token));

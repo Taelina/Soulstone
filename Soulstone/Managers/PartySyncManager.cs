@@ -470,13 +470,10 @@ namespace Soulstone.Managers
 
                             if (!isFromSelf)
                             {
-                                string prefix = roll.IsPrivate ? $"[{LocalizationManager.Instance.GetLocalizedString("RollPrivateTag")}] " : "";
                                 string rollEcho = !string.IsNullOrWhiteSpace(packet.EchoMessage)
                                     ? packet.EchoMessage
-                                    : (!string.IsNullOrWhiteSpace(roll.EchoMessage)
-                                        ? roll.EchoMessage
-                                        : LocalizationManager.Instance.GetLocalizedString("RollEchoDefault", roll.CharacterName, roll.RollName, roll.Total, roll.Details));
-                                Messages.PrintEcho(prefix + rollEcho);
+                                    : roll.EchoMessage;
+                                Messages.PrintEcho(FormatDiceRollEcho(roll, rollEcho));
                             }
                         }
                     }
@@ -1004,23 +1001,51 @@ namespace Soulstone.Managers
             OnPartyMemberUpdated?.Invoke(localData);
         }
 
+        internal static string FormatDiceRollEcho(DiceRollPayload roll, string echoText)
+        {
+            var localization = LocalizationManager.Instance;
+            string roller = string.IsNullOrWhiteSpace(roll.RolledBy) ? roll.CharacterName : roll.RolledBy;
+            string attribution = !string.IsNullOrWhiteSpace(roll.CharacterName) &&
+                                 !string.Equals(roller, roll.CharacterName, StringComparison.OrdinalIgnoreCase)
+                ? $"{roller} → {roll.CharacterName}"
+                : roller;
+            string echo = !string.IsNullOrWhiteSpace(echoText)
+                ? echoText
+                : localization.GetLocalizedString("RollEchoResult", roll.RollName, $"{roll.Total} ({roll.Details})");
+
+            // Normalize private tags from either supported language before adding the receiver's tag.
+            if (roll.IsPrivate)
+            {
+                foreach (var language in localization.LocalizedLanguages.Values)
+                {
+                    if (language.TryGetString("RollPrivateTag", out var tag))
+                    {
+                        string prefix = $"[{tag}] ";
+                        if (echo.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                            echo = echo[prefix.Length..];
+                    }
+                }
+            }
+
+            string header = localization.GetLocalizedString("RollEchoAttributed", attribution, "");
+            // New clients already send attributed echoes; older clients may send only the result.
+            if (!echo.StartsWith(header, StringComparison.Ordinal))
+            {
+                const string pluginPrefix = "[Soulstone] ";
+                if (echo.StartsWith(pluginPrefix, StringComparison.Ordinal))
+                    echo = echo[pluginPrefix.Length..];
+                echo = localization.GetLocalizedString("RollEchoAttributed", attribution, echo);
+            }
+
+            return roll.IsPrivate
+                ? $"[{localization.GetLocalizedString("RollPrivateTag")}] {echo}"
+                : echo;
+        }
+
         public void BroadcastDiceRoll(string rollName, int total, string details, bool isCritSuccess = false, bool isCritFailure = false, string echoText = "", string? characterName = null, bool isPrivate = false, string? targetCharacterName = null)
         {
             string roller = GetLocalPlayerName();
             string actor = string.IsNullOrWhiteSpace(characterName) ? roller : characterName;
-            string echo = !string.IsNullOrWhiteSpace(echoText)
-                ? echoText
-                : LocalizationManager.Instance.GetLocalizedString("RollEchoDefault", actor, rollName, total, details);
-
-            if (isPrivate)
-            {
-                string privPrefix = $"[{LocalizationManager.Instance.GetLocalizedString("RollPrivateTag")}] ";
-                if (!echo.StartsWith(privPrefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    echo = privPrefix + echo;
-                }
-            }
-
             var payload = new DiceRollPayload
             {
                 CharacterName = actor,
@@ -1032,10 +1057,11 @@ namespace Soulstone.Managers
                 IsCriticalSuccess = isCritSuccess,
                 IsCriticalFailure = isCritFailure,
                 RulesetName = DiceSystemManager.Instance.CurrentDiceSystem?.systemName ?? string.Empty,
-                EchoMessage = echo,
                 IsPrivate = isPrivate
             };
 
+            string echo = FormatDiceRollEcho(payload, echoText);
+            payload.EchoMessage = echo;
             SendPacket(SyncEventType.DiceRoll, payload, echo, isPrivateMessage: isPrivate && !IsSessionHost);
 
             var member = ConnectedPartyMembers.GetOrAdd(actor, name => new PartyMemberSyncData { CharacterName = name });

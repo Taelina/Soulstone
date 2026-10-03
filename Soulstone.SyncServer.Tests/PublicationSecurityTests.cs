@@ -10,13 +10,13 @@ using Xunit;
 
 namespace Soulstone.SyncServer.Tests;
 
-public class PublicationSecurityTests : IClassFixture<WebApplicationFactory<Program>>
+public class PublicationSecurityTests : IClassFixture<RelayWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<Program> factory;
+    private readonly RelayWebApplicationFactory factory;
     private static readonly string Owner = new('A', 64);
     private static readonly string Other = new('B', 64);
 
-    public PublicationSecurityTests(WebApplicationFactory<Program> factory) => this.factory = factory;
+    public PublicationSecurityTests(RelayWebApplicationFactory factory) => this.factory = factory;
 
     [Fact]
     public async Task CharacterWrites_RequireTheOriginalCredential_AndReadsRemainPublic()
@@ -78,7 +78,9 @@ public class PublicationSecurityTests : IClassFixture<WebApplicationFactory<Prog
     [Fact]
     public void WorldQualifiedLookup_DoesNotReturnAnotherWorld()
     {
-        var registry = new CharacterSheetRegistry(TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var registry = new CharacterSheetRegistry(database, TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
         registry.TryStore("Player", "Moogle", "{}", Owner).Should().BeTrue();
         registry.TryGet("Player", "Ragnarok", out _).Should().BeFalse();
     }
@@ -86,7 +88,9 @@ public class PublicationSecurityTests : IClassFixture<WebApplicationFactory<Prog
     [Fact]
     public void RegistryKeys_DoNotCollideWhenNamesContainSeparators()
     {
-        var registry = new CharacterSheetRegistry(TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var registry = new CharacterSheetRegistry(database, TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
         registry.TryStore("A@B", "C", "{\"value\":1}", Owner).Should().BeTrue();
         registry.TryStore("A", "B@C", "{\"value\":2}", Other).Should().BeTrue();
         registry.TryGet("A@B", "C", out var first).Should().BeTrue();
@@ -97,8 +101,10 @@ public class PublicationSecurityTests : IClassFixture<WebApplicationFactory<Prog
     public void Registries_ExpirePublications_AndReleaseCapacity()
     {
         var clock = new MutableTimeProvider();
-        var sheets = new CharacterSheetRegistry(clock, NullLogger<CharacterSheetRegistry>.Instance);
-        var systems = new DiceSystemRegistry(clock, NullLogger<DiceSystemRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var sheets = new CharacterSheetRegistry(database, clock, NullLogger<CharacterSheetRegistry>.Instance);
+        var systems = new DiceSystemRegistry(database, clock, NullLogger<DiceSystemRegistry>.Instance);
         sheets.TryStore("Player", "Moogle", "{}", Owner).Should().BeTrue();
         systems.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "Rules", "{}"), out var published, Owner).Should().BeTrue();
         clock.Now += TimeSpan.FromDays(31);
@@ -111,10 +117,15 @@ public class PublicationSecurityTests : IClassFixture<WebApplicationFactory<Prog
     [Fact]
     public void CharacterRegistry_EnforcesTotalCapacity_ButAllowsOwnedUpdates()
     {
-        var registry = new CharacterSheetRegistry(TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
+        using var storage = new TestStorage();
+        using var database = storage.Open();
+        var registry = new CharacterSheetRegistry(database, TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
         string payload = "{\"data\":\"" + new string('x', CharacterSheetRegistry.MaxPayloadLength - 11) + "\"}";
         for (int i = 0; i < 32; i++)
             registry.TryStore($"Player{i}", "Moogle", payload, Owner).Should().BeTrue();
+        database.Dispose();
+        using var reopened = storage.Open();
+        registry = new CharacterSheetRegistry(reopened, TimeProvider.System, NullLogger<CharacterSheetRegistry>.Instance);
         registry.Store("Overflow", "Moogle", payload, Owner).Should().Be(RegistryWriteResult.Full);
         registry.TryStore("Player0", "Moogle", "{}", Owner).Should().BeTrue();
         registry.TryStore("Overflow", "Moogle", "{}", Owner).Should().BeTrue();

@@ -1,0 +1,15 @@
+.git
+.idea
+.vs
+**/bin
+**/obj
+**/publish
+secrets
+backups
+**/*.key
+**/*.license
+**/*.db*
+Soulstone
+Soulstone.Tests
+Localizations
+ReleaseData

@@ -1,6 +1,6 @@
 # Soulstone - Technical & Code Documentation
 
-Reference for **1.4.0**. See [Windows deployment](DEPLOYMENT.md) for installation
+Reference for **1.5.0**. See [Windows deployment](DEPLOYMENT.md) for installation
 and automatic API startup, and [publication contracts](PUBLICATION_API.md) for
 ownership, limits, and migration.
 
@@ -124,7 +124,10 @@ Soulstone/
     └── MainWindow.cs                # Central hub window & tab coordinator
 
 Soulstone.SyncServer/
-├── CharacterSheetRegistry.cs        # In-memory REST cloud registry for character profiles
+├── CharacterSheetRegistry.cs        # Persistent public character profile registry
+├── DiceSystemRegistry.cs            # Persistent shared ruleset registry
+├── PublicationDatabase.cs           # Encrypted SQLCipher Community database and schema
+├── PublicationQueries.cs            # Publication reads, ownership, limits, and expiry
 ├── Program.cs                       # ASP.NET Core server bootstrap & REST endpoints
 ├── RelayProtocol.cs                 # WebSocket relay message types and routing models
 └── SessionRegistry.cs               # In-memory room management and lifecycle tracking
@@ -249,12 +252,13 @@ Defines character feats, traits, perks, flaws, and boons.
 - Group messages use AES-256-GCM authenticated encryption. DM commands are signed with the session host's RSA key so members reject forged ruleset, initiative, and roll-request events.
 - Private stat snapshots use a random per-message AES key wrapped with the DM's RSA public key and are routed only to host connections. Other members cannot decrypt them.
 - Resource bars, buffs, presence, and rolls are group-scoped. Full attributes, skills, abilities, class, and level are DM-scoped.
+- All local and received roll echoes include the roller's name. Rolls for another character include both names; custom result text and private tags are preserved without duplicating attribution on updated clients.
 - The group UI supports session creation, short out-of-game invite links, reconnection, roll requests, delegated rolls, and DM-only stat inspection. A link combines the relay URL and a random 16-character validation code; legacy `SS1` invites remain accepted.
 
 ### 4.7 `CharacterApiClient` & `CharacterSheetRegistry`
 - Provides asynchronous REST API endpoints hosted on `Soulstone.SyncServer` for public character profile storage and remote inspection. Uploads redact hidden/private fields; writes require publication ownership credentials. See [publication API and migration](PUBLICATION_API.md).
 - Endpoints:
-  - `PUT /api/characters/{characterName}`: Uploads and registers a character sheet JSON payload in memory.
+  - `PUT /api/characters/{characterName}`: Uploads and persists a public character profile JSON payload in encrypted storage.
   - `PUT /api/characters/{characterName}/{worldName}`: Uploads and registers a character sheet JSON payload scoped to a character world.
   - `GET /api/characters/{characterName}`: Retrieves a registered character sheet JSON profile.
   - `GET /api/characters/{characterName}/{worldName}`: Retrieves a registered character sheet JSON profile scoped to a character world.
@@ -270,7 +274,8 @@ Defines character feats, traits, perks, flaws, and boons.
 - `PublicationEndpoints` maps routes; `PublicationSecurity` validates credentials and hashes ownership. Each payload is capped at 2 MiB; each registry at 1,024 entries/64 MiB. Profiles expire after seven days and rulesets after 30 days.
 - Session creation is limited to 10/minute and publication writes/deletes to 60/minute per connection IP. Forwarded headers are not processed; proxy users can share limits.
 - Restarting clears rooms, invites, publications, and ownership hashes. `/health` reports responsiveness only.
-- Independent ASP.NET Core 8 project with no database and no application NuGet dependencies.
+- Independent ASP.NET Core 8 project using `Microsoft.Data.Sqlite.Core` and `SQLitePCLRaw.provider.sqlcipher` with a SQLCipher Community native library. Public profiles, rulesets, ownership hashes, and update timestamps survive restart when the database and original key are retained.
+- Storage requires absolute database/key paths and a valid encryption key. Missing native libraries, invalid keys, and incompatible schemas prevent startup; there is no plaintext or in-memory publication fallback. Health checks include a database read. See [encrypted storage](ENCRYPTED_STORAGE.md).
 - Creates cryptographically random host/member credentials, holds rooms in memory for at most 12 hours, and removes empty rooms after 5 minutes.
 - Stores short-invite payloads only in memory as opaque AES-256-GCM ciphertext. The validation code and decrypted member credentials, room key, and host public key are never sent to or persisted by the relay.
 - Enforces 16 clients per room, 64 KiB messages, 20 messages per 10 seconds per connection, and throttled session creation.
@@ -349,6 +354,11 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 ---
 
 ## 7. Testing Architecture & Coverage
+
+The 1.5.0 additions include `PublicationPersistenceTests` (encrypted storage,
+ownership and timestamps across restarts, invalid keys, and schema checks) and
+`DiceRollEchoTests` (local and received attribution, private tags, delegated
+rolls, legacy echoes, and both supported languages).
 
 The 1.4.0 additions include `PublicationSecurityTests` (ownership, API limits,
 expiry, exact world lookups), `RelayLifetimeTests` (expiry/shutdown),
