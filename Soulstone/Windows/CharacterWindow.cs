@@ -18,7 +18,7 @@ namespace Soulstone.Windows
 {
     internal partial class CharacterWindow
     {
-        private string newCharname = "Nouveau personnage";
+        private string newCharname = string.Empty;
 
         private bool showFamilyPopup = false;
         private bool showFriendsPopup = false;
@@ -339,9 +339,9 @@ namespace Soulstone.Windows
             // Create character popup
             if (showCreateCharPopup)
             {
-                ImGui.OpenPopup("CreateCharacterModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("NewCharButton")}###CreateCharacterModal");
             }
-            if (ImGui.BeginPopupModal("CreateCharacterModal", ref showCreateCharPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("NewCharButton")}###CreateCharacterModal", ref showCreateCharPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("NewCharButton"));
                 ImGui.Separator();
@@ -372,9 +372,9 @@ namespace Soulstone.Windows
             // Family popup
             if (showFamilyPopup)
             {
-                ImGui.OpenPopup("NewFamilyMemberModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("NewFamilyMemberModalTitle")}###NewFamilyMemberModal");
             }
-            if (ImGui.BeginPopupModal("NewFamilyMemberModal", ref showFamilyPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("NewFamilyMemberModalTitle")}###NewFamilyMemberModal", ref showFamilyPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.TextColored(SoulstoneTheme.Gold, LocalizationManager.Instance.GetLocalizedString("CharFamilyRelationTab"));
                 ImGui.Separator();
@@ -408,9 +408,9 @@ namespace Soulstone.Windows
             // Friends popup
             if (showFriendsPopup)
             {
-                ImGui.OpenPopup("NewFriendModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("NewFriendModalTitle")}###NewFriendModal");
             }
-            if (ImGui.BeginPopupModal("NewFriendModal", ref showFriendsPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("NewFriendModalTitle")}###NewFriendModal", ref showFriendsPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.TextColored(ImGuiColors.ParsedGreen, LocalizationManager.Instance.GetLocalizedString("CharFriendsTab"));
                 ImGui.Separator();
@@ -444,9 +444,9 @@ namespace Soulstone.Windows
             // Enemies popup
             if (showEnemiesPopup)
             {
-                ImGui.OpenPopup("NewEnemyModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("NewEnemyModalTitle")}###NewEnemyModal");
             }
-            if (ImGui.BeginPopupModal("NewEnemyModal", ref showEnemiesPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("NewEnemyModalTitle")}###NewEnemyModal", ref showEnemiesPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.TextColored(ImGuiColors.DPSRed, LocalizationManager.Instance.GetLocalizedString("CharEnemiesTab"));
                 ImGui.Separator();

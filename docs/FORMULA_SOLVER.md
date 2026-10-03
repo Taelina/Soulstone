@@ -1,6 +1,6 @@
 # Soulstone Formula Solver Documentation
 
-Reference for **Soulstone 1.5.0**. Formulas execute in the plugin, not the relay.
+Reference for **Soulstone 1.5.1**. Formulas execute in the plugin, not the relay.
 Health/Mana examples refer to user-defined resources, not legacy built-in fields.
 Public uploads exclude resource formulas and private stats. See
 [architecture](DOCUMENTATION.md), [publication contracts](PUBLICATION_API.md),

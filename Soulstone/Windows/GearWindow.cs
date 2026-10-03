@@ -77,7 +77,6 @@ namespace Soulstone.Windows
 
         private void DrawTopBar(CharacterSheet sheet, DiceSystem? diceSystem)
         {
-            var scale = ImGuiHelpers.GlobalScale;
             var equippedCount = sheet.GetEquippedGearItems().Count;
             var saveLabel = LocalizationManager.Instance.GetLocalizedString("SaveStatButton");
             var createLabel = LocalizationManager.Instance.GetLocalizedString("CreateGearModalTitle");
@@ -93,16 +92,12 @@ namespace Soulstone.Windows
                 onAction: () =>
                 {
                     var slots = diceSystem?.GetEffectiveEquipmentSlots() ?? GearItem.StandardSlots.ToList();
-                    creatingGear = new GearItem("New Gear", slots.FirstOrDefault() ?? "Head", "", "Common");
+                    creatingGear = new GearItem(LocalizationManager.Instance.GetLocalizedString("NewGearName"), slots.FirstOrDefault() ?? "Head", "", "Common");
                     modEditorState = new StatModifierEditorState();
                     showCreateGearModal = true;
-                });
-
-            ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - 28.0f * scale));
-            if (UiUtils.IconButton("SaveGearBtn", FontAwesomeIcon.Save, saveLabel))
-            {
-                CharacterSheet.SaveSheet(sheet);
-            }
+                },
+                saveLabel: saveLabel,
+                onSave: () => CharacterSheet.SaveSheet(sheet));
         }
 
         private static FontAwesomeIcon GetSlotIcon(string slot)
@@ -210,7 +205,7 @@ namespace Soulstone.Windows
                 if (item != null)
                 {
                     ImGui.SameLine(0, 6.0f * scale);
-                    UiUtils.PillBadge(item.Rarity, new Vector4(rarityCol.X * 0.2f, rarityCol.Y * 0.2f, rarityCol.Z * 0.2f, 0.85f), rarityCol);
+                    UiUtils.PillBadge(UiLabels.Rarity(item.Rarity), new Vector4(rarityCol.X * 0.2f, rarityCol.Y * 0.2f, rarityCol.Z * 0.2f, 0.85f), rarityCol);
 
                     ImGui.TextColored(rarityCol, item.Name);
 
@@ -352,7 +347,7 @@ namespace Soulstone.Windows
 
                         if (string.IsNullOrEmpty(selectedSlot))
                         {
-                            ImGui.TextDisabled("Select an equipment slot on the left to inspect details.");
+                            ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("GearSelectSlotHint"));
                             return;
                         }
 
@@ -380,7 +375,7 @@ namespace Soulstone.Windows
                                 {
                                     ImGui.TextColored(rarityCol, equipped.Name);
                                     ImGui.SameLine(0, 8.0f * scale);
-                                    UiUtils.PillBadge(equipped.Rarity, new Vector4(rarityCol.X * 0.2f, rarityCol.Y * 0.2f, rarityCol.Z * 0.2f, 0.85f), rarityCol);
+                                    UiUtils.PillBadge(UiLabels.Rarity(equipped.Rarity), new Vector4(rarityCol.X * 0.2f, rarityCol.Y * 0.2f, rarityCol.Z * 0.2f, 0.85f), rarityCol);
 
                                     if (!string.IsNullOrWhiteSpace(equipped.Description))
                                     {
@@ -391,7 +386,7 @@ namespace Soulstone.Windows
                                     if (!string.IsNullOrWhiteSpace(equipped.Effect))
                                     {
                                         ImGui.Spacing();
-                                        UiUtils.PillBadge($"Effect: {equipped.Effect}", new Vector4(0.15f, 0.25f, 0.40f, 0.85f), ImGuiColors.TankBlue, FontAwesomeIcon.Magic);
+                                        UiUtils.PillBadge($"{LocalizationManager.Instance.GetLocalizedString("InventoryItemEffect")} {equipped.Effect}", new Vector4(0.15f, 0.25f, 0.40f, 0.85f), ImGuiColors.TankBlue, FontAwesomeIcon.Magic);
                                     }
 
                                     if (equipped.MaxDurability > 0)
@@ -484,6 +479,7 @@ namespace Soulstone.Windows
             string title = $"{LocalizationManager.Instance.GetLocalizedString("ChooseGearTitle")} - {localizedSlot}###ChooseGearModal";
 
             ImGui.SetNextWindowSize(new Vector2(460.0f, 380.0f) * ImGuiHelpers.GlobalScale, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSizeConstraints(new Vector2(300.0f, 180.0f) * ImGuiHelpers.GlobalScale, new Vector2(float.MaxValue));
             if (ImGui.Begin(title, ref showEquipModal, ImGuiWindowFlags.NoCollapse))
             {
                 var gearInInventory = sheet.CharacterInventory
@@ -505,14 +501,14 @@ namespace Soulstone.Windows
                     ImGui.Spacing();
                     if (UiUtils.IconButton("CreateGearFromModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("CreateGearModalTitle"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                     {
-                        creatingGear = new GearItem("New Gear", equipModalSlot, "", "Common");
+                        creatingGear = new GearItem(LocalizationManager.Instance.GetLocalizedString("NewGearName"), equipModalSlot, "", "Common");
                         modEditorState = new StatModifierEditorState();
                         showCreateGearModal = true;
                     }
                 }
                 else
                 {
-                    using (var listChild = ImRaii.Child("##EquipGearListChild", new Vector2(0, -36.0f * ImGuiHelpers.GlobalScale), true))
+                    using (var listChild = ImRaii.Child("##EquipGearListChild", new Vector2(0, -EquipmentPickerLayout.GetFooterHeight(ImGui.GetTextLineHeight(), ImGui.GetStyle().FramePadding.Y, ImGui.GetStyle().ItemSpacing.Y, ImGuiHelpers.GlobalScale)), true))
                     {
                         if (listChild.Success)
                         {
@@ -523,22 +519,26 @@ namespace Soulstone.Windows
                                 bool isCurrentlyEquipped = sheet.IsItemEquipped(gear.Id);
                                 var rarityCol = GetRarityColor(gear.Rarity);
 
-                                ImGui.TextColored(rarityCol, gear.Name);
-                                ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-                                UiUtils.Badge(gear.Slot, SoulstoneTheme.Border, ImGuiColors.ParsedBlue);
+                                using (ImRaii.PushColor(ImGuiCol.Text, rarityCol))
+                                {
+                                    ImGui.TextWrapped(gear.Name);
+                                }
+                                UiUtils.Badge(UiLabels.Slot(gear.Slot), SoulstoneTheme.Border, ImGuiColors.ParsedBlue);
 
                                 if (isCurrentlyEquipped)
                                 {
-                                    ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                                     UiUtils.Badge(LocalizationManager.Instance.GetLocalizedString("EquippedBadge"), new Vector4(0.18f, 0.35f, 0.22f, 0.8f), ImGuiColors.ParsedGreen);
                                 }
 
                                 if (gear.StatModifiers != null && gear.StatModifiers.Count > 0)
                                 {
-                                    ImGui.TextColored(ImGuiColors.ParsedGreen, gear.GetFormattedModifiers());
+                                    using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedGreen))
+                                    {
+                                        ImGui.TextWrapped(gear.GetFormattedModifiers());
+                                    }
                                 }
 
-                                ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - 70.0f * ImGuiHelpers.GlobalScale);
+                                // Keep actions below the details so long labels cannot push them outside the picker.
                                 if (!isCurrentlyEquipped)
                                 {
                                     if (UiUtils.IconTextButton($"Btn_{gear.Id}", FontAwesomeIcon.Check, LocalizationManager.Instance.GetLocalizedString("EquipButton")))
@@ -582,7 +582,7 @@ namespace Soulstone.Windows
 
             if (ImGui.Begin(title, ref showCreateGearModal, ImGuiWindowFlags.NoCollapse))
             {
-                ImGui.TextColored(SoulstoneTheme.Muted, "Name:");
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemName"));
                 UiUtils.StyledInputText("NewGearName", ref creatingGear.name, 100, width: -1.0f);
 
                 ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
@@ -590,20 +590,20 @@ namespace Soulstone.Windows
                 var slotsArray = slots.ToArray();
                 int slotIdx = Array.IndexOf(slotsArray, creatingGear.Slot);
                 if (slotIdx < 0) slotIdx = 0;
-                if (UiUtils.StyledCombo("##NewGearSlotCombo", ref slotIdx, slotsArray, icon: FontAwesomeIcon.ShieldAlt, width: 200.0f))
+                if (UiUtils.StyledCombo("##NewGearSlotCombo", ref slotIdx, slotsArray.Select(UiLabels.Slot).ToArray(), icon: FontAwesomeIcon.ShieldAlt, width: 200.0f))
                 {
                     creatingGear.Slot = slotsArray[slotIdx];
                 }
 
-                ImGui.TextColored(SoulstoneTheme.Muted, "Rarity:");
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemRarity"));
                 int rarityIdx = Array.IndexOf(rarities, creatingGear.Rarity);
                 if (rarityIdx < 0) rarityIdx = 0;
-                if (UiUtils.StyledCombo("##NewGearRarityCombo", ref rarityIdx, rarities, icon: FontAwesomeIcon.Gem, width: 200.0f))
+                if (UiUtils.StyledCombo("##NewGearRarityCombo", ref rarityIdx, rarities.Select(UiLabels.Rarity).ToArray(), icon: FontAwesomeIcon.Gem, width: 200.0f))
                 {
                     creatingGear.Rarity = rarities[rarityIdx];
                 }
 
-                ImGui.TextColored(SoulstoneTheme.Muted, "Description:");
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemDescription"));
                 UiUtils.StyledInputMultiline("NewGearDesc", ref creatingGear.description, 500, new Vector2(-1.0f, 50.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Separator();
@@ -615,7 +615,7 @@ namespace Soulstone.Windows
 
                 if (UiUtils.IconTextButton("CreateEquipBtn", FontAwesomeIcon.Check, $"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")} & {LocalizationManager.Instance.GetLocalizedString("EquipButton")}"))
                 {
-                    if (string.IsNullOrWhiteSpace(creatingGear.Name)) creatingGear.Name = "New Gear";
+                    if (string.IsNullOrWhiteSpace(creatingGear.Name)) creatingGear.Name = LocalizationManager.Instance.GetLocalizedString("NewGearName");
                     sheet.AddItem(creatingGear);
                     sheet.EquipGear(creatingGear.Slot, creatingGear.Id);
                     CharacterSheet.SaveSheet(sheet);
@@ -625,7 +625,7 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
                 if (UiUtils.IconButton("CreateOnlyBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
-                    if (string.IsNullOrWhiteSpace(creatingGear.Name)) creatingGear.Name = "New Gear";
+                    if (string.IsNullOrWhiteSpace(creatingGear.Name)) creatingGear.Name = LocalizationManager.Instance.GetLocalizedString("NewGearName");
                     sheet.AddItem(creatingGear);
                     CharacterSheet.SaveSheet(sheet);
                     showCreateGearModal = false;
@@ -642,10 +642,7 @@ namespace Soulstone.Windows
 
         private string GetLocalizedSlotName(string slot)
         {
-            string key = $"Slot{slot}";
-            string loc = LocalizationManager.Instance.GetLocalizedString(key);
-            if (loc != key) return loc;
-            return slot;
+            return UiLabels.Slot(slot);
         }
 
         private static Vector4 GetRarityColor(string rarity)

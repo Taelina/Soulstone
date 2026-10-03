@@ -1,6 +1,6 @@
 # Public profiles and ruleset ownership
 
-Contract for **Soulstone 1.5.0**. For Windows Docker Desktop/Compose installation,
+Contract for **Soulstone 1.5.1**. For Windows Docker Desktop/Compose installation,
 startup, networking, backups, updates, and diagnostics, follow [deployment](DEPLOYMENT.md).
 
 Deploy the plugin and relay server updates together. WebSocket envelope version 1,
@@ -49,8 +49,10 @@ Limits and responses:
 - Character payloads and decoded ruleset payloads: at most 2 MiB in UTF-8.
 - Ruleset request bodies: at most 2 MiB plus 16 KiB of envelope overhead.
 - Each publication registry: at most 1,024 entries and 64 MiB of payload storage.
-- Character profiles expire after seven days; rulesets expire after 30 days.
-  Publishing an owned update refreshes expiry. Expiry releases ownership claims.
+- Character profiles expire after seven days. Publishing an owned profile update
+  refreshes expiry; profile expiry releases its ownership claim.
+- Rulesets and their ownership claims never expire automatically. There is no
+  ruleset deletion endpoint; owned updates reuse the existing share code.
 - Publication writes/deletes: 60 requests per minute per observed client IP.
 - Missing/invalid bearer credentials: 401; wrong ownership credential: 403;
   invalid input: 400; missing publication: 404; oversized body: 413;

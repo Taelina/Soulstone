@@ -9,7 +9,7 @@ namespace Soulstone.Utils;
 
 public static class DeleteConfirmation
 {
-    private const string PopupId = "##GlobalDeleteConfirmation";
+    private const string PopupId = "GlobalDeleteConfirmation";
     private static Action? pendingAction;
 
     public static bool IsPending => pendingAction != null;
@@ -39,11 +39,12 @@ public static class DeleteConfirmation
 
         using var theme = SoulstoneTheme.Push();
 
-        ImGui.OpenPopup(PopupId);
+        var popupTitle = $"{LocalizationManager.Instance.GetLocalizedString("DeleteConfirmationTitle")}###{PopupId}";
+        ImGui.OpenPopup(popupTitle);
         ImGui.SetNextWindowSize(new Vector2(420, 0), ImGuiCond.Appearing);
 
         var isOpen = true;
-        if (!ImGui.BeginPopupModal(PopupId, ref isOpen, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings))
+        if (!ImGui.BeginPopupModal(popupTitle, ref isOpen, ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings))
             return;
 
         ImGui.TextColored(ImGuiColors.DalamudRed, LocalizationManager.Instance.GetLocalizedString("DeleteConfirmationTitle"));

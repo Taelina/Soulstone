@@ -59,12 +59,9 @@ public class PublicationPersistenceTests
     {
         using var storage = new TestStorage();
         var clock = new MutableTimeProvider();
-        string code;
         using (var database = storage.Open())
         {
             Sheets(database, clock).TryStore("Player", "Moogle", "{}", Owner).Should().BeTrue();
-            Systems(database, clock).TryPublish(new("Player", "Moogle", "Rules", "{}"), out var published, Owner).Should().BeTrue();
-            code = published!.Code;
         }
         clock.Now += TimeSpan.FromDays(7);
         using (var database = storage.Open())
@@ -75,12 +72,44 @@ public class PublicationPersistenceTests
             sheets.TryGet("Player", "Moogle", out _).Should().BeFalse();
             sheets.TryGet("Player", null, out _).Should().BeFalse();
             sheets.Store("Player", "Moogle", "{}", Other).Should().Be(RegistryWriteResult.Success);
-            clock.Now += TimeSpan.FromDays(24);
-            var systems = Systems(database, clock);
-            systems.TryGet(code, out _).Should().BeFalse();
-            systems.TryGetVersion(code, out _).Should().BeFalse();
-            systems.CleanupExpired().Should().Be(1);
         }
+    }
+
+    [Fact]
+    public void Rulesets_NeverExpire_AcrossRestartsReadsAndWrites()
+    {
+        using var storage = new TestStorage();
+        var clock = new MutableTimeProvider();
+        PublishedDiceSystemResponse first;
+        using (var database = storage.Open())
+        {
+            Systems(database, clock).TryPublish(new("Player", "Moogle", "Rules", "{\"v\":1}"), out var published, Owner).Should().BeTrue();
+            first = published!;
+        }
+
+        clock.Now = clock.Now.AddYears(50);
+        using (var database = storage.Open())
+        {
+            var systems = Systems(database, clock);
+            systems.TryGet(first.Code, out var restored).Should().BeTrue();
+            restored.Should().Be(first);
+            systems.TryGetVersion(first.Code, out var version).Should().BeTrue();
+            version!.UpdatedAtUtc.Should().Be(first.UpdatedAtUtc);
+
+            // Publishing another ruleset must not clean up older publications.
+            systems.TryPublish(new("Other", "Moogle", "New Rules", "{}"), out _, Other).Should().BeTrue();
+            systems.TryGet(first.Code, out restored).Should().BeTrue();
+            restored.Should().Be(first);
+            systems.Publish(new("Player", "Moogle", "Rules", "{}", first.Code), Other, out _)
+                .Should().Be(RegistryWriteResult.Unauthorized);
+            systems.TryPublish(new("Player", "Moogle", "Rules", "{\"v\":2}", first.Code), out _, Owner).Should().BeTrue();
+        }
+
+        clock.Now = clock.Now.AddYears(50);
+        using var reopened = storage.Open();
+        Systems(reopened, clock).TryGet(first.Code, out var updated).Should().BeTrue();
+        updated!.Payload.Should().Be("{\"v\":2}");
+        updated.UpdatedAtUtc.Should().Be(first.UpdatedAtUtc.AddYears(50));
     }
 
     [Fact]
@@ -156,11 +185,7 @@ public class PublicationPersistenceTests
             var systems = Systems(database, clock);
             systems.TryPublish(new("Player", "Moogle", "Rules", "{\"v\":1}"), out var value, Owner).Should().BeTrue();
             first = value!;
-            using var inspection = new SqliteConnection(new SqliteConnectionStringBuilder
-            {
-                DataSource = storage.Options.DatabasePath, Password = File.ReadAllText(storage.Options.KeyFile), Pooling = false,
-            }.ToString());
-            inspection.Open();
+            using var inspection = OpenInspectionConnection(storage);
             using var trigger = inspection.CreateCommand();
             trigger.CommandText = "CREATE TRIGGER RejectUpdate BEFORE UPDATE ON DiceSystems BEGIN SELECT RAISE(ABORT, 'test write failure'); END";
             trigger.ExecuteNonQuery();
@@ -210,11 +235,7 @@ public class PublicationPersistenceTests
         using var storage = new TestStorage();
         using (var database = storage.Open())
             Sheets(database, TimeProvider.System).TryStore("Player", "Moogle", "{}", Owner).Should().BeTrue();
-        using var inspection = new SqliteConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = storage.Options.DatabasePath, Password = File.ReadAllText(storage.Options.KeyFile), Pooling = false,
-        }.ToString());
-        inspection.Open();
+        using var inspection = OpenInspectionConnection(storage);
         using var command = inspection.CreateCommand();
         command.CommandText = "SELECT OwnerHash FROM CharacterProfiles";
         ((byte[])command.ExecuteScalar()!).Should().Equal(SHA256.HashData(Encoding.UTF8.GetBytes(Owner)));
@@ -240,6 +261,33 @@ public class PublicationPersistenceTests
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Other);
             using var response = await client.DeleteAsync(path);
             response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        }
+    }
+
+    private static SqliteConnection OpenInspectionConnection(TestStorage storage)
+    {
+        string key = File.ReadAllText(storage.Options.KeyFile).Trim();
+        if (key.Length != 64 || !key.All(char.IsAsciiHexDigit))
+            throw new InvalidOperationException("Test storage requires a 64-character hexadecimal key.");
+
+        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = storage.Options.DatabasePath, Mode = SqliteOpenMode.ReadWrite, Pooling = false,
+        }.ToString());
+        try
+        {
+            connection.Open();
+            // Password= runs SELECT quote(...) before keying, which can read the encrypted
+            // schema with current SQLCipher. Apply the validated key first, as the server does.
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA key = '" + key + "'";
+            command.ExecuteNonQuery();
+            return connection;
+        }
+        catch
+        {
+            connection.Dispose();
+            throw;
         }
     }
 

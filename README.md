@@ -23,7 +23,7 @@ Whether you run casual tavern RP, elaborate tabletop campaigns in Eorzea, or par
 
 ---
 
-Documentation targets **Soulstone 1.5.0**. For Windows API hosting, follow the
+Documentation targets **Soulstone 1.5.1**. For Windows API hosting, follow the
 [deployment guide](docs/DEPLOYMENT.md), including Docker Desktop and Compose,
 encrypted storage, Windows sign-in startup, networking, backups, upgrades, and
 troubleshooting. Upgrade plugin and server

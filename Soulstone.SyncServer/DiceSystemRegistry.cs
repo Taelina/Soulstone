@@ -17,7 +17,6 @@ public sealed class DiceSystemRegistry(PublicationDatabase database, TimeProvide
 {
     public const int CodeLength = 10;
     public const int MaxPayloadLength = PublicationSecurity.MaximumPayloadBytes;
-    public static readonly TimeSpan PublicationLifetime = TimeSpan.FromDays(30);
     private const string CodeCharacters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
     public bool TryPublish(PublishDiceSystemRequest request, [NotNullWhen(true)] out PublishedDiceSystemResponse? published, string? ownerToken = null) =>
@@ -38,7 +37,6 @@ public sealed class DiceSystemRegistry(PublicationDatabase database, TimeProvide
         var result = database.Write((db, transaction) =>
         {
             var now = timeProvider.GetUtcNow();
-            PublicationQueries.Cleanup(db, transaction, "DiceSystems", (now - PublicationLifetime).UtcTicks);
             string code;
             byte[]? ownerHash = null;
             int? previousBytes = null;
@@ -98,8 +96,8 @@ public sealed class DiceSystemRegistry(PublicationDatabase database, TimeProvide
         {
             using var lookup = PublicationQueries.Command(db, null, """
                 SELECT Code, PlayerName, WorldName, SystemName, Payload, UpdatedTicks
-                FROM DiceSystems WHERE Code = $code AND UpdatedTicks >= $oldest
-                """, ("$code", code.ToUpperInvariant()), ("$oldest", (timeProvider.GetUtcNow() - PublicationLifetime).UtcTicks));
+                FROM DiceSystems WHERE Code = $code
+                """, ("$code", code.ToUpperInvariant()));
             using var reader = lookup.ExecuteReader();
             return reader.Read() ? new PublishedDiceSystemResponse(reader.GetString(0), reader.GetString(1),
                 reader.GetString(2), reader.GetString(3), reader.GetString(4), new DateTimeOffset(reader.GetInt64(5), TimeSpan.Zero)) : null;
@@ -112,7 +110,4 @@ public sealed class DiceSystemRegistry(PublicationDatabase database, TimeProvide
         version = TryGet(code, out var published) ? new DiceSystemVersionResponse(published.Code, published.SystemName, published.UpdatedAtUtc) : null;
         return version != null;
     }
-
-    public int CleanupExpired() => database.Write((db, transaction) =>
-        PublicationQueries.Cleanup(db, transaction, "DiceSystems", (timeProvider.GetUtcNow() - PublicationLifetime).UtcTicks));
 }

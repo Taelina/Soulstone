@@ -1,7 +1,7 @@
 # Deploy Soulstone Sync Server on Windows with Docker Desktop
 
-This guide targets **Soulstone 1.5.0** and the `Soulstone-sync-docker.zip`
-asset from release `V1.5.0`. Upgrade the plugin and backend together. The
+This guide targets **Soulstone 1.5.1** and the `Soulstone-sync-docker.zip`
+asset from release `V1.5.1`. Upgrade the plugin and backend together. The
 first migration from the old in-memory backend requires republishing content;
 later upgrades preserve publications when the database and key are retained.
 
@@ -15,6 +15,23 @@ Docker volume. Rooms and invites remain temporary and must be recreated after
 restarting. Party messages are forwarded without being recorded. Encryption
 protects database files without their key; public API downloads remain public.
 See [storage details](ENCRYPTED_STORAGE.md) and [publication contracts](PUBLICATION_API.md).
+
+The database is stored at `/var/lib/soulstone-sync/publications.db`, mounted from
+the named `publications` volume rather than the container's writable layer.
+
+| Operation | Database retained? |
+| --- | --- |
+| Stop/start or restart the backend | Yes |
+| Restart Docker Desktop or reboot Windows | Yes |
+| Rebuild/update or recreate the container | Yes, with the same Compose project name and volume |
+| `docker compose down`, then `docker compose up -d` | Yes, with the same Compose project name and volume |
+| `docker compose down -v`, delete the volume, or reset Docker Desktop storage | No; restore a backup and its original key |
+
+Keep the original `secrets\publications.key` as well as the volume. Storage
+persistence does not disable profile expiry: profiles expire seven days after
+their last update, including time while the backend is stopped. Rulesets never
+expire automatically. Use the backup procedure below for recovery from storage
+loss.
 
 ## 1. Check Docker Desktop
 
@@ -317,9 +334,10 @@ then copy the backup before its first start.
 
 `docker compose down` removes containers but retains the named volume.
 **`docker compose down -v` deletes the database volume.** Docker Desktop resets
-and volume pruning can also delete data. Publications expire after seven days
-(profiles) or 30 days (rulesets); backups retain them until their own retention
-period ends. Merely replacing the key file does not rotate encryption keys.
+and volume pruning can also delete data. Profiles expire after seven days;
+rulesets never expire automatically. Backups retain content until their own
+retention period ends. Merely replacing the key file does not rotate encryption
+keys.
 
 ## 8. Troubleshooting
 

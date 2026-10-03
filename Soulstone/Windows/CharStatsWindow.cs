@@ -175,13 +175,13 @@ namespace Soulstone.Windows
                                 {
                                     ImGui.TextDisabled(buff.Description);
                                 }
-                                string mods = buff.GetFormattedModifiers();
+                                string mods = UiLabels.BuffModifiers(buff);
                                 if (!string.IsNullOrWhiteSpace(mods))
                                 {
                                     ImGui.TextColored(SoulstoneTheme.Gold, $"{LocalizationManager.Instance.GetLocalizedString("StatModifiersLabel")} {mods}");
                                 }
                                 ImGui.Separator();
-                                ImGui.TextDisabled("Right click to manage");
+                                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("BuffManageHint"));
                                 ImGui.EndTooltip();
                             }
 
@@ -189,12 +189,12 @@ namespace Soulstone.Windows
                             {
                                 ImGui.TextColored(badgeCol, buff.Name);
                                 ImGui.Separator();
-                                if (ImGui.MenuItem("+1 Turn"))
+                                if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("BuffAddTurn")))
                                 {
                                     buff.Duration++;
                                     currentCharacter.SyncWithInitiativeTracker();
                                 }
-                                if (ImGui.MenuItem("-1 Turn"))
+                                if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("BuffRemoveTurn")))
                                 {
                                     if (buff.Tick(1))
                                     {
@@ -655,28 +655,28 @@ namespace Soulstone.Windows
                 {
                     if (!string.IsNullOrWhiteSpace(effectiveFormula))
                         ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
-                    ImGui.Text($"• Base Value: {res.MaxValue}");
-                    if (res.TempBonus != 0) ImGui.Text($"• Temp Bonus: {FormatModifier(res.TempBonus)}");
-                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
-                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                    ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("StatBaseValueLabel")}: {res.MaxValue}");
+                    if (res.TempBonus != 0) ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("StatTempBonusLabel")}: {FormatModifier(res.TempBonus)}");
+                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(gearBonus)}");
+                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• {LocalizationManager.Instance.GetLocalizedString("BuffBonusLabel")}: {FormatModifier(buffBonus)}");
                     int resFeatBonus = currentCharacter.GetFeatStatBonus(res.Name) + currentCharacter.GetFeatStatBonus($"Max {res.Name}") + currentCharacter.GetFeatStatBonus($"Max{res.Name}");
-                    if (resFeatBonus != 0) ImGui.TextColored(ImGuiColors.ParsedPurple, $"• Feat Bonus: {FormatModifier(resFeatBonus)}");
-                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective: {effectiveMax}");
+                    if (resFeatBonus != 0) ImGui.TextColored(ImGuiColors.ParsedPurple, $"• {LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(resFeatBonus)}");
+                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• {LocalizationManager.Instance.GetLocalizedString("StatEffectiveValueLabel")}: {effectiveMax}");
                     ImGui.Separator();
                     ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {res.Name}");
                 }
                 else
                 {
-                    ImGui.Text($"• Current: {res.CurrentValue}");
+                    ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("StatCurrentValueLabel")}: {res.CurrentValue}");
                     if (!string.IsNullOrWhiteSpace(effectiveFormula))
                         ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("DiceSysResourceFormulaHeader")}: {effectiveFormula}");
-                    ImGui.Text($"• Base Max: {res.MaxValue}");
-                    if (res.TempBonus != 0) ImGui.Text($"• Temp Max: {FormatModifier(res.TempBonus)}");
-                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• Gear Bonus: {FormatModifier(gearBonus)}");
-                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Buff/Debuff: {FormatModifier(buffBonus)}");
+                    ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("StatBaseMaxLabel")}: {res.MaxValue}");
+                    if (res.TempBonus != 0) ImGui.Text($"• {LocalizationManager.Instance.GetLocalizedString("StatTempMaxLabel")}: {FormatModifier(res.TempBonus)}");
+                    if (gearBonus != 0) ImGui.TextColored(ImGuiColors.ParsedBlue, $"• {LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(gearBonus)}");
+                    if (buffBonus != 0) ImGui.TextColored(ImGuiColors.ParsedGreen, $"• {LocalizationManager.Instance.GetLocalizedString("BuffBonusLabel")}: {FormatModifier(buffBonus)}");
                     int resFeatBonus2 = currentCharacter.GetFeatStatBonus(res.Name) + currentCharacter.GetFeatStatBonus($"Max {res.Name}") + currentCharacter.GetFeatStatBonus($"Max{res.Name}");
-                    if (resFeatBonus2 != 0) ImGui.TextColored(ImGuiColors.ParsedPurple, $"• Feat Bonus: {FormatModifier(resFeatBonus2)}");
-                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• Effective Max: {effectiveMax}");
+                    if (resFeatBonus2 != 0) ImGui.TextColored(ImGuiColors.ParsedPurple, $"• {LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(resFeatBonus2)}");
+                    ImGui.TextColored(ImGuiColors.ParsedGreen, $"• {LocalizationManager.Instance.GetLocalizedString("StatEffectiveMaxLabel")}: {effectiveMax}");
                 }
                 ImGui.EndTooltip();
             }
@@ -928,7 +928,7 @@ namespace Soulstone.Windows
                                     var buffCol = buffBonus > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
                                     var buffBg = buffBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
                                     UiUtils.Badge(FormatModifier(buffBonus), buffBg, buffCol);
-                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(buffBonus)}");
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("BuffBonusLabel")}: {FormatModifier(buffBonus)}");
                                 }
 
                                 if (featBonus != 0)
@@ -1220,7 +1220,7 @@ namespace Soulstone.Windows
                                     var buffCol = skillBuffBonus > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
                                     var buffBg = skillBuffBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
                                     UiUtils.Badge(FormatModifier(skillBuffBonus), buffBg, buffCol);
-                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(skillBuffBonus)}");
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("BuffBonusLabel")}: {FormatModifier(skillBuffBonus)}");
                                 }
 
                                 if (skillFeatBonus != 0)
@@ -1571,7 +1571,7 @@ namespace Soulstone.Windows
                                     var buffCol = abilityBuffBonus > 0 ? ImGuiColors.ParsedGreen : ImGuiColors.DalamudRed;
                                     var buffBg = abilityBuffBonus > 0 ? new Vector4(0.12f, 0.30f, 0.16f, 0.85f) : new Vector4(0.35f, 0.12f, 0.12f, 0.85f);
                                     UiUtils.Badge(FormatModifier(abilityBuffBonus), buffBg, buffCol);
-                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"Buff / Debuff: {FormatModifier(abilityBuffBonus)}");
+                                    if (ImGui.IsItemHovered()) ImGuiEx.Tooltip($"{LocalizationManager.Instance.GetLocalizedString("BuffBonusLabel")}: {FormatModifier(abilityBuffBonus)}");
                                 }
 
                                 if (abilityFeatBonus != 0)
@@ -1680,9 +1680,9 @@ namespace Soulstone.Windows
             // New Resource Modal
             if (showResourcePopup)
             {
-                ImGui.OpenPopup("NewResourceModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("DiceSysResourceModalTitleAdd")}###NewResourceModal");
             }
-            if (ImGui.BeginPopupModal("NewResourceModal", ref showResourcePopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("DiceSysResourceModalTitleAdd")}###NewResourceModal", ref showResourcePopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.TextColored(ImGuiColors.ParsedGreen, FontAwesomeIcon.Heartbeat.ToIconString());
@@ -1747,9 +1747,9 @@ namespace Soulstone.Windows
             // New Attribute Modal
             if (showAttributesPopup)
             {
-                ImGui.OpenPopup("NewAttributeModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeModalTitle")}###NewAttributeModal");
             }
-            if (ImGui.BeginPopupModal("NewAttributeModal", ref showAttributesPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("NewAttributeModalTitle")}###NewAttributeModal", ref showAttributesPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.ShieldAlt.ToIconString());
@@ -1811,9 +1811,9 @@ namespace Soulstone.Windows
             // New Skill Modal
             if (showSkillPopup)
             {
-                ImGui.OpenPopup("NewSkillModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("NewSkillModalTitle")}###NewSkillModal");
             }
-            if (ImGui.BeginPopupModal("NewSkillModal", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("NewSkillModalTitle")}###NewSkillModal", ref showSkillPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.TextColored(ImGuiColors.ParsedGreen, FontAwesomeIcon.Book.ToIconString());
@@ -1905,11 +1905,19 @@ namespace Soulstone.Windows
             }
 
             // Stat Roll Modal (Attribute, Saving Throw, Skill, Ability)
+            string modalTitle = statRollType switch
+            {
+                StatRollType.SavingThrow => string.Format(LocalizationManager.Instance.GetLocalizedString("SavingThrowRollFormat"), statRollName),
+                StatRollType.Skill => LocalizationManager.Instance.GetLocalizedString("DynamicSkillModalTitle", statRollSkill?.skillName ?? statRollName),
+                StatRollType.Ability => LocalizationManager.Instance.GetLocalizedString("RollAbilityModalTitle", statRollAbility?.abilityName ?? statRollName),
+                _ => string.Format(LocalizationManager.Instance.GetLocalizedString("RollAttributeModalTitle"), statRollName)
+            };
+            var statRollPopupTitle = $"{modalTitle}###StatRollModal";
             if (showStatRollModal)
             {
-                ImGui.OpenPopup("StatRollModal");
+                ImGui.OpenPopup(statRollPopupTitle);
             }
-            if (ImGui.BeginPopupModal("StatRollModal", ref showStatRollModal, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal(statRollPopupTitle, ref showStatRollModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
                 var headerIcon = statRollType switch
@@ -1930,14 +1938,6 @@ namespace Soulstone.Windows
                 ImGui.TextColored(headerCol, headerIcon.ToIconString());
                 ImGui.PopFont();
                 ImGui.SameLine(0, 6.0f * scale);
-
-                string modalTitle = statRollType switch
-                {
-                    StatRollType.SavingThrow => string.Format(LocalizationManager.Instance.GetLocalizedString("SavingThrowRollFormat"), statRollName),
-                    StatRollType.Skill => LocalizationManager.Instance.GetLocalizedString("DynamicSkillModalTitle", statRollSkill?.skillName ?? statRollName),
-                    StatRollType.Ability => LocalizationManager.Instance.GetLocalizedString("RollAbilityModalTitle", statRollAbility?.abilityName ?? statRollName),
-                    _ => string.Format(LocalizationManager.Instance.GetLocalizedString("RollAttributeModalTitle"), statRollName)
-                };
 
                 ImGui.TextColored(headerCol, modalTitle);
                 ImGui.Separator();
@@ -1978,7 +1978,7 @@ namespace Soulstone.Windows
                     if (tempVal != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(tempVal)}");
                     if (permVal != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatPermTooltip")}: {FormatModifier(permVal)}");
                     if (gearBonus != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(gearBonus)}");
-                    if (buffBonus != 0) ImGui.TextDisabled($"Buff / Debuff: {FormatModifier(buffBonus)}");
+                    if (buffBonus != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("BuffBonusLabel")}: {FormatModifier(buffBonus)}");
                     if (featBonus != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(featBonus)}");
                     if (rollBonusOrPenalty != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("RollBonusPenaltySummary")}: {FormatModifier(rollBonusOrPenalty)}");
 
@@ -2052,7 +2052,7 @@ namespace Soulstone.Windows
                     ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("NewSkillValue")}: {FormatModifier(skillBaseMod)}");
                     if (skillTemp != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(skillTemp)}");
                     if (skillGear != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(skillGear)}");
-                    if (skillBuff != 0) ImGui.TextDisabled($"Buff: {FormatModifier(skillBuff)}");
+                    if (skillBuff != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("BuffBonusLabel")}: {FormatModifier(skillBuff)}");
                     if (skillFeat != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(skillFeat)}");
                     if (!string.IsNullOrEmpty(linkedAttrName))
                     {
@@ -2124,7 +2124,7 @@ namespace Soulstone.Windows
                     ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityValue")}: {FormatModifier(abilBaseMod)}");
                     if (abilTemp != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("StatTempTooltip")}: {FormatModifier(abilTemp)}");
                     if (abilGear != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("GearBonusTooltip")}: {FormatModifier(abilGear)}");
-                    if (abilBuff != 0) ImGui.TextDisabled($"Buff: {FormatModifier(abilBuff)}");
+                    if (abilBuff != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("BuffBonusLabel")}: {FormatModifier(abilBuff)}");
                     if (abilFeat != 0) ImGui.TextDisabled($"{LocalizationManager.Instance.GetLocalizedString("FeatBonusTooltip")}: {FormatModifier(abilFeat)}");
                     if (!string.IsNullOrEmpty(statRollAbility?.linkedAttribute))
                     {
@@ -2170,9 +2170,9 @@ namespace Soulstone.Windows
             // Create / Edit Ability Modal
             if (showAbilitiesPopup)
             {
-                ImGui.OpenPopup("NewAbilityModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityModalTitle")}###NewAbilityModal");
             }
-            if (ImGui.BeginPopupModal("NewAbilityModal", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityModalTitle")}###NewAbilityModal", ref showAbilitiesPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.TextColored(ImGuiColors.TankBlue, FontAwesomeIcon.Bolt.ToIconString());
@@ -2270,9 +2270,9 @@ namespace Soulstone.Windows
             // New Buff Modal
             if (showBuffPopup)
             {
-                ImGui.OpenPopup("NewBuffModal###CharNewBuffModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("BuffModalTitle")}###CharNewBuffModal");
             }
-            if (ImGui.BeginPopupModal("NewBuffModal###CharNewBuffModal", ref showBuffPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("BuffModalTitle")}###CharNewBuffModal", ref showBuffPopup, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.TextColored(SoulstoneTheme.Gold, FontAwesomeIcon.Magic.ToIconString());
@@ -2289,6 +2289,7 @@ namespace Soulstone.Windows
                 UiUtils.StyledInputInt("CharBuffDuration", ref newCharBuffDuration, step: 1, width: 100.0f, min: 1);
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("BuffTargetStatLabel"));
+                UiUtils.DrawBuffTargetSelector("CharBuffTargetStat", ref newCharBuffTargetStat, currentCharacter, currentDiceSystem, width: 280.0f);
                 UiUtils.StyledInputText("CharBuffTargetStat", ref newCharBuffTargetStat, 60, width: 280.0f, hint: LocalizationManager.Instance.GetLocalizedString("BuffStatNameHint"));
 
                 ImGui.Text(LocalizationManager.Instance.GetLocalizedString("BuffValueLabel"));

@@ -53,11 +53,6 @@ namespace Soulstone.Windows
             "General", "Combat", "Magic", "Passive", "Active", "Origin", "Racial", "Class", "Custom"
         };
 
-        private readonly string[] sortOptions = new[]
-        {
-            "Name", "Category", "Active"
-        };
-
         public FeatsWindow(Plugin _plugin)
         {
             plugin = _plugin;
@@ -247,9 +242,9 @@ namespace Soulstone.Windows
         private void DrawAbilityModal(CharacterSheet sheet, DiceSystem? diceSystem)
         {
             if (showAbilityModal)
-                ImGui.OpenPopup("NewAbilityModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityModalTitle")}###NewAbilityModal");
 
-            if (!ImGui.BeginPopupModal("NewAbilityModal", ref showAbilityModal, ImGuiWindowFlags.AlwaysAutoResize))
+            if (!ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("NewAbilityModalTitle")}###NewAbilityModal", ref showAbilityModal, ImGuiWindowFlags.AlwaysAutoResize))
                 return;
 
             ImGui.Text(LocalizationManager.Instance.GetLocalizedString("NewAbilityName"));
@@ -333,13 +328,9 @@ namespace Soulstone.Windows
                     customCategoryName = string.Empty;
                     isEditingExistingFeat = false;
                     showCreateEditModal = true;
-                });
-
-            ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - 28.0f * ImGuiHelpers.GlobalScale));
-            if (UiUtils.IconButton("SaveFeatsBtn", FontAwesomeIcon.Save, saveLabel))
-            {
-                CharacterSheet.SaveSheet(sheet);
-            }
+                },
+                saveLabel: saveLabel,
+                onSave: () => CharacterSheet.SaveSheet(sheet));
         }
 
         private void DrawFilterBar(CharacterSheet sheet)
@@ -348,9 +339,10 @@ namespace Soulstone.Windows
 
             UiUtils.StyledInputText("FeatSearch", ref searchQuery, 64, width: 170.0f, hint: LocalizationManager.Instance.GetLocalizedString("FeatSearchHint"), icon: FontAwesomeIcon.Search);
 
-            ImGui.SameLine(0, 8.0f * scale);
+            if (ImGui.GetItemRectMax().X + 168.0f * scale <= ImGui.GetWindowPos().X + ImGui.GetWindowContentRegionMax().X)
+                ImGui.SameLine(0, 8.0f * scale);
 
-            // Category filter chips
+            // Category filter
             var categories = new List<string> { "All" };
             if (sheet.CharacterFeats != null)
             {
@@ -370,37 +362,28 @@ namespace Soulstone.Windows
                 }
             }
 
-            // Draw up to first 5 category chips
-            int displayedChips = Math.Min(6, categories.Count);
-            for (int i = 0; i < displayedChips; i++)
+            var categoryIndex = categories.FindIndex(c => string.Equals(c, selectedCategoryFilter, StringComparison.OrdinalIgnoreCase));
+            if (categoryIndex < 0) categoryIndex = 0;
+            var categoryLabels = categories.Select(c => c == "All" ? LocalizationManager.Instance.GetLocalizedString("FilterAll") : UiLabels.FeatCategory(c)).ToArray();
+            if (UiUtils.StyledCombo("##FeatCategoryFilter", ref categoryIndex, categoryLabels, icon: FontAwesomeIcon.Filter, width: 160.0f))
             {
-                var cat = categories[i];
-                bool isSelected = string.Equals(selectedCategoryFilter, cat, StringComparison.OrdinalIgnoreCase);
-                var bgCol = isSelected ? new Vector4(0.20f, 0.45f, 0.70f, 0.95f) : new Vector4(0.18f, 0.20f, 0.24f, 0.75f);
-                var textCol = isSelected ? ImGuiColors.DalamudWhite : SoulstoneTheme.Muted;
-
-                using (ImRaii.PushColor(ImGuiCol.Button, bgCol))
-                using (ImRaii.PushColor(ImGuiCol.Text, textCol))
-                using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 10.0f * scale))
-                {
-                    string label = cat == "All" ? LocalizationManager.Instance.GetLocalizedString("FilterAll") : cat;
-                    if (ImGui.SmallButton($"{label}##CatChip_{cat}"))
-                    {
-                        selectedCategoryFilter = cat;
-                    }
-                }
-                ImGui.SameLine(0, 4.0f * scale);
+                selectedCategoryFilter = categories[categoryIndex];
             }
-
-            // Right side sort combo
+            // Sort beside the filter when there is room; otherwise use the next row.
             var sortLabel = LocalizationManager.Instance.GetLocalizedString("SortByLabel");
-            var sortWidth = 100.0f * scale;
+            var sortWidth = 120.0f * scale;
             var rightX = ImGui.GetWindowContentRegionMax().X - sortWidth;
-            if (ImGui.GetCursorPosX() < rightX)
+            if (ImGui.GetItemRectMax().X + sortWidth + 8.0f * scale <= ImGui.GetWindowPos().X + ImGui.GetWindowContentRegionMax().X)
             {
                 ImGui.SameLine(rightX);
             }
-            UiUtils.StyledCombo("##FeatSortCombo", ref selectedSortIndex, sortOptions, width: 100.0f);
+            var sortOptions = new[]
+            {
+                LocalizationManager.Instance.GetLocalizedString("InventorySortName"),
+                LocalizationManager.Instance.GetLocalizedString("FeatCategoryLabel").TrimEnd(' ', ':'),
+                LocalizationManager.Instance.GetLocalizedString("FeatActiveBadge")
+            };
+            UiUtils.StyledCombo("##FeatSortCombo", ref selectedSortIndex, sortOptions, icon: FontAwesomeIcon.SortAmountDown, width: 120.0f);
             if (ImGui.IsItemHovered()) UiUtils.SetTooltip(sortLabel);
         }
 
@@ -422,7 +405,7 @@ namespace Soulstone.Windows
                 {
                     bool matchName = f.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase);
                     bool matchDesc = f.Description.Contains(searchQuery, StringComparison.OrdinalIgnoreCase);
-                    bool matchCat = f.Category.Contains(searchQuery, StringComparison.OrdinalIgnoreCase);
+                    bool matchCat = f.Category.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || UiLabels.FeatCategory(f.Category).Contains(searchQuery, StringComparison.OrdinalIgnoreCase);
                     bool matchFormula = f.RollFormula.Contains(searchQuery, StringComparison.OrdinalIgnoreCase);
                     bool matchMod = f.StatModifiers != null && f.StatModifiers.Any(kv => kv.Key.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
                     if (!matchName && !matchDesc && !matchCat && !matchFormula && !matchMod) return false;
@@ -433,7 +416,7 @@ namespace Soulstone.Windows
             // Sort
             filtered = selectedSortIndex switch
             {
-                1 => filtered.OrderBy(f => f.Category).ThenBy(f => f.Name).ToList(),
+                1 => filtered.OrderBy(f => UiLabels.FeatCategory(f.Category)).ThenBy(f => f.Name).ToList(),
                 2 => filtered.OrderByDescending(f => f.IsActive).ThenBy(f => f.Name).ToList(),
                 _ => filtered.OrderBy(f => f.Name).ToList()
             };
@@ -507,7 +490,7 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 6.0f * scale);
                     var catCol = GetCategoryColor(feat.Category);
                     var catBg = new Vector4(catCol.X * 0.2f, catCol.Y * 0.2f, catCol.Z * 0.2f, 0.85f);
-                    UiUtils.Badge(feat.Category, catBg, catCol);
+                    UiUtils.Badge(UiLabels.FeatCategory(feat.Category), catBg, catCol);
                 }
 
                 // Quick roll button on the right if formula exists
@@ -594,7 +577,7 @@ namespace Soulstone.Windows
                     ImGui.SameLine(0, 8.0f * scale);
 
                     var catCol = GetCategoryColor(feat.Category);
-                    UiUtils.PillBadge(feat.Category, new Vector4(catCol.X * 0.2f, catCol.Y * 0.2f, catCol.Z * 0.2f, 0.85f), catCol);
+                    UiUtils.PillBadge(UiLabels.FeatCategory(feat.Category), new Vector4(catCol.X * 0.2f, catCol.Y * 0.2f, catCol.Z * 0.2f, 0.85f), catCol);
 
                     ImGui.SameLine(0, 6.0f * scale);
                     if (feat.IsActive)
@@ -625,7 +608,7 @@ namespace Soulstone.Windows
                     {
                         editingFeat = feat.Clone();
                         featModEditorState = new StatModifierEditorState();
-                        editCategoryIndex = Array.IndexOf(standardCategories, editingFeat.Category);
+                        editCategoryIndex = Array.FindIndex(standardCategories, c => string.Equals(c, editingFeat.Category, StringComparison.OrdinalIgnoreCase));
                         if (editCategoryIndex < 0)
                         {
                             editCategoryIndex = standardCategories.Length - 1; // Custom
@@ -784,7 +767,7 @@ namespace Soulstone.Windows
                             ImGui.SameLine(0, 6.0f * scale);
 
                             // Stat type category deduction
-                            string statCategory = "Stat";
+                            string statCategory = LocalizationManager.Instance.GetLocalizedString("StatLabel");
                             if (sheet.CharacterAttributes != null && sheet.CharacterAttributes.ContainsKey(mod.Key))
                                 statCategory = LocalizationManager.Instance.GetLocalizedString("StatCategoryAttribute");
                             else if (sheet.CharacterSkills != null && sheet.CharacterSkills.ContainsKey(mod.Key))
@@ -813,7 +796,7 @@ namespace Soulstone.Windows
             // Create / Edit Modal
             if (showCreateEditModal)
             {
-                ImGui.OpenPopup("##CreateEditFeatModal");
+                ImGui.OpenPopup($"{(isEditingExistingFeat ? LocalizationManager.Instance.GetLocalizedString("FeatModalEditTitle") : LocalizationManager.Instance.GetLocalizedString("FeatModalCreateTitle"))}###CreateEditFeatModal");
             }
 
             var modalFlags = ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoSavedSettings;
@@ -821,7 +804,7 @@ namespace Soulstone.Windows
             ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
             ImGui.SetNextWindowSize(new Vector2(480.0f * scale, 0), ImGuiCond.Always);
 
-            if (ImGui.BeginPopupModal("##CreateEditFeatModal", ref showCreateEditModal, modalFlags))
+            if (ImGui.BeginPopupModal($"{(isEditingExistingFeat ? LocalizationManager.Instance.GetLocalizedString("FeatModalEditTitle") : LocalizationManager.Instance.GetLocalizedString("FeatModalCreateTitle"))}###CreateEditFeatModal", ref showCreateEditModal, modalFlags))
             {
                 string modalTitle = isEditingExistingFeat
                     ? LocalizationManager.Instance.GetLocalizedString("FeatModalEditTitle")
@@ -841,7 +824,7 @@ namespace Soulstone.Windows
 
                 // Category
                 ImGui.TextColored(ImGuiColors.DalamudWhite, LocalizationManager.Instance.GetLocalizedString("FeatCategoryLabel"));
-                if (UiUtils.StyledCombo("##EditFeatCategoryCombo", ref editCategoryIndex, standardCategories, width: 200.0f))
+                if (UiUtils.StyledCombo("##EditFeatCategoryCombo", ref editCategoryIndex, standardCategories.Select(UiLabels.FeatCategory).ToArray(), width: 200.0f))
                 {
                     if (editCategoryIndex < standardCategories.Length - 1)
                     {
@@ -953,10 +936,10 @@ namespace Soulstone.Windows
             // Delete Confirmation Modal
             if (showDeleteConfirmModal)
             {
-                ImGui.OpenPopup("##DeleteFeatConfirmModal");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("FeatDeleteConfirmTitle")}###DeleteFeatConfirmModal");
             }
 
-            if (ImGui.BeginPopupModal("##DeleteFeatConfirmModal", ref showDeleteConfirmModal, modalFlags))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("FeatDeleteConfirmTitle")}###DeleteFeatConfirmModal", ref showDeleteConfirmModal, modalFlags))
             {
                 ImGui.TextColored(ImGuiColors.DalamudRed, LocalizationManager.Instance.GetLocalizedString("FeatDeleteConfirmTitle"));
                 ImGui.Separator();

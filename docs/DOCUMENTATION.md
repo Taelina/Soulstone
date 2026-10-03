@@ -1,6 +1,6 @@
 # Soulstone - Technical & Code Documentation
 
-Reference for **1.5.0**. See [Windows deployment](DEPLOYMENT.md) for installation
+Reference for **1.5.1**. See [Windows deployment](DEPLOYMENT.md) for installation
 and automatic API startup, and [publication contracts](PUBLICATION_API.md) for
 ownership, limits, and migration.
 
@@ -271,7 +271,7 @@ Defines character feats, traits, perks, flaws, and boons.
 
 - `PublicCharacterProfile` produces the redacted plugin upload without mutating the full local sheet. Private stats, inventory, hidden fields, buffs, class/level, formulas, and local portrait paths are excluded. The server does not apply visibility rules itself.
 - Profile PUT/DELETE require owner credentials; GET is public. World-qualified lookups are exact. `DiceSystemApiClient` uses owned `POST /api/dice-systems` and public GET download/version routes. Credentials live in local configuration, scoped to server URL/publication.
-- `PublicationEndpoints` maps routes; `PublicationSecurity` validates credentials and hashes ownership. Each payload is capped at 2 MiB; each registry at 1,024 entries/64 MiB. Profiles expire after seven days and rulesets after 30 days.
+- `PublicationEndpoints` maps routes; `PublicationSecurity` validates credentials and hashes ownership. Each payload is capped at 2 MiB; each registry at 1,024 entries/64 MiB. Profiles expire after seven days; rulesets never expire automatically.
 - Session creation is limited to 10/minute and publication writes/deletes to 60/minute per connection IP. Forwarded headers are not processed; proxy users can share limits.
 - Restarting clears rooms, invites, publications, and ownership hashes. `/health` reports responsiveness only.
 - Independent ASP.NET Core 8 project using `Microsoft.Data.Sqlite.Core` and `SQLitePCLRaw.provider.sqlcipher` with a SQLCipher Community native library. Public profiles, rulesets, ownership hashes, and update timestamps survive restart when the database and original key are retained.
@@ -355,7 +355,7 @@ All windows inherit from Dalamud's `Window` class and are managed through the Da
 
 ## 7. Testing Architecture & Coverage
 
-The 1.5.0 additions include `PublicationPersistenceTests` (encrypted storage,
+The encrypted-storage coverage includes `PublicationPersistenceTests` (encrypted storage,
 ownership and timestamps across restarts, invalid keys, and schema checks) and
 `DiceRollEchoTests` (local and received attribution, private tags, delegated
 rolls, legacy echoes, and both supported languages).

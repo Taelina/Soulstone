@@ -1040,6 +1040,7 @@ namespace Soulstone.Utils
             {
                 for (int i = 0; i < items.Length; i++)
                 {
+                    using var itemId = ImRaii.PushId(i);
                     bool isSelected = (i == selectedIndex);
                     if (StyledSelectable(items[i], isSelected, accentColor: accentColor))
                     {
@@ -1055,6 +1056,26 @@ namespace Soulstone.Utils
             }
 
             return changed;
+        }
+
+        public static void DrawBuffTargetSelector(string id, ref string target, CharacterSheet? sheet, DiceSystem? system, float width = -1)
+        {
+            var preview = string.IsNullOrWhiteSpace(target)
+                ? LocalizationManager.Instance.GetLocalizedString("BuffChooseTarget")
+                : UiLabels.BuffTarget(target);
+            if (!BeginStyledCombo($"##{id}Choices", preview, FontAwesomeIcon.Crosshairs, width: width))
+                return;
+
+            var options = UiLabels.BuffTargets(sheet, system);
+            for (var i = 0; i < options.Count; i++)
+            {
+                using var itemId = ImRaii.PushId(i);
+                var selected = string.Equals(target, options[i], StringComparison.OrdinalIgnoreCase);
+                if (StyledSelectable(UiLabels.BuffTarget(options[i]), selected))
+                    target = options[i];
+                if (selected) ImGui.SetItemDefaultFocus();
+            }
+            EndStyledCombo();
         }
 
         public static bool StyledCombo<T>(
@@ -1572,7 +1593,9 @@ namespace Soulstone.Utils
             Action? onAction = null,
             string actionLabel = "",
             float? progressFraction = null,
-            string? progressLabel = null)
+            string? progressLabel = null,
+            Action? onSave = null,
+            string saveLabel = "")
         {
             var scale = ImGuiHelpers.GlobalScale;
             var accent = accentColor ?? SoulstoneTheme.Gold;
@@ -1643,11 +1666,12 @@ namespace Soulstone.Utils
             // Right side action & progress label
             float rightElementsWidth = 0f;
             float actBtnW = !string.IsNullOrEmpty(actionLabel) ? 32.0f * scale : 0f;
+            float saveBtnW = onSave != null ? 32.0f * scale : 0f;
             float progLabelW = !string.IsNullOrEmpty(progressLabel) ? ImGui.CalcTextSize(progressLabel).X + 20.0f * scale : 0f;
 
-            rightElementsWidth = actBtnW + (progLabelW > 0 ? progLabelW + 8.0f * scale : 0f) + 16.0f * scale;
+            rightElementsWidth = actBtnW + saveBtnW + (actBtnW > 0 && saveBtnW > 0 ? 8.0f * scale : 0f) + (progLabelW > 0 ? progLabelW + 8.0f * scale : 0f) + 16.0f * scale;
 
-            if (availWidth - contentLeft > rightElementsWidth + 40.0f * scale && (actBtnW > 0 || progLabelW > 0))
+            if (availWidth - contentLeft > rightElementsWidth + 40.0f * scale && (actBtnW > 0 || saveBtnW > 0 || progLabelW > 0))
             {
                 float rightStart = pos.X + availWidth - rightElementsWidth;
                 ImGui.SetCursorScreenPos(new Vector2(rightStart, pos.Y + 14.0f * scale));
@@ -1665,6 +1689,15 @@ namespace Soulstone.Utils
                         if (IconButton("HeroBannerActionBtn", FontAwesomeIcon.Plus, actionLabel, new Vector2(actBtnW, 24.0f * scale)))
                         {
                             onAction.Invoke();
+                        }
+                    }
+
+                    if (onSave != null)
+                    {
+                        if (actBtnW > 0 || progLabelW > 0) ImGui.SameLine(0, 8.0f * scale);
+                        if (IconButton("HeroBannerSaveBtn", FontAwesomeIcon.Save, saveLabel, new Vector2(saveBtnW, 24.0f * scale)))
+                        {
+                            onSave.Invoke();
                         }
                     }
                 }

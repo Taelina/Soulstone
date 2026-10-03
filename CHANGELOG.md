@@ -5,6 +5,39 @@ All notable changes to the Soulstone project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-10-03
+
+### Added
+- **Support Links**:
+  - Add Ko-fi and Patreon buttons below Configuration at the end of the main sidebar, with an English and French support label.
+
+### Changed
+- **Ruleset Persistence**:
+  - Retain published rulesets and their ownership claims indefinitely; character profiles keep their seven-day expiry.
+- **Localization**:
+  - Expand English and French coverage for character sheets, feats, equipment, augmentations, dice systems, initiative, buffs, relay status, and dialog titles.
+  - Translate built-in slots, rarities, categories, and system types while preserving stored values and custom labels.
+  - Offer buff target choices from character and ruleset stats without populating the character sheet.
+- **Release Preparation**:
+  - Align plugin assembly versions with `1.5.1.0`, server version with `1.5.1`, and repository downloads with tag `V1.5.1`.
+  - Update deployment and release documentation for this version.
+
+### Fixed
+- **Equipment and Augmentation Layouts**:
+  - Keep equip and install actions visible below item details, wrap long labels, and reserve footer space for the close button at different UI scales.
+  - Place save actions inside the gear and augmentation page banners.
+- **Localized Controls**:
+  - Keep combo entries distinct when display labels match and give deletion confirmations a localized title with a stable popup identifier.
+- **Encrypted Storage Tests**:
+  - Apply the SQLCipher key before inspection queries so ownership-hash and write-rollback tests can open the encrypted database with the container's native library.
+
+### Upgrade Notes
+- WebSocket protocol version 1 and publication request/response shapes remain unchanged.
+- Retain the existing Compose project name, database volume, and original encryption key when upgrading from 1.5.0. Existing publications and ownership claims are preserved; republishing is not required.
+- Restart the backend to apply indefinite ruleset retention. Rulesets already deleted by an older server's expiry cleanup must be republished.
+
+---
+
 ## [1.5.0] - 2026-10-03
 
 ### Added

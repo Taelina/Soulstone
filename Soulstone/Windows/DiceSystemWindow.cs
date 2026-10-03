@@ -139,11 +139,11 @@ namespace Soulstone.Windows
 
             if (showUpdatePrompt)
             {
-                ImGui.OpenPopup("##DiceSystemUpdatePrompt");
+                ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("DiceSysUpdateTitle")}###DiceSystemUpdatePrompt");
                 showUpdatePrompt = false;
             }
 
-            if (ImGui.BeginPopupModal("##DiceSystemUpdatePrompt", ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("DiceSysUpdateTitle")}###DiceSystemUpdatePrompt", ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("DiceSysUpdatePrompt"));
                 if (ImGui.Button(LocalizationManager.Instance.GetLocalizedString("DiceSysUpdateConfirm")) && pendingPublishedUpdate != null)
@@ -290,7 +290,7 @@ namespace Soulstone.Windows
                 ImGui.TextColored(ImGuiColors.DalamudWhite, currentSystem.systemName);
                 ImGui.SameLine(0, 8.0f * scale);
 
-                UiUtils.PillBadge(Enum.GetName<SystemType>(currentSystem.systemType) ?? "Standard", new Vector4(0.18f, 0.32f, 0.50f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.Cogs);
+                UiUtils.PillBadge(UiLabels.SystemType(currentSystem.systemType), new Vector4(0.18f, 0.32f, 0.50f, 0.85f), ImGuiColors.ParsedBlue, FontAwesomeIcon.Cogs);
                 ImGui.SameLine(0, 6.0f * scale);
 
                 string diceLabel = Enum.GetName<DiceType>(currentSystem.diceType) ?? "d20";
@@ -299,7 +299,7 @@ namespace Soulstone.Windows
                 if (currentSystem.systemHasAugmentations)
                 {
                     ImGui.SameLine(0, 6.0f * scale);
-                    UiUtils.PillBadge("Cyberware Active", new Vector4(0.15f, 0.35f, 0.22f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Microchip);
+                    UiUtils.PillBadge(LocalizationManager.Instance.GetLocalizedString("CyberwareActiveBadge"), new Vector4(0.15f, 0.35f, 0.22f, 0.85f), ImGuiColors.ParsedGreen, FontAwesomeIcon.Microchip);
                 }
 
                 if (DiceSystemManager.Instance.IsSessionRulesetActive)
@@ -429,7 +429,7 @@ namespace Soulstone.Windows
                     ImGui.AlignTextToFramePadding();
                     ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("SystemTypeCombo"));
                     ImGui.TableNextColumn();
-                    if (UiUtils.StyledCombo("##DiceSystemTypeCombo", ref selectedSystemTypeIndex, Enum.GetNames<SystemType>(), icon: FontAwesomeIcon.Cogs, width: 220.0f))
+                    if (UiUtils.StyledCombo("##DiceSystemTypeCombo", ref selectedSystemTypeIndex, Enum.GetValues<SystemType>().Select(UiLabels.SystemType).ToArray(), icon: FontAwesomeIcon.Cogs, width: 220.0f))
                     {
                         currentSystem.systemType = (SystemType)selectedSystemTypeIndex;
                     }
@@ -819,7 +819,7 @@ namespace Soulstone.Windows
                         ImGui.TextWrapped(LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaLabel"));
                         ImGui.TableNextColumn();
 
-                        UiUtils.StyledInputText("InitiativeFormulaInput", ref currentSystem.initiativeFormula, 100, width: 260.0f, hint: "e.g. 10 + [Dexterity] / 2");
+                        UiUtils.StyledInputText("InitiativeFormulaInput", ref currentSystem.initiativeFormula, 100, width: 260.0f, hint: LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaHint"));
                         if (ImGui.IsItemHovered())
                         {
                             UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeFormulaTooltip"));
@@ -888,7 +888,7 @@ namespace Soulstone.Windows
                         }
                         else
                         {
-                            UiUtils.StyledInputText("InitiativeStatInput", ref currentSystem.initiativeStatName, 50, width: 220.0f, hint: "Stat name...");
+                            UiUtils.StyledInputText("InitiativeStatInput", ref currentSystem.initiativeStatName, 50, width: 220.0f, hint: LocalizationManager.Instance.GetLocalizedString("StatNameHint"));
                         }
 
                         // Preview / Test Roll if sheet is loaded
@@ -1113,10 +1113,10 @@ namespace Soulstone.Windows
         {
             if (showResourceModal)
             {
-                ImGui.OpenPopup("ResourceModal");
+                ImGui.OpenPopup($"{(isEditingResource ? LocalizationManager.Instance.GetLocalizedString("DiceSysResourceModalTitleEdit") : LocalizationManager.Instance.GetLocalizedString("DiceSysResourceModalTitleAdd"))}###ResourceModal");
             }
 
-            if (ImGui.BeginPopupModal("ResourceModal", ref showResourceModal, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{(isEditingResource ? LocalizationManager.Instance.GetLocalizedString("DiceSysResourceModalTitleEdit") : LocalizationManager.Instance.GetLocalizedString("DiceSysResourceModalTitleAdd"))}###ResourceModal", ref showResourceModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.PushFont(UiBuilder.IconFont);
                 ImGui.TextColored(ImGuiColors.ParsedGreen, FontAwesomeIcon.Heart.ToIconString());
@@ -1191,7 +1191,7 @@ namespace Soulstone.Windows
                     }
                     if (ImGui.IsItemHovered())
                     {
-                        UiUtils.SetTooltip(preset.Name);
+                        UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString($"Color{preset.Name}"));
                     }
                 }
 
@@ -1224,7 +1224,7 @@ namespace Soulstone.Windows
                     string trimmedName = modalResourceName.Trim();
                     if (string.IsNullOrWhiteSpace(trimmedName))
                     {
-                        modalErrorMessage = "Resource name cannot be empty.";
+                        modalErrorMessage = LocalizationManager.Instance.GetLocalizedString("ResourceNameRequired");
                     }
                     else
                     {
@@ -1281,7 +1281,7 @@ namespace Soulstone.Windows
                 string? slotToMoveDown = null;
 
                 // Add slot control row
-                UiUtils.StyledInputText("NewEquipSlotName", ref newEquipSlotName, 50, width: 180.0f, hint: "Slot name...");
+                UiUtils.StyledInputText("NewEquipSlotName", ref newEquipSlotName, 50, width: 180.0f, hint: LocalizationManager.Instance.GetLocalizedString("SlotNameHint"));
                 ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                 if (UiUtils.IconButton("AddEquipSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddEquipmentSlot"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
@@ -1364,7 +1364,7 @@ namespace Soulstone.Windows
                     ImGui.Spacing();
 
                     // Add slot control row
-                    UiUtils.StyledInputText("NewAugSlotName", ref newAugSlotName, 50, width: 180.0f, hint: "Slot name...");
+                    UiUtils.StyledInputText("NewAugSlotName", ref newAugSlotName, 50, width: 180.0f, hint: LocalizationManager.Instance.GetLocalizedString("SlotNameHint"));
                     ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
                     if (UiUtils.IconButton("AddAugSlotBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddAugmentationSlot"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                     {
@@ -1516,7 +1516,8 @@ namespace Soulstone.Windows
 
             ImGui.SetCursorScreenPos(textPos);
             ImGui.PushStyleColor(ImGuiCol.Text, ImGuiColors.DalamudWhite);
-            string displayName = slotName;
+            string localizedSlot = UiLabels.Slot(slotName);
+            string displayName = localizedSlot;
             var textSize = ImGui.CalcTextSize(displayName);
             if (textSize.X > maxTextWidth)
             {
@@ -1529,9 +1530,9 @@ namespace Soulstone.Windows
             ImGui.TextUnformatted(displayName);
             ImGui.PopStyleColor();
 
-            if (isHovered && displayName != slotName)
+            if (isHovered && displayName != localizedSlot)
             {
-                UiUtils.SetTooltip(slotName);
+                UiUtils.SetTooltip(localizedSlot);
             }
 
             // Toolbar buttons at bottom

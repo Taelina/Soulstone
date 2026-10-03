@@ -4,6 +4,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Utility;
 using Soulstone.Managers;
 using Soulstone.Utils;
 
@@ -67,6 +68,12 @@ public partial class MainWindow
         DrawNavigationHeading("NavigationSettings", compact);
         if (DrawNavigationButton("Settings", LocalizationManager.Instance.GetLocalizedString("ConfigButton"), FontAwesomeIcon.Cog, false, compact))
             plugin.ToggleConfigUi();
+
+        DrawNavigationHeading("SupportUsHere", compact);
+        if (DrawNavigationButton("KoFi", "Ko-fi", FontAwesomeIcon.Coffee, false, compact))
+            Util.OpenLink("https://ko-fi.com/taelina");
+        if (DrawNavigationButton("Patreon", "Patreon", FontAwesomeIcon.Heart, false, compact))
+            Util.OpenLink("https://www.patreon.com/Taelina");
     }
 
     private static void DrawNavigationHeading(string key, bool compact)

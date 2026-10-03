@@ -121,9 +121,10 @@ service and administrators.
 The first upgrade from the old volatile relay loses its existing memory state;
 republish once. Subsequent restarts preserve publications and ownership claims.
 Clients retain their existing write credentials, share codes, HTTP statuses,
-and JSON response shapes. Seven-day profile and 30-day ruleset lifetimes remain
-unchanged. Expired reads fail before background cleanup, and reopening a database
-does not refresh expiry. Losing plugin ownership credentials still loses update
+and JSON response shapes. Profiles expire seven days after their last update;
+rulesets and their ownership claims never expire automatically. Expired profile
+reads fail before background cleanup, and reopening a database does not refresh
+profile expiry. Losing plugin ownership credentials still loses update
 access; persistence does not prove ownership of an FFXIV character.
 
 Writes, ownership checks, capacity checks, and cleanup use transactions. The
@@ -131,6 +132,8 @@ server serializes access through one connection, uses full synchronous commits,
 encrypted rollback journals, and in-memory temporary storage. Logical limits
 remain 1,024 entries and 64 MiB of payload per publication type, with 2 MiB per
 payload. Database/free pages and backups also consume disk space; monitor it.
+Rulesets retain their capacity allocation indefinitely; owned updates can reuse
+existing entries. There is currently no ruleset deletion endpoint.
 Health checks include a database read and return 503 if storage is unavailable.
 
 For a simple consistent backup, stop the backend, copy the database volume to

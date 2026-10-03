@@ -106,6 +106,14 @@ namespace Soulstone.Windows
 
         private void DrawTopBar(CharacterSheet sheet, DiceSystem? diceSystem)
         {
+            UiUtils.DrawWindowHeroBanner(
+                title: sheet.CharacterFullName,
+                subtitle: LocalizationManager.Instance.GetLocalizedString("InventoryTab"),
+                icon: FontAwesomeIcon.BoxOpen,
+                saveLabel: LocalizationManager.Instance.GetLocalizedString("SaveCharsheetButton"),
+                onSave: () => CharacterSheet.SaveSheet(sheet));
+            ImGui.Spacing();
+
             // Action Buttons
             if (UiUtils.IconButton("AddItemBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("InventoryAddItem"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
             {
@@ -132,12 +140,6 @@ namespace Soulstone.Windows
                 importRawText = string.Empty;
                 importStatusMessage = string.Empty;
                 importStatusIsError = false;
-            }
-
-            ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            if (UiUtils.IconButton("SaveInventoryBtn", FontAwesomeIcon.Save, LocalizationManager.Instance.GetLocalizedString("SaveCharsheetButton")))
-            {
-                CharacterSheet.SaveSheet(sheet);
             }
 
             // Right side: Capacity Display
@@ -215,6 +217,8 @@ namespace Soulstone.Windows
             return itemType switch
             {
                 "All" => LocalizationManager.Instance.GetLocalizedString("InventoryFilterAll"),
+                "Equipment" => LocalizationManager.Instance.GetLocalizedString("GearTab"),
+                "Augmentation" => LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader"),
                 "General" => LocalizationManager.Instance.GetLocalizedString("ItemTypeGeneral"),
                 "Consumable" => LocalizationManager.Instance.GetLocalizedString("ItemTypeConsumable"),
                 "Weapon" => LocalizationManager.Instance.GetLocalizedString("ItemTypeWeapon"),
@@ -287,7 +291,7 @@ namespace Soulstone.Windows
                     (i.Name != null && i.Name.ToLowerInvariant().Contains(q)) ||
                     (i.Description != null && i.Description.ToLowerInvariant().Contains(q)) ||
                     (i.Effect != null && i.Effect.ToLowerInvariant().Contains(q)) ||
-                    (i.ItemType != null && i.ItemType.ToLowerInvariant().Contains(q)));
+                    (i.ItemType != null && (i.ItemType.ToLowerInvariant().Contains(q) || GetLocalizedItemType(i.ItemType).ToLowerInvariant().Contains(q))));
             }
 
             if (!string.IsNullOrWhiteSpace(selectedTypeFilter) && selectedTypeFilter != "All")
@@ -497,7 +501,7 @@ namespace Soulstone.Windows
                 if (item is GearItem gear)
                 {
                     ImGui.SameLine();
-                    UiUtils.Badge($"Slot: {gear.Slot}", new Vector4(0.25f, 0.25f, 0.40f, 0.6f), ImGuiColors.ParsedBlue);
+                    UiUtils.Badge($"{LocalizationManager.Instance.GetLocalizedString("GearSlotLabel")} {UiLabels.Slot(gear.Slot)}", new Vector4(0.25f, 0.25f, 0.40f, 0.6f), ImGuiColors.ParsedBlue);
 
                     if (sheet.IsItemEquipped(gear.Id))
                     {
@@ -875,7 +879,7 @@ namespace Soulstone.Windows
                         slotIdx = 0;
                         gearEdit.Slot = slotArray[0];
                     }
-                    if (UiUtils.StyledCombo("##EditGearSlotCombo", ref slotIdx, slotArray, icon: FontAwesomeIcon.ShieldAlt, width: 200.0f))
+                    if (UiUtils.StyledCombo("##EditGearSlotCombo", ref slotIdx, slotArray.Select(UiLabels.Slot).ToArray(), icon: FontAwesomeIcon.ShieldAlt, width: 200.0f))
                     {
                         gearEdit.Slot = slotArray[slotIdx];
                     }

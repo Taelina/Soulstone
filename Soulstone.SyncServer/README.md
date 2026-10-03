@@ -1,4 +1,4 @@
-# Soulstone Sync Server — 1.5.0
+# Soulstone Sync Server — 1.5.1
 
 Standalone ASP.NET Core 8 API and WebSocket relay for Soulstone, independent of
 Dalamud. Public profiles, shared rulesets, and ownership hashes persist in an
@@ -69,7 +69,7 @@ See [publication contracts and migration](../docs/PUBLICATION_API.md) and
 - Sessions: 12-hour lifetime; empty rooms expire after five minutes; 16 clients
   per room. WebSockets: 64 KiB messages and 20 messages/10 seconds per connection.
 - Publications: 2 MiB per payload, 1,024 entries and 64 MiB per registry.
-  Profiles expire after seven days; rulesets after 30 days.
+  Profiles expire after seven days; rulesets never expire automatically.
 - Publication writes/deletes: 60/minute per observed connection IP. Missing or
   invalid credentials return 401; another owner's credential returns 403.
 - No forwarded-header middleware: proxy users can share IP-based limits.
@@ -82,9 +82,9 @@ profile fields before upload; the server
 stores submitted JSON and does not independently apply plugin visibility rules.
 Do not upload a full private sheet through manual API calls.
 
-Upgrade plugin and server together for 1.5.0. Restart the relay, recreate sessions,
+Upgrade plugin and server together for 1.5.1. Restart the relay, recreate sessions,
 and republish once when migrating from the old in-memory server. Later restarts
-preserve publications and their ownership claims. Old unauthenticated writes fail.
+preserve publications and their ownership claims. When upgrading from 1.5.0, keep the existing database volume and encryption key; no republishing is required. Restart the relay to apply indefinite ruleset retention. Old unauthenticated writes fail.
 Back up plugin
 configuration securely to preserve local ownership credentials.
 

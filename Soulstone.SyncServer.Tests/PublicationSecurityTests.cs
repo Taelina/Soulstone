@@ -98,19 +98,15 @@ public class PublicationSecurityTests : IClassFixture<RelayWebApplicationFactory
     }
 
     [Fact]
-    public void Registries_ExpirePublications_AndReleaseCapacity()
+    public void CharacterRegistry_ExpiresProfiles_AndReleasesOwnership()
     {
         var clock = new MutableTimeProvider();
         using var storage = new TestStorage();
         using var database = storage.Open();
         var sheets = new CharacterSheetRegistry(database, clock, NullLogger<CharacterSheetRegistry>.Instance);
-        var systems = new DiceSystemRegistry(database, clock, NullLogger<DiceSystemRegistry>.Instance);
         sheets.TryStore("Player", "Moogle", "{}", Owner).Should().BeTrue();
-        systems.TryPublish(new PublishDiceSystemRequest("Player", "Moogle", "Rules", "{}"), out var published, Owner).Should().BeTrue();
         clock.Now += TimeSpan.FromDays(31);
         sheets.CleanupExpired().Should().Be(1);
-        systems.CleanupExpired().Should().Be(1);
-        systems.TryGet(published!.Code, out _).Should().BeFalse();
         sheets.TryStore("Player", "Moogle", "{}", Other).Should().BeTrue();
     }
 

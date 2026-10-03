@@ -329,7 +329,7 @@ namespace Soulstone.Windows
 
             // NPC Checkbox
             ImGui.SameLine(0, 6.0f * ImGuiHelpers.GlobalScale);
-            ImGui.Checkbox("NPC##NewInitIsNpc", ref newParticipantIsNpc);
+            ImGui.Checkbox($"{LocalizationManager.Instance.GetLocalizedString("NpcLabel")}##NewInitIsNpc", ref newParticipantIsNpc);
             if (ImGui.IsItemHovered())
             {
                 UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("InitiativeIsNpcTooltip"));
@@ -370,14 +370,14 @@ namespace Soulstone.Windows
         {
             if (!showAddBuffModal) return;
 
-            ImGui.OpenPopup("AddBuffModal###SoulstoneAddBuffModal");
+            ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("BuffModalTitle")}###SoulstoneAddBuffModal");
             var targetParticipant = manager.Participants.FirstOrDefault(p => p.Id == addBuffTargetParticipantId);
 
             var center = ImGui.GetMainViewport().GetCenter();
             ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
             ImGui.SetNextWindowSize(new Vector2(380.0f * ImGuiHelpers.GlobalScale, 0), ImGuiCond.Always);
 
-            if (ImGui.BeginPopupModal("AddBuffModal###SoulstoneAddBuffModal", ref showAddBuffModal, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("BuffModalTitle")}###SoulstoneAddBuffModal", ref showAddBuffModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 ImGui.TextColored(SoulstoneTheme.Gold, targetParticipant != null
                     ? $"{LocalizationManager.Instance.GetLocalizedString("BuffModalTitle")}: {targetParticipant.Name}"
@@ -387,7 +387,7 @@ namespace Soulstone.Windows
 
                 // Name
                 ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("BuffNameLabel"));
-                UiUtils.StyledInputText("NewBuffName", ref newBuffName, 60, width: -1.0f, hint: "e.g. Haste, Bless, Poison, Weakness");
+                UiUtils.StyledInputText("NewBuffName", ref newBuffName, 60, width: -1.0f, hint: LocalizationManager.Instance.GetLocalizedString("BuffNameHint"));
 
                 // Duration (turns)
                 ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("BuffDurationLabel"));
@@ -395,6 +395,7 @@ namespace Soulstone.Windows
 
                 // Target Stat
                 ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("BuffTargetStatLabel"));
+                UiUtils.DrawBuffTargetSelector("NewBuffTargetStat", ref newBuffTargetStat, targetParticipant?.CharacterSheet, DiceSystemManager.Instance.CurrentDiceSystem);
                 UiUtils.StyledInputText("NewBuffTargetStat", ref newBuffTargetStat, 60, width: -1.0f, hint: LocalizationManager.Instance.GetLocalizedString("BuffStatNameHint"));
 
                 // Value / Modifier
@@ -519,7 +520,7 @@ namespace Soulstone.Windows
                         using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudRed))
                         using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 6.0f * ImGuiHelpers.GlobalScale))
                         {
-                            if (ImGui.SmallButton($"NPC##ToggleNpc_{p.Id}"))
+                            if (ImGui.SmallButton($"{LocalizationManager.Instance.GetLocalizedString("NpcLabel")}##ToggleNpc_{p.Id}"))
                             {
                                 p.IsNpc = false;
                                 manager.SyncParticipantWithCharacterSheet(p);
@@ -537,7 +538,7 @@ namespace Soulstone.Windows
                         using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedBlue))
                         using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 6.0f * ImGuiHelpers.GlobalScale))
                         {
-                            if (ImGui.SmallButton($"PC##ToggleNpc_{p.Id}"))
+                            if (ImGui.SmallButton($"{LocalizationManager.Instance.GetLocalizedString("PcLabel")}##ToggleNpc_{p.Id}"))
                             {
                                 p.IsNpc = true;
                                 manager.SyncParticipantWithCharacterSheet(p);
@@ -619,13 +620,13 @@ namespace Soulstone.Windows
                                 {
                                     ImGui.TextDisabled(buff.Description);
                                 }
-                                string mods = buff.GetFormattedModifiers();
+                                string mods = UiLabels.BuffModifiers(buff);
                                 if (!string.IsNullOrWhiteSpace(mods))
                                 {
                                     ImGui.TextColored(SoulstoneTheme.Gold, $"{LocalizationManager.Instance.GetLocalizedString("StatModifiersLabel")} {mods}");
                                 }
                                 ImGui.Separator();
-                                ImGui.TextDisabled("Right click to manage");
+                                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("BuffManageHint"));
                                 ImGui.EndTooltip();
                             }
 
@@ -633,12 +634,12 @@ namespace Soulstone.Windows
                             {
                                 ImGui.TextColored(badgeCol, buff.Name);
                                 ImGui.Separator();
-                                if (ImGui.MenuItem("+1 Turn"))
+                                if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("BuffAddTurn")))
                                 {
                                     buff.Duration++;
                                     manager.SyncParticipantWithCharacterSheet(p);
                                 }
-                                if (ImGui.MenuItem("-1 Turn"))
+                                if (ImGui.MenuItem(LocalizationManager.Instance.GetLocalizedString("BuffRemoveTurn")))
                                 {
                                     if (buff.Tick(1))
                                     {
@@ -744,12 +745,12 @@ namespace Soulstone.Windows
                 return;
             }
 
-            ImGui.OpenPopup("AttachSheetModal###SoulstoneAttachSheetModal");
+            ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("InitiativeAttachSheetModalTitle", targetParticipant.Name)}###SoulstoneAttachSheetModal");
             var center = ImGui.GetMainViewport().GetCenter();
             ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
             ImGui.SetNextWindowSize(new Vector2(400.0f * ImGuiHelpers.GlobalScale, 0), ImGuiCond.Always);
 
-            if (ImGui.BeginPopupModal("AttachSheetModal###SoulstoneAttachSheetModal", ref showAttachSheetModal, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("InitiativeAttachSheetModalTitle", targetParticipant.Name)}###SoulstoneAttachSheetModal", ref showAttachSheetModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 string modalTitle = string.Format(LocalizationManager.Instance.GetLocalizedString("InitiativeAttachSheetModalTitle"), targetParticipant.Name);
                 ImGui.TextColored(SoulstoneTheme.Gold, modalTitle);
@@ -827,12 +828,12 @@ namespace Soulstone.Windows
 
             var diceSys = DiceSystemManager.Instance.CurrentDiceSystem;
 
-            ImGui.OpenPopup("NpcSheetModal###SoulstoneNpcSheetModal");
+            ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("InitiativeNpcSheetTitle", string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? target.Name : sheet.CharacterFullName)}###SoulstoneNpcSheetModal");
             var center = ImGui.GetMainViewport().GetCenter();
             ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
             ImGui.SetNextWindowSize(new Vector2(620.0f * ImGuiHelpers.GlobalScale, 520.0f * ImGuiHelpers.GlobalScale), ImGuiCond.FirstUseEver);
 
-            if (ImGui.BeginPopupModal("NpcSheetModal###SoulstoneNpcSheetModal", ref showNpcSheetModal, ImGuiWindowFlags.None))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("InitiativeNpcSheetTitle", string.IsNullOrWhiteSpace(sheet.CharacterFullName) ? target.Name : sheet.CharacterFullName)}###SoulstoneNpcSheetModal", ref showNpcSheetModal, ImGuiWindowFlags.None))
             {
                 // Header
                 ImGui.PushFont(UiBuilder.IconFont);
@@ -1005,7 +1006,7 @@ namespace Soulstone.Windows
                         ImGui.TextColored(ImGuiColors.ParsedGreen, totalVal >= 0 ? $"+{totalVal}" : $"{totalVal}");
 
                         ImGui.TableNextColumn();
-                        if (UiUtils.IconButton($"RollNpcAttr_{attr.Name}", diceIcon, $"Roll {attr.Name}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
+                        if (UiUtils.IconButton($"RollNpcAttr_{attr.Name}", diceIcon, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {attr.Name}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
                         {
                             var roll = DiceRoll.RollStatWithSystem(diceSys, attr.Name, totalVal)
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, attr.Name);
@@ -1022,7 +1023,7 @@ namespace Soulstone.Windows
             }
             else
             {
-                ImGui.TextDisabled("No attributes defined.");
+                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAttributesDefined"));
             }
 
             ImGui.Spacing();
@@ -1072,7 +1073,7 @@ namespace Soulstone.Windows
                         ImGui.TextColored(ImGuiColors.ParsedGreen, totalVal >= 0 ? $"+{totalVal}" : $"{totalVal}");
 
                         ImGui.TableNextColumn();
-                        if (UiUtils.IconButton($"RollNpcSkill_{skill.skillName}", diceIcon, $"Roll {skill.skillName}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
+                        if (UiUtils.IconButton($"RollNpcSkill_{skill.skillName}", diceIcon, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {skill.skillName}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
                         {
                             var roll = DiceRoll.RollStatWithSystem(diceSys, skill.skillName, totalVal)
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, skill.skillName);
@@ -1089,7 +1090,7 @@ namespace Soulstone.Windows
             }
             else
             {
-                ImGui.TextDisabled("No skills defined.");
+                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoSkillsDefined"));
             }
         }
 
@@ -1134,7 +1135,7 @@ namespace Soulstone.Windows
                         ImGui.TextColored(ImGuiColors.ParsedGreen, totalVal >= 0 ? $"+{totalVal}" : $"{totalVal}");
 
                         ImGui.TableNextColumn();
-                        if (UiUtils.IconButton($"RollNpcAbil_{abil.abilityName}", diceIcon, $"Roll {abil.abilityName}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
+                        if (UiUtils.IconButton($"RollNpcAbil_{abil.abilityName}", diceIcon, $"{LocalizationManager.Instance.GetLocalizedString("ThrowButton")} {abil.abilityName}", new Vector2(26, 24) * ImGuiHelpers.GlobalScale))
                         {
                             var roll = DiceRoll.RollStatWithSystem(diceSys, abil.abilityName, totalVal)
                                 ?? DiceRoll.RollDiceRegular(1, DiceRoll.GetSystemSides(diceSys), totalVal, abil.abilityName);
@@ -1151,7 +1152,7 @@ namespace Soulstone.Windows
             }
             else
             {
-                ImGui.TextDisabled("No abilities defined.");
+                ImGui.TextDisabled(LocalizationManager.Instance.GetLocalizedString("NoAbilitiesDefined"));
             }
         }
 
@@ -1174,14 +1175,14 @@ namespace Soulstone.Windows
                 {
                     var b = buffs[i];
                     ImGui.PushID($"NpcBuff_{b.Id}");
-                    string badgeText = $"{b.Name} ({b.Duration}t)";
+                    string badgeText = $"{b.Name} ({LocalizationManager.Instance.GetLocalizedString("BuffTurnsFormat", b.Duration)})";
                     var badgeBg = b.IsDebuff ? new Vector4(0.35f, 0.12f, 0.12f, 0.85f) : new Vector4(0.12f, 0.30f, 0.16f, 0.85f);
                     var badgeCol = b.IsDebuff ? ImGuiColors.DalamudRed : ImGuiColors.ParsedGreen;
 
                     UiUtils.Badge(badgeText, badgeBg, badgeCol);
                     ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
                     ImGui.AlignTextToFramePadding();
-                    string mods = b.GetFormattedModifiers();
+                    string mods = UiLabels.BuffModifiers(b);
                     if (!string.IsNullOrWhiteSpace(mods))
                     {
                         ImGui.TextColored(SoulstoneTheme.Gold, mods);

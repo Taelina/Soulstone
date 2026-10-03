@@ -382,7 +382,7 @@ public sealed class RelayClient : IDisposable
     }
 }
 
-public sealed class SessionCleanupService(SessionRegistry sessions, CharacterSheetRegistry sheets, DiceSystemRegistry systems, TimeProvider timeProvider) : BackgroundService
+public sealed class SessionCleanupService(SessionRegistry sessions, CharacterSheetRegistry sheets, TimeProvider timeProvider) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -391,7 +391,6 @@ public sealed class SessionCleanupService(SessionRegistry sessions, CharacterShe
         {
             await sessions.RemoveExpiredAsync(stoppingToken);
             sheets.CleanupExpired();
-            systems.CleanupExpired();
         }
     }
 }

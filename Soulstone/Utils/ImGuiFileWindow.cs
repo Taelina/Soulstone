@@ -316,14 +316,14 @@ namespace Soulstone.Utils
             ImGui.PushStyleColor(ImGuiCol.Button, SoulstoneTheme.Header);
             ImGui.PushStyleColor(ImGuiCol.ButtonHovered, SoulstoneTheme.Hover);
 
-            if (ImGui.Button("^##UpBtn", new Vector2(30, 26)))
+            if (UiUtils.IconButton("UpBtn", FontAwesomeIcon.ArrowUp, LocalizationManager.Instance.GetLocalizedString("FileBrowserGoUpTooltip"), new Vector2(30, 26)))
                 NavigateUp();
             if (ImGui.IsItemHovered())
                 UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserGoUpTooltip"));
 
             ImGui.SameLine();
 
-            if (ImGui.Button("R##RefreshBtn", new Vector2(30, 26)))
+            if (UiUtils.IconButton("RefreshBtn", FontAwesomeIcon.Sync, LocalizationManager.Instance.GetLocalizedString("FileBrowserRefreshTooltip"), new Vector2(30, 26)))
                 RefreshDirectory();
             if (ImGui.IsItemHovered())
                 UiUtils.SetTooltip(LocalizationManager.Instance.GetLocalizedString("FileBrowserRefreshTooltip"));

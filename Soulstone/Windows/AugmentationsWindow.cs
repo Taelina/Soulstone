@@ -77,7 +77,6 @@ namespace Soulstone.Windows
 
         private void DrawTopBar(CharacterSheet sheet, DiceSystem? diceSystem)
         {
-            var scale = ImGuiHelpers.GlobalScale;
             string pageTitle = !string.IsNullOrWhiteSpace(diceSystem?.AugmentationTitle)
                 ? diceSystem.AugmentationTitle
                 : LocalizationManager.Instance.GetLocalizedString("DiceSysAugmentationsHeader");
@@ -96,16 +95,12 @@ namespace Soulstone.Windows
                 actionLabel: createLabel,
                 onAction: () =>
                 {
-                    creatingAug = new GearItem("New Augmentation", "Neural", "", "Common", null, "", 0.5f, "", isAugmentation: true);
+                    creatingAug = new GearItem(LocalizationManager.Instance.GetLocalizedString("NewAugmentationName"), "Neural", "", "Common", null, "", 0.5f, "", isAugmentation: true);
                     modEditorState = new StatModifierEditorState();
                     showCreateAugModal = true;
-                });
-
-            ImGui.SetCursorPosX(Math.Max(ImGui.GetCursorPosX(), ImGui.GetWindowContentRegionMax().X - 28.0f * scale));
-            if (UiUtils.IconButton("SaveAugmentationsBtn", FontAwesomeIcon.Save, saveLabel))
-            {
-                CharacterSheet.SaveSheet(sheet);
-            }
+                },
+                saveLabel: saveLabel,
+                onSave: () => CharacterSheet.SaveSheet(sheet));
         }
 
         private static FontAwesomeIcon GetAugSlotIcon(string slot)
@@ -210,7 +205,7 @@ namespace Soulstone.Windows
                 if (item != null)
                 {
                     ImGui.SameLine(0, 6.0f * scale);
-                    UiUtils.PillBadge(item.Rarity, new Vector4(rarityCol.X * 0.2f, rarityCol.Y * 0.2f, rarityCol.Z * 0.2f, 0.85f), rarityCol);
+                    UiUtils.PillBadge(UiLabels.Rarity(item.Rarity), new Vector4(rarityCol.X * 0.2f, rarityCol.Y * 0.2f, rarityCol.Z * 0.2f, 0.85f), rarityCol);
 
                     ImGui.TextColored(rarityCol, item.Name);
 
@@ -428,6 +423,7 @@ namespace Soulstone.Windows
 
             string title = $"{LocalizationManager.Instance.GetLocalizedString("ChooseAugmentationTitle")}: {GetLocalizedSlotName(equipModalSlot)}###InstallAugModal";
             ImGui.SetNextWindowSize(new Vector2(450.0f, 380.0f) * ImGuiHelpers.GlobalScale, ImGuiCond.FirstUseEver);
+            ImGui.SetNextWindowSizeConstraints(new Vector2(300.0f, 180.0f) * ImGuiHelpers.GlobalScale, new Vector2(float.MaxValue));
 
             if (ImGui.Begin(title, ref showEquipModal, ImGuiWindowFlags.NoCollapse))
             {
@@ -454,14 +450,14 @@ namespace Soulstone.Windows
                     ImGui.Spacing();
                     if (UiUtils.IconButton("CreateAugFromModalBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("CreateAugmentationModalTitle"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                     {
-                        creatingAug = new GearItem("New Augmentation", equipModalSlot, "", "Common", null, "", 0.5f, "", isAugmentation: true);
+                        creatingAug = new GearItem(LocalizationManager.Instance.GetLocalizedString("NewAugmentationName"), equipModalSlot, "", "Common", null, "", 0.5f, "", isAugmentation: true);
                         modEditorState = new StatModifierEditorState();
                         showCreateAugModal = true;
                     }
                 }
                 else
                 {
-                    using (var listChild = ImRaii.Child("##InstallAugListChild", new Vector2(0, -36.0f * ImGuiHelpers.GlobalScale), true))
+                    using (var listChild = ImRaii.Child("##InstallAugListChild", new Vector2(0, -EquipmentPickerLayout.GetFooterHeight(ImGui.GetTextLineHeight(), ImGui.GetStyle().FramePadding.Y, ImGui.GetStyle().ItemSpacing.Y, ImGuiHelpers.GlobalScale)), true))
                     {
                         if (listChild.Success)
                         {
@@ -470,17 +466,22 @@ namespace Soulstone.Windows
                                 ImGui.PushID($"Install_{item.Id}");
 
                                 var rarityCol = GetRarityColor(item.Rarity);
-                                ImGui.TextColored(rarityCol, item.Name);
-                                ImGui.SameLine();
-                                UiUtils.Badge(item.Rarity, SoulstoneTheme.Field, rarityCol);
+                                using (ImRaii.PushColor(ImGuiCol.Text, rarityCol))
+                                {
+                                    ImGui.TextWrapped(item.Name);
+                                }
+                                UiUtils.Badge(UiLabels.Rarity(item.Rarity), SoulstoneTheme.Field, rarityCol);
 
                                 if (item.StatModifiers != null && item.StatModifiers.Count > 0)
                                 {
-                                    ImGui.TextColored(ImGuiColors.ParsedGreen, item.GetFormattedModifiers());
+                                    using (ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.ParsedGreen))
+                                    {
+                                        ImGui.TextWrapped(item.GetFormattedModifiers());
+                                    }
                                 }
 
-                                ImGui.SameLine(ImGui.GetContentRegionAvail().X - 80.0f * ImGuiHelpers.GlobalScale);
-                                if (UiUtils.IconTextButton($"BtnInstall_{item.Id}", FontAwesomeIcon.Check, LocalizationManager.Instance.GetLocalizedString("InstallButton"), size: new Vector2(75.0f * ImGuiHelpers.GlobalScale, 22.0f * ImGuiHelpers.GlobalScale)))
+                                // Keep the action below the details instead of using a fixed horizontal offset.
+                                if (UiUtils.IconTextButton($"BtnInstall_{item.Id}", FontAwesomeIcon.Check, LocalizationManager.Instance.GetLocalizedString("InstallButton")))
                                 {
                                     sheet.EquipAugmentation(equipModalSlot, item.Id);
                                     CharacterSheet.SaveSheet(sheet);
@@ -512,7 +513,7 @@ namespace Soulstone.Windows
 
             if (ImGui.Begin(title, ref showCreateAugModal, ImGuiWindowFlags.NoCollapse))
             {
-                ImGui.TextColored(SoulstoneTheme.Muted, "Name:");
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemName"));
                 UiUtils.StyledInputText("NewAugName", ref creatingAug.name, 100, width: -1.0f);
 
                 var slots = diceSystem?.GetEffectiveAugmentationSlots() ?? GearItem.StandardAugmentationSlots.ToList();
@@ -521,20 +522,20 @@ namespace Soulstone.Windows
                 ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("GearSlotLabel"));
                 int slotIdx = Array.IndexOf(slotsArray, creatingAug.Slot);
                 if (slotIdx < 0) slotIdx = 0;
-                if (UiUtils.StyledCombo("##NewAugSlotCombo", ref slotIdx, slotsArray, icon: FontAwesomeIcon.Microchip, width: 200.0f))
+                if (UiUtils.StyledCombo("##NewAugSlotCombo", ref slotIdx, slotsArray.Select(UiLabels.Slot).ToArray(), icon: FontAwesomeIcon.Microchip, width: 200.0f))
                 {
                     creatingAug.Slot = slotsArray[slotIdx];
                 }
 
-                ImGui.TextColored(SoulstoneTheme.Muted, "Rarity:");
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemRarity"));
                 int rarityIdx = Array.IndexOf(rarities, creatingAug.Rarity);
                 if (rarityIdx < 0) rarityIdx = 0;
-                if (UiUtils.StyledCombo("##NewAugRarityCombo", ref rarityIdx, rarities, icon: FontAwesomeIcon.Gem, width: 200.0f))
+                if (UiUtils.StyledCombo("##NewAugRarityCombo", ref rarityIdx, rarities.Select(UiLabels.Rarity).ToArray(), icon: FontAwesomeIcon.Gem, width: 200.0f))
                 {
                     creatingAug.Rarity = rarities[rarityIdx];
                 }
 
-                ImGui.TextColored(SoulstoneTheme.Muted, "Description:");
+                ImGui.TextColored(SoulstoneTheme.Muted, LocalizationManager.Instance.GetLocalizedString("InventoryItemDescription"));
                 UiUtils.StyledInputMultiline("NewAugDesc", ref creatingAug.description, 500, new Vector2(-1.0f, 50.0f * ImGuiHelpers.GlobalScale));
 
                 ImGui.Separator();
@@ -547,7 +548,7 @@ namespace Soulstone.Windows
 
                 if (UiUtils.IconTextButton("CreateInstallBtn", FontAwesomeIcon.Check, $"{LocalizationManager.Instance.GetLocalizedString("AddConfirmButton")} & {LocalizationManager.Instance.GetLocalizedString("InstallButton")}"))
                 {
-                    if (string.IsNullOrWhiteSpace(creatingAug.Name)) creatingAug.Name = "New Augmentation";
+                    if (string.IsNullOrWhiteSpace(creatingAug.Name)) creatingAug.Name = LocalizationManager.Instance.GetLocalizedString("NewAugmentationName");
                     creatingAug.isAugmentation = true;
                     sheet.AddItem(creatingAug);
                     sheet.EquipAugmentation(creatingAug.Slot, creatingAug.Id);
@@ -558,7 +559,7 @@ namespace Soulstone.Windows
                 ImGui.SameLine(0, 8.0f * ImGuiHelpers.GlobalScale);
                 if (UiUtils.IconButton("CreateOnlyAugBtn", FontAwesomeIcon.Plus, LocalizationManager.Instance.GetLocalizedString("AddConfirmButton"), new Vector2(24, 24) * ImGuiHelpers.GlobalScale))
                 {
-                    if (string.IsNullOrWhiteSpace(creatingAug.Name)) creatingAug.Name = "New Augmentation";
+                    if (string.IsNullOrWhiteSpace(creatingAug.Name)) creatingAug.Name = LocalizationManager.Instance.GetLocalizedString("NewAugmentationName");
                     creatingAug.isAugmentation = true;
                     sheet.AddItem(creatingAug);
                     CharacterSheet.SaveSheet(sheet);
@@ -576,10 +577,7 @@ namespace Soulstone.Windows
 
         private string GetLocalizedSlotName(string slot)
         {
-            string key = $"Slot{slot}";
-            string loc = LocalizationManager.Instance.GetLocalizedString(key);
-            if (loc != key) return loc;
-            return slot;
+            return UiLabels.Slot(slot);
         }
 
         private static Vector4 GetRarityColor(string rarity)

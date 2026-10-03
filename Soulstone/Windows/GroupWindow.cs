@@ -29,7 +29,7 @@ namespace Soulstone.Windows
         private bool isGridView = true; // false = Cards View, true = Tactical Grid View
 
         // Roll Controls & Presets
-        private string rollName = "Check";
+        private string rollName = string.Empty;
         private readonly Dictionary<string, string> memberRollFormulas = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> memberRollNames = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, int> memberRollStatValues = new(StringComparer.OrdinalIgnoreCase);
@@ -48,7 +48,7 @@ namespace Soulstone.Windows
 
         // Batch Roll Modal State
         private bool showBatchRollModal = false;
-        private string batchRollName = "Group Check";
+        private string batchRollName = string.Empty;
         private string batchRollFormula = "1d20";
         private int batchRollStatValue = 0;
 
@@ -58,6 +58,8 @@ namespace Soulstone.Windows
         public GroupWindow(Plugin plugin)
         {
             this.plugin = plugin;
+            rollName = LocalizationManager.Instance.GetLocalizedString("DefaultRollCheck");
+            batchRollName = LocalizationManager.Instance.GetLocalizedString("DefaultGroupCheck");
             serverUrl = string.IsNullOrWhiteSpace(plugin.Configuration.SyncServerUrl)
                 ? Configuration.DefaultSyncServerUrl
                 : plugin.Configuration.SyncServerUrl;
@@ -293,7 +295,7 @@ namespace Soulstone.Windows
             {
                 ImGui.TextColored(ImGuiColors.DalamudOrange, LocalizationManager.Instance.GetLocalizedString("GroupRelayStatus"));
                 ImGui.SameLine(0, 4.0f * scale);
-                ImGui.TextDisabled($"({sync.ConnectionStatus})");
+                ImGui.TextDisabled($"({UiLabels.ConnectionStatus(sync.ConnectionStatus)})");
 
                 // Quick Reconnect Bar if session exists
                 if (!string.IsNullOrWhiteSpace(plugin.Configuration.SyncSessionId))
@@ -985,7 +987,7 @@ namespace Soulstone.Windows
                     {
                         ImGui.TextUnformatted(buff.Description);
                     }
-                    string mods = buff.GetFormattedModifiers();
+                    string mods = UiLabels.BuffModifiers(buff);
                     if (!string.IsNullOrWhiteSpace(mods))
                     {
                         ImGui.TextColored(SoulstoneTheme.Gold, mods);
@@ -1365,7 +1367,7 @@ namespace Soulstone.Windows
                             ImGui.BeginTooltip();
                             foreach (var b in member.ActiveBuffs)
                             {
-                                ImGui.TextUnformatted($"{b.Name} ({b.Duration}t)");
+                                ImGui.TextUnformatted($"{b.Name} ({LocalizationManager.Instance.GetLocalizedString("BuffTurnsFormat", b.Duration)})");
                             }
                             ImGui.EndTooltip();
                         }
@@ -1383,12 +1385,12 @@ namespace Soulstone.Windows
         {
             if (!showBatchRollModal) return;
 
-            ImGui.OpenPopup("##BatchRollModalPopup");
+            ImGui.OpenPopup($"{LocalizationManager.Instance.GetLocalizedString("GroupBatchRollTitle")}###BatchRollModalPopup");
             var center = ImGui.GetMainViewport().GetCenter();
             ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
             ImGui.SetNextWindowSize(new Vector2(420, 240) * ImGuiHelpers.GlobalScale);
 
-            if (ImGui.BeginPopupModal(LocalizationManager.Instance.GetLocalizedString("GroupBatchRollTitle"), ref showBatchRollModal, ImGuiWindowFlags.AlwaysAutoResize))
+            if (ImGui.BeginPopupModal($"{LocalizationManager.Instance.GetLocalizedString("GroupBatchRollTitle")}###BatchRollModalPopup", ref showBatchRollModal, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 var diceSystem = DiceSystemManager.Instance.CurrentDiceSystem;
                 string systemFormula = DiceRoll.DescribeSystemRoll(diceSystem);
@@ -1398,11 +1400,11 @@ namespace Soulstone.Windows
                 ImGui.Spacing();
 
                 // Quick presets, expressed with the active dice system instead of a fixed d20
-                if (UiUtils.IconTextButton("BatchPresetPerc", FontAwesomeIcon.Eye, $"Perception {systemFormula}")) { batchRollName = "Perception Check"; batchRollFormula = systemFormula; }
+                if (UiUtils.IconTextButton("BatchPresetPerc", FontAwesomeIcon.Eye, $"{LocalizationManager.Instance.GetLocalizedString("PerceptionCheck")} {systemFormula}")) { batchRollName = LocalizationManager.Instance.GetLocalizedString("PerceptionCheck"); batchRollFormula = systemFormula; }
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (UiUtils.IconTextButton("BatchPresetInit", FontAwesomeIcon.Stopwatch, $"Initiative {systemFormula}")) { batchRollName = "Initiative"; batchRollFormula = systemFormula; }
+                if (UiUtils.IconTextButton("BatchPresetInit", FontAwesomeIcon.Stopwatch, $"{LocalizationManager.Instance.GetLocalizedString("InitiativeTab")} {systemFormula}")) { batchRollName = LocalizationManager.Instance.GetLocalizedString("InitiativeTab"); batchRollFormula = systemFormula; }
                 ImGui.SameLine(0, 4.0f * ImGuiHelpers.GlobalScale);
-                if (UiUtils.IconTextButton("BatchPresetSave", FontAwesomeIcon.ShieldAlt, $"Save {systemFormula}")) { batchRollName = "Saving Throw"; batchRollFormula = systemFormula; }
+                if (UiUtils.IconTextButton("BatchPresetSave", FontAwesomeIcon.ShieldAlt, $"{LocalizationManager.Instance.GetLocalizedString("SavingThrowButton")} {systemFormula}")) { batchRollName = LocalizationManager.Instance.GetLocalizedString("SavingThrowButton"); batchRollFormula = systemFormula; }
 
                 ImGui.Spacing();
                 UiUtils.StyledInputText("BatchRollName", ref batchRollName, 128, width: 260.0f, hint: LocalizationManager.Instance.GetLocalizedString("GroupRollName"));
